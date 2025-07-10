@@ -1,192 +1,209 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import ReactFlow, {
-  Node,
-  Edge,
-  ConnectionMode,
-  useNodesState,
-  useEdgesState,
-  Background,
-  BackgroundVariant,
-  Controls,
-  MiniMap,
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+import { useState } from 'react'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import KnowledgeNodeComponent from './KnowledgeNode'
-
-const nodeTypes = {
-  knowledge: KnowledgeNodeComponent,
-}
 
 interface KnowledgeNode {
   id: string
-  document_id: string
-  parent_id: string | null
   name: string
-  description: string | null
+  description: string
   level: number
-  position: number
+  parent_id: string | null
   prerequisites: string[]
 }
 
-interface UserKnowledgeStatus {
-  id: string
-  user_id: string
+type KnowledgeNodeWithChildren = KnowledgeNode & { children: KnowledgeNodeWithChildren[] }
+
+interface UserStatus {
   node_id: string
   status: 'known' | 'unclear' | 'unknown'
-  confidence_score: number
 }
 
 interface KnowledgeTreeViewProps {
   nodes: KnowledgeNode[]
-  userStatus: UserKnowledgeStatus[]
+  userStatus: UserStatus[]
   documentId: string
 }
 
-export default function KnowledgeTreeView({
-  nodes,
-  userStatus,
-  documentId,
-}: KnowledgeTreeViewProps) {
-  const [flowNodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
-  const [selectedNode, setSelectedNode] = useState<string | null>(null)
-  const router = useRouter()
+export default function KnowledgeTreeView({ nodes, userStatus: initialStatus, documentId }: KnowledgeTreeViewProps) {
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
+  const [userStatus, setUserStatus] = useState<UserStatus[]>(initialStatus)
   const supabase = createClient()
 
-  useEffect(() => {
-    // Build tree structure
-    const nodeMap = new Map(nodes.map(n => [n.id, n]))
-    const statusMap = new Map(userStatus.map(s => [s.node_id, s.status]))
+  // Build tree structure
+  const buildTree = () => {
+    const nodeMap = new Map<string, KnowledgeNodeWithChildren>()
+    const rootNodes: KnowledgeNodeWithChildren[] = []
 
-    // Calculate positions for nodes
-    const levelGroups = nodes.reduce((acc, node) => {
-      if (!acc[node.level]) acc[node.level] = []
-      acc[node.level].push(node)
-      return acc
-    }, {} as Record<number, KnowledgeNode[]>)
-
-    const flowNodesData: Node[] = []
-    const edgesData: Edge[] = []
-
-    Object.entries(levelGroups).forEach(([level, levelNodes]) => {
-      const levelNum = parseInt(level)
-      const nodeWidth = 200
-      const nodeHeight = 80
-      const horizontalSpacing = 250
-      const verticalSpacing = 150
-
-      levelNodes.forEach((node, index) => {
-        const totalWidth = levelNodes.length * horizontalSpacing
-        const startX = -totalWidth / 2 + horizontalSpacing / 2
-
-        flowNodesData.push({
-          id: node.id,
-          type: 'knowledge',
-          position: {
-            x: startX + index * horizontalSpacing,
-            y: levelNum * verticalSpacing,
-          },
-          data: {
-            label: node.name,
-            description: node.description,
-            status: statusMap.get(node.id) || 'unknown',
-            level: node.level,
-            onStatusChange: async (newStatus: string) => {
-              await handleStatusChange(node.id, newStatus)
-            },
-          },
-        })
-
-        // Add edges to parent
-        if (node.parent_id) {
-          edgesData.push({
-            id: `${node.parent_id}-${node.id}`,
-            source: node.parent_id,
-            target: node.id,
-            type: 'smoothstep',
-          })
-        }
-
-        // Add edges for prerequisites
-        node.prerequisites.forEach(prereq => {
-          const prereqNode = nodes.find(n => n.name === prereq)
-          if (prereqNode) {
-            edgesData.push({
-              id: `prereq-${prereqNode.id}-${node.id}`,
-              source: prereqNode.id,
-              target: node.id,
-              type: 'smoothstep',
-              animated: true,
-              style: { stroke: '#94a3b8', strokeDasharray: '5 5' },
-            })
-          }
-        })
-      })
+    // Initialize all nodes
+    nodes.forEach(node => {
+      nodeMap.set(node.id, { ...node, children: [] })
     })
 
-    setNodes(flowNodesData)
-    setEdges(edgesData)
-  }, [nodes, userStatus, setNodes, setEdges])
-
-  const handleStatusChange = async (nodeId: string, newStatus: string) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      const { error } = await supabase
-        .from('user_knowledge_status')
-        .upsert({
-          user_id: user.id,
-          node_id: nodeId,
-          status: newStatus,
-          confidence_score: newStatus === 'known' ? 1.0 : newStatus === 'unclear' ? 0.5 : 0.0,
-        })
-
-      if (!error) {
-        router.refresh()
+    // Build parent-child relationships
+    nodes.forEach(node => {
+      const nodeWithChildren = nodeMap.get(node.id)!
+      if (node.parent_id && nodeMap.has(node.parent_id)) {
+        nodeMap.get(node.parent_id)!.children.push(nodeWithChildren)
+      } else {
+        rootNodes.push(nodeWithChildren)
       }
-    } catch (error) {
-      console.error('Error updating status:', error)
+    })
+
+    return rootNodes
+  }
+
+  const toggleExpand = (nodeId: string) => {
+    const newExpanded = new Set(expandedNodes)
+    if (newExpanded.has(nodeId)) {
+      newExpanded.delete(nodeId)
+    } else {
+      newExpanded.add(nodeId)
+    }
+    setExpandedNodes(newExpanded)
+  }
+
+  const updateNodeStatus = async (nodeId: string, status: 'known' | 'unclear' | 'unknown') => {
+    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+
+    // Update in database
+    const { error } = await supabase
+      .from('user_knowledge_status')
+      .upsert({
+        user_id: FIXED_USER_ID,
+        node_id: nodeId,
+        status: status,
+        updated_at: new Date().toISOString()
+      })
+
+    if (!error) {
+      // Update local state
+      setUserStatus(prev => {
+        const existing = prev.find(s => s.node_id === nodeId)
+        if (existing) {
+          return prev.map(s => s.node_id === nodeId ? { ...s, status } : s)
+        } else {
+          return [...prev, { node_id: nodeId, status }]
+        }
+      })
     }
   }
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedNode(node.id)
-  }, [])
+  const getNodeStatus = (nodeId: string) => {
+    return userStatus.find(s => s.node_id === nodeId)?.status || 'unknown'
+  }
+
+  const renderNode = (node: KnowledgeNodeWithChildren, depth: number = 0) => {
+    const hasChildren = node.children.length > 0
+    const isExpanded = expandedNodes.has(node.id)
+    const status = getNodeStatus(node.id)
+
+    // Modern color scheme
+    const statusStyles = {
+      known: 'bg-green-50 border-green-200 hover:bg-green-100',
+      unclear: 'bg-amber-50 border-amber-200 hover:bg-amber-100',
+      unknown: 'bg-red-50 border-red-200 hover:bg-red-100'
+    }
+
+    return (
+      <div key={node.id} className="mb-2">
+        <div
+          className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 ${
+            statusStyles[status]
+          } ${depth > 0 ? 'ml-6' : ''}`}
+        >
+          {hasChildren && (
+            <button
+              onClick={() => toggleExpand(node.id)}
+              className="mr-2 mt-0.5 text-gray-500 hover:text-gray-700"
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          )}
+          {!hasChildren && <div className="w-6" />}
+
+          <div className="flex-1">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-base font-semibold text-gray-900">{node.name}</h3>
+                    <p className="text-sm text-gray-700 mt-1">{node.description}</p>
+                    {node.prerequisites.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        선수 지식: {node.prerequisites.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  {/* Status indicator */}
+                  <div className={`ml-4 px-3 py-1 rounded-full text-xs font-medium ${
+                    status === 'known' ? 'bg-green-500 text-white' :
+                    status === 'unclear' ? 'bg-amber-500 text-white' :
+                    'bg-red-500 text-white'
+                  }`}>
+                    {status === 'known' ? '✓ 앎' :
+                     status === 'unclear' ? '? 애매함' :
+                     '✗ 모름'}
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 mt-3">
+                  <button
+                    onClick={() => updateNodeStatus(node.id, 'known')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      status === 'known' 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-white text-gray-700 hover:bg-green-100 border border-gray-300'
+                    }`}
+                  >
+                    알아요
+                  </button>
+                  <button
+                    onClick={() => updateNodeStatus(node.id, 'unclear')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      status === 'unclear' 
+                        ? 'bg-amber-500 text-white' 
+                        : 'bg-white text-gray-700 hover:bg-amber-100 border border-gray-300'
+                    }`}
+                  >
+                    애매해요
+                  </button>
+                  <button
+                    onClick={() => updateNodeStatus(node.id, 'unknown')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      status === 'unknown' 
+                        ? 'bg-red-500 text-white' 
+                        : 'bg-white text-gray-700 hover:bg-red-100 border border-gray-300'
+                    }`}
+                  >
+                    몰라요
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {hasChildren && isExpanded && (
+          <div className="mt-1">
+            {node.children.map(child => renderNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const treeData = buildTree()
 
   return (
-    <div className="h-full w-full">
-      <ReactFlow
-        nodes={flowNodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
-        nodeTypes={nodeTypes}
-        connectionMode={ConnectionMode.Loose}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-        <Controls />
-        <MiniMap />
-      </ReactFlow>
-
-      {selectedNode && (
-        <div className="absolute bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg max-w-sm">
-          <h3 className="font-semibold mb-2">학습 팁</h3>
-          <p className="text-sm text-gray-600">
-            이 개념을 완전히 이해하려면 선수 지식을 먼저 학습하세요.
-          </p>
-        </div>
-      )}
+    <div className="space-y-2">
+      {treeData.map(node => renderNode(node))}
     </div>
   )
 }

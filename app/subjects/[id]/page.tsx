@@ -1,7 +1,10 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, FileText, Brain, PlayCircle } from 'lucide-react'
+import { ArrowLeft, FileText, Brain, Upload, FilePlus, BookOpen } from 'lucide-react'
+import UploadPDFButton from '@/components/documents/UploadPDFButton'
+import DocumentStatus from '@/components/documents/DocumentStatus'
+import DeleteDocumentButton from '@/components/documents/DeleteDocumentButton'
 
 interface SubjectDetailPageProps {
   params: Promise<{
@@ -36,65 +39,108 @@ export default async function SubjectDetailPage({ params }: SubjectDetailPagePro
     .order('created_at', { ascending: false })
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Header */}
+        <div className="mb-10">
           <Link
             href="/"
-            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mb-6"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             과목 목록으로 돌아가기
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">{subject.name}</h1>
-          {subject.description && (
-            <p className="text-gray-600 mt-2">{subject.description}</p>
-          )}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">{subject.name}</h1>
+              {subject.description && (
+                <p className="text-lg text-gray-600">{subject.description}</p>
+              )}
+            </div>
+            <div className="hidden sm:block">
+              <BookOpen className="h-12 w-12 text-neutral-500 opacity-20" />
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 문서 목록 */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">
-                  PDF 문서 ({documents?.length || 0})
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Upload Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+              <div className="text-center">
+                <div className="mx-auto h-16 w-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
+                  <Upload className="h-8 w-8 text-neutral-700" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF 업로드</h3>
+                <p className="text-gray-600 mb-6">학습할 PDF 문서를 업로드하세요</p>
+                <UploadPDFButton subjectId={id} />
+              </div>
+            </div>
+
+            {/* Documents List */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  업로드된 문서
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({documents?.length || 0}개)
+                  </span>
                 </h2>
               </div>
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-gray-100">
                 {documents && documents.length > 0 ? (
                   documents.map((doc) => (
-                    <div key={doc.id} className="px-6 py-4 hover:bg-gray-50">
+                    <div key={doc.id} className="px-6 py-5 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                          <div>
-                            <h3 className="text-sm font-medium text-gray-900">
+                        <div className="flex items-center flex-1">
+                          <div className="h-10 w-10 bg-neutral-100 rounded-lg flex items-center justify-center mr-4">
+                            <FileText className="h-5 w-5 text-neutral-700" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-base font-medium text-gray-900">
                               {doc.title}
                             </h3>
-                            <p className="text-sm text-gray-500">
-                              {new Date(doc.created_at).toLocaleDateString()}
-                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <p className="text-sm text-gray-500">
+                                {new Date(doc.created_at).toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                              <DocumentStatus documentId={doc.id} initialStatus={doc.status} />
+                            </div>
                           </div>
                         </div>
-                        <div className="flex space-x-2">
-                          <Link
-                            href={`/subjects/${id}/study?doc=${doc.id}`}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200"
-                          >
-                            <Brain className="h-3 w-3 mr-1" />
-                            학습하기
-                          </Link>
+                        <div className="flex items-center gap-2">
+                          {doc.status === 'completed' ? (
+                            <Link
+                              href={`/subjects/${id}/study/assessment?doc=${doc.id}`}
+                              className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-colors"
+                            >
+                              <Brain className="h-4 w-4 mr-2" />
+                              학습하기
+                            </Link>
+                          ) : (
+                            <div className="text-sm text-gray-500">
+                              {doc.status === 'processing' ? '분석 중...' : '대기 중'}
+                            </div>
+                          )}
+                          <DeleteDocumentButton 
+                            documentId={doc.id} 
+                            documentTitle={doc.title} 
+                          />
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="px-6 py-8 text-center">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">업로드된 PDF 문서가 없습니다.</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      PDF 파일을 업로드하여 AI 학습을 시작하세요.
+                  <div className="px-6 py-16 text-center">
+                    <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-lg text-gray-500 font-medium">아직 업로드된 문서가 없습니다</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      상단의 업로드 버튼을 눌러 PDF 문서를 추가하세요
                     </p>
                   </div>
                 )}
@@ -102,41 +148,55 @@ export default async function SubjectDetailPage({ params }: SubjectDetailPagePro
             </div>
           </div>
 
-          {/* 사이드바 */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                학습 현황
+            {/* Study Statistics */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                학습 통계
               </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">총 문서 수</span>
-                  <span className="font-medium">{documents?.length || 0}개</span>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-baseline mb-2">
+                    <span className="text-sm text-gray-600">총 문서</span>
+                    <span className="text-2xl font-semibold text-gray-900">{documents?.length || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-neutral-800 h-2 rounded-full" style={{ width: '0%' }}></div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">학습 진행률</span>
-                  <span className="font-medium">0%</span>
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">학습 완료</span>
+                    <span className="font-medium text-gray-900">0개</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">학습 중</span>
+                    <span className="font-medium text-gray-900">0개</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                빠른 작업
+            {/* Quick Tips */}
+            <div className="bg-gradient-to-br from-neutral-50 to-gray-50 rounded-2xl p-6 border border-neutral-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                💡 학습 팁
               </h3>
-              <div className="space-y-3">
-                <button className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                  <FileText className="h-4 w-4 mr-2" />
-                  PDF 업로드
-                </button>
-                <Link
-                  href={`/subjects/${id}/study`}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <PlayCircle className="h-4 w-4 mr-2" />
-                  학습 시작
-                </Link>
-              </div>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li className="flex items-start">
+                  <span className="text-neutral-600 mr-2">•</span>
+                  <span>PDF 문서를 업로드하면 AI가 내용을 분석합니다</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-neutral-600 mr-2">•</span>
+                  <span>각 문서별로 학습 진도를 추적할 수 있습니다</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-neutral-600 mr-2">•</span>
+                  <span>질문과 답변을 통해 효과적으로 학습하세요</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>

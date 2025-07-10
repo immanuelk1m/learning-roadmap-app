@@ -125,7 +125,7 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
       </div>
     )
   }
@@ -139,7 +139,7 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
         <button
           onClick={generateNewQuiz}
           disabled={generating}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
         >
           {generating ? '문제 생성 중...' : '퀴즈 시작하기'}
         </button>
@@ -161,7 +161,7 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all"
+            className="bg-gray-600 h-2 rounded-full transition-all"
             style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
           />
         </div>
@@ -171,10 +171,10 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
         <div className="mb-6">
           <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mb-3 ${
             currentQuestion.difficulty === 'easy'
-              ? 'bg-green-100 text-green-800'
+              ? 'bg-gray-100 text-gray-700'
               : currentQuestion.difficulty === 'medium'
-              ? 'bg-yellow-100 text-yellow-800'
-              : 'bg-red-100 text-red-800'
+              ? 'bg-gray-200 text-gray-800'
+              : 'bg-gray-300 text-gray-900'
           }`}>
             {currentQuestion.difficulty === 'easy' ? '쉬움' : 
              currentQuestion.difficulty === 'medium' ? '보통' : '어려움'}
@@ -195,12 +195,12 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
                 className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
                   showResult
                     ? isCorrect
-                      ? 'border-green-500 bg-green-50'
+                      ? 'border-gray-700 bg-gray-100'
                       : isSelected
-                      ? 'border-red-500 bg-red-50'
+                      ? 'border-gray-500 bg-gray-50'
                       : 'border-gray-200'
                     : isSelected
-                    ? 'border-blue-500 bg-blue-50'
+                    ? 'border-gray-600 bg-gray-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -208,8 +208,8 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
                   <span>{option}</span>
                   {showResult && (
                     <>
-                      {isCorrect && <CheckCircle className="h-5 w-5 text-green-600" />}
-                      {isSelected && !isCorrect && <XCircle className="h-5 w-5 text-red-600" />}
+                      {isCorrect && <CheckCircle className="h-5 w-5 text-gray-700" />}
+                      {isSelected && !isCorrect && <XCircle className="h-5 w-5 text-gray-500" />}
                     </>
                   )}
                 </div>
@@ -219,9 +219,9 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
         </div>
 
         {showResult && (
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg">
             <h4 className="font-semibold mb-2 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-blue-600" />
+              <AlertCircle className="h-5 w-5 text-gray-600" />
               해설
             </h4>
             <p className="text-gray-700 mb-3">{currentQuestion.explanation}</p>
@@ -238,7 +238,7 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
           {!isLastQuestion ? (
             <button
               onClick={nextQuestion}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800"
             >
               다음 문제
             </button>
@@ -250,7 +250,7 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
               </p>
               <button
                 onClick={() => router.refresh()}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900"
               >
                 학습 현황 보기
               </button>

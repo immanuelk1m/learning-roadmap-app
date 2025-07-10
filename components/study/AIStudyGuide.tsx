@@ -41,11 +41,11 @@ export default function AIStudyGuide({ nodes, userStatus, documentId }: AIStudyG
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'known':
-        return 'text-green-600 bg-green-50'
+        return 'text-gray-700 bg-gray-100'
       case 'unclear':
-        return 'text-yellow-600 bg-yellow-50'
+        return 'text-gray-600 bg-gray-50'
       case 'unknown':
-        return 'text-red-600 bg-red-50'
+        return 'text-gray-500 bg-white'
       default:
         return 'text-gray-600 bg-gray-50'
     }
@@ -92,7 +92,7 @@ export default function AIStudyGuide({ nodes, userStatus, documentId }: AIStudyG
                       onClick={() => handleNodeClick(node)}
                       className={`w-full text-left p-3 rounded-lg border transition-all hover:shadow-md ${
                         selectedNode?.id === node.id
-                          ? 'border-blue-500 bg-blue-50'
+                          ? 'border-gray-700 bg-gray-100'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
@@ -120,16 +120,16 @@ export default function AIStudyGuide({ nodes, userStatus, documentId }: AIStudyG
         {selectedNode ? (
           <div>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-3">
-              <Brain className="h-6 w-6 text-blue-600" />
+              <Brain className="h-6 w-6 text-gray-600" />
               {selectedNode.name}
             </h2>
             
             {selectedNode.prerequisites.length > 0 && (
-              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm font-medium text-yellow-800 mb-2">
+              <div className="mb-4 p-4 bg-gray-100 border border-gray-300 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">
                   선수 지식
                 </p>
-                <ul className="text-sm text-yellow-700 list-disc list-inside">
+                <ul className="text-sm text-gray-600 list-disc list-inside">
                   {selectedNode.prerequisites.map((prereq, idx) => (
                     <li key={idx}>{prereq}</li>
                   ))}
@@ -140,7 +140,7 @@ export default function AIStudyGuide({ nodes, userStatus, documentId }: AIStudyG
             <div className="bg-white p-6 rounded-lg shadow-sm">
               {loading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
                 </div>
               ) : (
                 <div className="prose max-w-none">
@@ -150,7 +150,7 @@ export default function AIStudyGuide({ nodes, userStatus, documentId }: AIStudyG
             </div>
 
             <div className="mt-6 flex gap-3">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">
                 연습문제 풀기
               </button>
               <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">

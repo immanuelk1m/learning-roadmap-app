@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Get file content from storage
     const { data: fileData } = await supabase.storage
-      .from('documents')
+      .from('pdf-documents')
       .download(document.file_path)
 
     if (!fileData) {

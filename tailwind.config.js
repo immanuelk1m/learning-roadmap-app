@@ -60,9 +60,6 @@ module.exports = {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'gradient-main': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        'gradient-card': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        'gradient-button': 'linear-gradient(135deg, #7c68ff 0%, #ff6b35 100%)',
       },
       boxShadow: {
         'modern': '0 10px 40px rgba(0, 0, 0, 0.1)',

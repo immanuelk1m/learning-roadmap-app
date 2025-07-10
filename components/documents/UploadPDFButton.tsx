@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, FileText, X } from 'lucide-react'
+import { Upload, FileText, X, FilePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
@@ -37,19 +37,19 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
     setError(null)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) throw new Error('사용자 정보를 찾을 수 없습니다.')
+      // Use fixed user ID
+      const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
       // Upload file to Supabase Storage
       const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}/${subjectId}/${Date.now()}.${fileExt}`
+      const fileName = `${FIXED_USER_ID}/${subjectId}/${Date.now()}.${fileExt}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, file)
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('pdf-documents')
+        .upload(fileName, file, {
+          contentType: 'application/pdf',
+          upsert: false
+        })
 
       if (uploadError) throw uploadError
 
@@ -58,7 +58,7 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
         .from('documents')
         .insert({
           subject_id: subjectId,
-          user_id: user.id,
+          user_id: FIXED_USER_ID,
           title: file.name.replace('.pdf', ''),
           file_path: fileName,
           file_size: file.size,
@@ -90,10 +90,10 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-neutral-900 hover:bg-neutral-800 transition-colors shadow-sm"
       >
-        <Upload className="h-4 w-4 mr-2" />
-        PDF 업로드
+        <FilePlus className="h-5 w-5 mr-2" />
+        파일 선택
       </button>
 
       {isOpen && (
@@ -135,7 +135,7 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <FileText className="h-8 w-8 text-blue-500 mr-3" />
+                    <FileText className="h-8 w-8 text-neutral-600 mr-3" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">
                         {file.name}
@@ -156,7 +156,7 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
             )}
 
             {error && (
-              <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-md">
+              <div className="mt-4 p-3 bg-neutral-100 text-neutral-700 text-sm rounded-md border border-neutral-200">
                 {error}
               </div>
             )}
@@ -175,7 +175,7 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
               <button
                 onClick={handleUpload}
                 disabled={!file || loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-neutral-900 rounded-md hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? '업로드 중...' : '업로드'}
               </button>

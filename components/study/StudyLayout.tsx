@@ -34,8 +34,7 @@ export default function StudyLayout({ document, mode, children }: StudyLayoutPro
             </Link>
             <div className="flex items-center">
               <div
-                className="w-3 h-3 rounded-full mr-2"
-                style={{ backgroundColor: document.subjects.color }}
+                className="w-3 h-3 rounded-full mr-2 bg-neutral-600"
               />
               <h1 className="text-xl font-semibold text-gray-900">
                 {document.title}
@@ -54,7 +53,7 @@ export default function StudyLayout({ document, mode, children }: StudyLayoutPro
                 href={`${baseUrl}?mode=${tab.id}`}
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
                   isActive
-                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                    ? 'bg-neutral-100 text-neutral-900 border-b-2 border-neutral-900'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >

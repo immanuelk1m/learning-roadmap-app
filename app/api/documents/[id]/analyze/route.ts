@@ -11,20 +11,16 @@ export async function POST(
   try {
     const { id } = await params
     const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    
+    // Use fixed user ID
+    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
     // Get document info
     const { data: document, error: docError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', FIXED_USER_ID)
       .single()
 
     if (docError || !document) {
@@ -38,21 +34,48 @@ export async function POST(
       .eq('id', id)
 
     try {
+      // Debug: Log document info
+      console.log('Document info:', {
+        id: document.id,
+        title: document.title,
+        file_path: document.file_path,
+        status: document.status
+      })
+
+      // Check if file exists in storage
+      const { data: fileList, error: listError } = await supabase.storage
+        .from('pdf-documents')
+        .list(document.file_path.split('/').slice(0, -1).join('/'))
+
+      if (listError) {
+        console.error('Storage list error:', listError)
+      } else {
+        console.log('Files in directory:', fileList?.map(f => f.name))
+      }
+
       // Get file from storage
-      const { data: fileData } = await supabase.storage
-        .from('documents')
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('pdf-documents')
         .download(document.file_path)
 
-      if (!fileData) {
-        throw new Error('Failed to download file')
+      if (downloadError) {
+        console.error('Storage download error:', downloadError)
+        console.error('Full error details:', JSON.stringify(downloadError, null, 2))
+        throw new Error(`Failed to download file: ${downloadError.message}`)
       }
+
+      if (!fileData) {
+        throw new Error('Failed to download file: No data received')
+      }
+
+      console.log('File downloaded successfully, size:', fileData.size)
 
       // Convert to base64 for Gemini
       const base64Data = await fileData.arrayBuffer().then((buffer) =>
         Buffer.from(buffer).toString('base64')
       )
 
-      // Analyze with Gemini
+      // Analyze with Gemini using structured output
       const result = await geminiStructuredModel.generateContent([
         {
           inlineData: {
