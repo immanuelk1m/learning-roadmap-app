@@ -1,0 +1,13 @@
+# Dependencies
+node_modules
+
+# Git
+.git
+
+# Local env files
+.env.local
+
+# Development
+.claude/
+.vscode/
+.idea/

@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(mv:*)",
+      "Bash(true)",
+      "Bash(rm:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(touch:*)",
+      "Bash(npm run build:*)",
+      "Bash(vercel login:*)",
+      "Bash(chmod:*)",
+      "Bash(vercel:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(supabase link:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(supabase db:*)",
+      "Bash(ls:*)",
+      "Bash(supabase login:*)",
+      "Bash(node:*)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}

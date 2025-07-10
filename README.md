@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI PDF 학습 서비스
 
-## Getting Started
+대학생을 위한 AI 기반 PDF 학습 플랫폼
 
-First, run the development server:
+## 🚀 빠른 시작
 
 ```bash
+# 의존성 설치
+npm install
+
+# 환경 변수 설정 (대화형)
+node scripts/setup-env.js
+
+# 개발 서버 실행
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📋 설정 방법
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **환경 변수 설정**
+   `.env.local` 파일을 열고 다음 값들을 입력하세요:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   GEMINI_API_KEY=your_gemini_api_key
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Supabase 설정**
+   - Supabase 대시보드에서 새 프로젝트 생성
+   - SQL Editor에서 `/supabase/schema.sql` 실행
+   - Storage에서 `/supabase/storage.sql` 실행
 
-## Learn More
+3. **개발 서버 실행**
+   ```bash
+   npm run dev
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+## 🎯 주요 기능
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **과목 관리**: 과목별로 PDF 자료 정리
+2. **PDF 업로드**: 학습 자료 업로드 및 자동 분석
+3. **지식 트리**: AI가 생성한 개념 계층 구조 시각화
+4. **자가 진단**: 각 개념에 대한 이해도 체크
+5. **맞춤형 퀴즈**: 취약점 중심의 문제 생성
+6. **학습 피드백**: 학습 진도 추적 및 개선
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 Vercel 배포
 
-## Deploy on Vercel
+```bash
+# Vercel CLI 설치
+npm i -g vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# 로그인
+vercel login
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# 배포
+vercel --prod
+```
+
+자세한 배포 가이드는 [DEPLOYMENT.md](./DEPLOYMENT.md) 참조
+
+## 📚 기술 스택
+
+- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL, Auth, Storage)
+- **AI**: Google Gemini 2.5 Pro
+- **Visualization**: React Flow
+- **PDF**: PDF.js
+- **Deployment**: Vercel
