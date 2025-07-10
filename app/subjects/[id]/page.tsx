@@ -109,7 +109,11 @@ export default async function SubjectDetailPage({ params }: SubjectDetailPagePro
                                   day: 'numeric'
                                 })}
                               </p>
-                              <DocumentStatus documentId={doc.id} initialStatus={doc.status} />
+                              <DocumentStatus 
+                                documentId={doc.id} 
+                                initialStatus={doc.status}
+                                documentTitle={doc.title}
+                              />
                             </div>
                           </div>
                         </div>

@@ -60,16 +60,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check assessment completion
+    const totalNodes = knowledgeNodes.length
+    const assessedNodes = userStatus?.length || 0
+
+    if (assessedNodes === 0) {
+      return NextResponse.json({
+        error: 'Knowledge assessment not started',
+        message: 'Please complete the knowledge assessment first',
+        requiresAssessment: true
+      }, { status: 400 })
+    }
+
+    if (assessedNodes < totalNodes) {
+      return NextResponse.json({
+        error: 'Knowledge assessment incomplete',
+        message: `Please assess all ${totalNodes} concepts. Currently assessed: ${assessedNodes}`,
+        requiresAssessment: true,
+        progress: { assessed: assessedNodes, total: totalNodes }
+      }, { status: 400 })
+    }
+
     // Categorize concepts
     const statusMap = new Map(userStatus?.map(s => [s.node_id, s.status]) || [])
     const knownConcepts = knowledgeNodes.filter(node => statusMap.get(node.id) === 'known')
     const unknownConcepts = knowledgeNodes.filter(node => statusMap.get(node.id) === 'unknown')
 
     if (unknownConcepts.length === 0) {
-      return NextResponse.json(
-        { error: 'No unknown concepts found - assessment may not be complete' },
-        { status: 400 }
-      )
+      // If all concepts are known, create a summary guide
+      console.log('All concepts are known, creating summary guide')
     }
 
     // Get original document content for context
@@ -83,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate study guide using Gemini
-    const prompt = `
+    const prompt = unknownConcepts.length > 0 ? `
 당신은 개인 맞춤 학습 해설집을 만드는 AI 튜터입니다. 
 다음 정보를 바탕으로 학습자에게 최적화된 해설집을 생성해주세요.
 
@@ -119,6 +138,38 @@ ${unknownConcepts.map(c => `- ${c.name}: ${c.description}\n  선수 지식: ${c.
 (개념 이해를 위한 실습 제안)
 
 위 가이드라인에 따라 체계적이고 개인화된 해설집을 생성해주세요.
+` : `
+당신은 개인 맞춤 학습 해설집을 만드는 AI 튜터입니다. 
+학습자가 모든 개념을 이미 알고 있다고 평가했습니다. 이런 경우를 위한 심화 학습 해설집을 생성해주세요.
+
+**문서 제목:** ${document.title}
+
+**학습자가 알고 있는 모든 개념들:**
+${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
+
+**해설집 작성 가이드라인:**
+1. 기존 지식을 바탕으로 한 심화 학습 내용을 제공하세요
+2. 개념들 간의 연관성과 상호작용을 설명하세요
+3. 실무 적용 사례와 고급 활용법을 포함하세요
+4. 추가 학습 방향과 발전된 주제들을 제안하세요
+5. 한국어로 작성하고, 마크다운 형식으로 구조화하세요
+
+**생성할 해설집 구조:**
+# 심화 학습 해설집
+
+## 개념 연관성 분석
+- 각 개념들이 어떻게 연결되어 있는지 설명
+
+## 실무 적용 및 사례
+- 실제 상황에서의 적용 방법과 사례
+
+## 심화 학습 주제
+- 더 깊이 있는 학습을 위한 고급 주제들
+
+## 추천 학습 방향
+- 다음 단계 학습을 위한 방향 제시
+
+위 가이드라인에 따라 심화 학습용 해설집을 생성해주세요.
 `
 
     const result = await model.generateContent(prompt)

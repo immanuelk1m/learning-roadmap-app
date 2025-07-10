@@ -18,23 +18,41 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
   useEffect(() => {
     const loadPDF = async () => {
       try {
-        const { data } = supabase.storage
+        // Use download method to get file data and create blob URL
+        const { data: fileData, error } = await supabase.storage
           .from('pdf-documents')
-          .getPublicUrl(filePath)
+          .download(filePath)
 
-        if (data) {
-          setPdfUrl(data.publicUrl)
-        } else {
-          setError('PDF를 불러올 수 없습니다.')
+        if (error) {
+          console.error('PDF download error:', error)
+          setError(`PDF를 불러올 수 없습니다: ${error.message}`)
+          return
         }
-      } catch (err) {
-        setError('PDF 로딩 중 오류가 발생했습니다.')
+
+        if (fileData) {
+          // Create blob URL for PDF viewing
+          const blob = new Blob([fileData], { type: 'application/pdf' })
+          const url = URL.createObjectURL(blob)
+          setPdfUrl(url)
+        } else {
+          setError('PDF 파일 데이터를 불러올 수 없습니다.')
+        }
+      } catch (err: any) {
+        console.error('PDF loading error:', err)
+        setError(`PDF 로딩 중 오류가 발생했습니다: ${err.message}`)
       } finally {
         setLoading(false)
       }
     }
 
     loadPDF()
+
+    // Cleanup blob URL when component unmounts
+    return () => {
+      if (pdfUrl && pdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfUrl)
+      }
+    }
   }, [filePath, supabase])
 
   if (loading) {

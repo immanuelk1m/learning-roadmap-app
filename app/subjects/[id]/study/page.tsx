@@ -147,15 +147,15 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
                       {userStatus && userStatus.length > 0 && (
                         <div className="flex gap-4 text-sm">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <div className="w-3 h-3 bg-neutral-700 rounded-full"></div>
                             <span>아는 개념: {userStatus.filter(s => s.status === 'known').length}개</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                            <div className="w-3 h-3 bg-neutral-500 rounded-full"></div>
                             <span>애매한 개념: {userStatus.filter(s => s.status === 'unclear').length}개</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                            <div className="w-3 h-3 bg-neutral-300 rounded-full"></div>
                             <span>모르는 개념: {userStatus.filter(s => s.status === 'unknown').length}개</span>
                           </div>
                         </div>

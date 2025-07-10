@@ -49,17 +49,55 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
     redirect(`/subjects/${id}`)
   }
 
-  // Get knowledge nodes sorted by level (higher level = easier concepts)
-  const { data: knowledgeNodes } = await supabase
+  // Get knowledge nodes (we'll sort them by dependency later)
+  const { data: rawKnowledgeNodes } = await supabase
     .from('knowledge_nodes')
     .select('*')
     .eq('document_id', documentId)
-    .order('level', { ascending: false })
-    .order('position')
 
-  if (!knowledgeNodes || knowledgeNodes.length === 0) {
+  if (!rawKnowledgeNodes || rawKnowledgeNodes.length === 0) {
     redirect(`/subjects/${id}`)
   }
+
+  // Sort nodes by dependency (root nodes first)
+  const sortNodesByDependency = (nodes: any[]) => {
+    const nodeMap = new Map(nodes.map(node => [node.name, node]))
+    const visited = new Set<string>()
+    const sorted: any[] = []
+    
+    const visit = (nodeName: string) => {
+      if (visited.has(nodeName)) return
+      
+      const node = nodeMap.get(nodeName)
+      if (!node) return
+      
+      visited.add(nodeName)
+      
+      // Visit prerequisites first
+      if (node.prerequisites && node.prerequisites.length > 0) {
+        node.prerequisites.forEach((prereq: string) => {
+          if (nodeMap.has(prereq)) {
+            visit(prereq)
+          }
+        })
+      }
+      
+      sorted.push(node)
+    }
+    
+    // Start with root nodes (no prerequisites)
+    const rootNodes = nodes.filter(node => !node.prerequisites || node.prerequisites.length === 0)
+    rootNodes
+      .sort((a, b) => a.level - b.level || a.position - b.position)
+      .forEach(node => visit(node.name))
+    
+    // Visit remaining nodes
+    nodes.forEach(node => visit(node.name))
+    
+    return sorted
+  }
+
+  const knowledgeNodes = sortNodesByDependency(rawKnowledgeNodes)
 
   // Check if user already has assessments
   const { data: existingStatus } = await supabase

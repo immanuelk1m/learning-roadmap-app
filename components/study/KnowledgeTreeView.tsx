@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { ChevronRight, ChevronDown } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
 interface KnowledgeNode {
   id: string
@@ -26,10 +25,12 @@ interface KnowledgeTreeViewProps {
   documentId: string
 }
 
-export default function KnowledgeTreeView({ nodes, userStatus: initialStatus, documentId }: KnowledgeTreeViewProps) {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
-  const [userStatus, setUserStatus] = useState<UserStatus[]>(initialStatus)
-  const supabase = createClient()
+export default function KnowledgeTreeView({ nodes, userStatus, documentId }: KnowledgeTreeViewProps) {
+  // Initialize with root nodes expanded
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
+    const rootNodes = nodes.filter(node => !node.parent_id)
+    return new Set(rootNodes.map(node => node.id))
+  })
 
   // Build tree structure
   const buildTree = () => {
@@ -64,31 +65,6 @@ export default function KnowledgeTreeView({ nodes, userStatus: initialStatus, do
     setExpandedNodes(newExpanded)
   }
 
-  const updateNodeStatus = async (nodeId: string, status: 'known' | 'unclear' | 'unknown') => {
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
-
-    // Update in database
-    const { error } = await supabase
-      .from('user_knowledge_status')
-      .upsert({
-        user_id: FIXED_USER_ID,
-        node_id: nodeId,
-        status: status,
-        updated_at: new Date().toISOString()
-      })
-
-    if (!error) {
-      // Update local state
-      setUserStatus(prev => {
-        const existing = prev.find(s => s.node_id === nodeId)
-        if (existing) {
-          return prev.map(s => s.node_id === nodeId ? { ...s, status } : s)
-        } else {
-          return [...prev, { node_id: nodeId, status }]
-        }
-      })
-    }
-  }
 
   const getNodeStatus = (nodeId: string) => {
     return userStatus.find(s => s.node_id === nodeId)?.status || 'unknown'
@@ -99,24 +75,61 @@ export default function KnowledgeTreeView({ nodes, userStatus: initialStatus, do
     const isExpanded = expandedNodes.has(node.id)
     const status = getNodeStatus(node.id)
 
-    // Modern color scheme
-    const statusStyles = {
-      known: 'bg-green-50 border-green-200 hover:bg-green-100',
-      unclear: 'bg-amber-50 border-amber-200 hover:bg-amber-100',
-      unknown: 'bg-red-50 border-red-200 hover:bg-red-100'
+    // Calculate indentation based on depth
+    const indentWidth = depth * 32 // 32px per level
+    const isRootLevel = depth === 0
+
+    // Grayscale color scheme with depth-based styling
+    const getNodeStyles = () => {
+      const baseStyles = {
+        known: 'bg-neutral-100 border-neutral-400 text-neutral-900',
+        unclear: 'bg-neutral-50 border-neutral-300 text-neutral-800',
+        unknown: 'bg-white border-neutral-200 text-neutral-700'
+      }
+
+      // Root level nodes get stronger styling
+      if (isRootLevel) {
+        return {
+          known: 'bg-neutral-800 border-neutral-700 text-white',
+          unclear: 'bg-neutral-600 border-neutral-500 text-white',
+          unknown: 'bg-neutral-400 border-neutral-300 text-white'
+        }
+      }
+
+      return baseStyles
     }
 
+    const statusStyles = getNodeStyles()
+
     return (
-      <div key={node.id} className="mb-2">
+      <div key={node.id} className="relative">
+        {/* Connecting lines for hierarchy visualization */}
+        {depth > 0 && (
+          <div className="absolute left-0 top-0 bottom-0 flex items-center" style={{ marginLeft: `${(depth - 1) * 32 + 16}px` }}>
+            <div className="w-4 h-px bg-neutral-300"></div>
+          </div>
+        )}
+        {depth > 0 && (
+          <div className="absolute left-0 top-0 h-6 flex items-center" style={{ marginLeft: `${(depth - 1) * 32 + 16}px` }}>
+            <div className="w-px h-6 bg-neutral-300"></div>
+          </div>
+        )}
+
         <div
-          className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 ${
+          className={`relative flex items-start p-4 rounded-lg border-2 transition-all duration-200 mb-3 ${
             statusStyles[status]
-          } ${depth > 0 ? 'ml-6' : ''}`}
+          } ${isRootLevel ? 'shadow-sm' : 'shadow-xs'}`}
+          style={{ marginLeft: `${indentWidth}px` }}
         >
+          {/* Expand/Collapse button */}
           {hasChildren && (
             <button
               onClick={() => toggleExpand(node.id)}
-              className="mr-2 mt-0.5 text-gray-500 hover:text-gray-700"
+              className={`mr-3 mt-0.5 p-1 rounded-full transition-colors ${
+                isRootLevel 
+                  ? 'text-white/70 hover:text-white hover:bg-white/10' 
+                  : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
+              }`}
             >
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4" />
@@ -125,65 +138,55 @@ export default function KnowledgeTreeView({ nodes, userStatus: initialStatus, do
               )}
             </button>
           )}
-          {!hasChildren && <div className="w-6" />}
+          {!hasChildren && <div className="w-8" />}
+
+          {/* Level indicator */}
+          <div className={`mr-3 mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+            isRootLevel ? 'bg-white/50' : 'bg-neutral-400'
+          }`}></div>
 
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="text-base font-semibold text-gray-900">{node.name}</h3>
-                    <p className="text-sm text-gray-700 mt-1">{node.description}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className={`font-semibold ${
+                        isRootLevel ? 'text-lg' : 'text-base'
+                      }`}>
+                        {node.name}
+                      </h3>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        isRootLevel 
+                          ? 'bg-white/20 text-white/70' 
+                          : 'bg-neutral-200 text-neutral-600'
+                      }`}>
+                        Level {node.level}
+                      </span>
+                    </div>
+                    <p className={`text-sm mt-1 ${
+                      isRootLevel ? 'text-white/90' : 'text-neutral-600'
+                    }`}>
+                      {node.description}
+                    </p>
                     {node.prerequisites.length > 0 && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className={`text-xs mt-2 ${
+                        isRootLevel ? 'text-white/70' : 'text-neutral-500'
+                      }`}>
                         선수 지식: {node.prerequisites.join(', ')}
                       </p>
                     )}
                   </div>
                   {/* Status indicator */}
                   <div className={`ml-4 px-3 py-1 rounded-full text-xs font-medium ${
-                    status === 'known' ? 'bg-green-500 text-white' :
-                    status === 'unclear' ? 'bg-amber-500 text-white' :
-                    'bg-red-500 text-white'
+                    status === 'known' ? 'bg-neutral-700 text-white' :
+                    status === 'unclear' ? 'bg-neutral-500 text-white' :
+                    'bg-neutral-300 text-neutral-700'
                   }`}>
                     {status === 'known' ? '✓ 앎' :
                      status === 'unclear' ? '? 애매함' :
                      '✗ 모름'}
                   </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 mt-3">
-                  <button
-                    onClick={() => updateNodeStatus(node.id, 'known')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      status === 'known' 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-white text-gray-700 hover:bg-green-100 border border-gray-300'
-                    }`}
-                  >
-                    알아요
-                  </button>
-                  <button
-                    onClick={() => updateNodeStatus(node.id, 'unclear')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      status === 'unclear' 
-                        ? 'bg-amber-500 text-white' 
-                        : 'bg-white text-gray-700 hover:bg-amber-100 border border-gray-300'
-                    }`}
-                  >
-                    애매해요
-                  </button>
-                  <button
-                    onClick={() => updateNodeStatus(node.id, 'unknown')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      status === 'unknown' 
-                        ? 'bg-red-500 text-white' 
-                        : 'bg-white text-gray-700 hover:bg-red-100 border border-gray-300'
-                    }`}
-                  >
-                    몰라요
-                  </button>
                 </div>
               </div>
             </div>
@@ -191,7 +194,7 @@ export default function KnowledgeTreeView({ nodes, userStatus: initialStatus, do
         </div>
 
         {hasChildren && isExpanded && (
-          <div className="mt-1">
+          <div className="space-y-0">
             {node.children.map(child => renderNode(child, depth + 1))}
           </div>
         )}
@@ -202,7 +205,7 @@ export default function KnowledgeTreeView({ nodes, userStatus: initialStatus, do
   const treeData = buildTree()
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1 p-2">
       {treeData.map(node => renderNode(node))}
     </div>
   )
