@@ -39,6 +39,8 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
       console.log('[DocumentList] RefreshTrigger updated, documents:', refreshTrigger.length)
       setDocuments(refreshTrigger)
       prevDocumentsRef.current = refreshTrigger
+      // Set loading to false since we have documents to display
+      setIsInitialLoading(false)
     }
   }, [refreshTrigger])
 
@@ -130,7 +132,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
       console.log('[DocumentList] Cleaning up realtime subscription')
       supabase.removeChannel(channel)
     }
-  }, [subjectId, supabase, showToast, isInitialLoading])
+  }, [subjectId, supabase, showToast])
 
   // Show loading skeleton on initial load
   if (isInitialLoading) {
