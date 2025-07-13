@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { FolderOpen, BookOpen, Calendar, ArrowRight } from 'lucide-react'
+import DeleteSubjectButton from './DeleteSubjectButton'
 
 interface Subject {
   id: string
@@ -11,7 +12,12 @@ interface Subject {
   created_at: string
 }
 
-export default function SubjectList({ subjects }: { subjects: Subject[] }) {
+interface SubjectListProps {
+  subjects: Subject[]
+  onSubjectDeleted?: () => void
+}
+
+export default function SubjectList({ subjects, onSubjectDeleted }: SubjectListProps) {
   const getGrayLevel = (color: string) => {
     // Convert color to different gray levels for visual distinction
     const grayLevels = [
@@ -55,10 +61,15 @@ export default function SubjectList({ subjects }: { subjects: Subject[] }) {
                     </p>
                   )}
                 </div>
-                <div className="ml-4 flex-shrink-0">
+                <div className="ml-4 flex-shrink-0 flex items-center gap-2">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center group-hover:from-neutral-200 group-hover:to-neutral-300 transition-colors">
                     <BookOpen className="h-6 w-6 text-neutral-600" />
                   </div>
+                  <DeleteSubjectButton 
+                    subjectId={subject.id} 
+                    subjectName={subject.name}
+                    onDelete={onSubjectDeleted}
+                  />
                 </div>
               </div>
 

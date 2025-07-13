@@ -3,14 +3,21 @@
 import { useState, useRef } from 'react'
 import { Upload, FileText, X, FilePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 
-export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
+interface UploadPDFButtonProps {
+  subjectId: string
+  onUploadSuccess?: () => void
+}
+
+export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPDFButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+  const { showToast } = useToast()
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -31,6 +38,12 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
   const handleUpload = async () => {
     if (!file) return
 
+    console.log('=== PDF Upload Started ===')
+    console.log(`File: ${file.name}`)
+    console.log(`Size: ${(file.size / (1024 * 1024)).toFixed(2)} MB`)
+    console.log(`Type: ${file.type}`)
+    console.log(`Subject ID: ${subjectId}`)
+
     setLoading(true)
     setError(null)
 
@@ -42,6 +55,9 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
       const fileExt = file.name.split('.').pop()
       const fileName = `${FIXED_USER_ID}/${subjectId}/${Date.now()}.${fileExt}`
 
+      console.log('Uploading to Supabase Storage...')
+      console.log(`Storage path: ${fileName}`)
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('pdf-documents')
         .upload(fileName, file, {
@@ -49,35 +65,82 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
           upsert: false
         })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Storage upload failed:', uploadError)
+        throw uploadError
+      }
+
+      console.log('Storage upload successful:', uploadData)
 
       // Create document record in database
+      console.log('Creating document record...')
+      const documentData = {
+        subject_id: subjectId,
+        user_id: FIXED_USER_ID,
+        title: file.name.replace('.pdf', ''),
+        file_path: fileName,
+        file_size: file.size,
+        status: 'processing',
+      }
+      console.log('Document data:', documentData)
+
       const { data: newDoc, error: dbError } = await supabase
         .from('documents')
-        .insert({
-          subject_id: subjectId,
-          user_id: FIXED_USER_ID,
-          title: file.name.replace('.pdf', ''),
-          file_path: fileName,
-          file_size: file.size,
-          status: 'pending',
-        })
+        .insert(documentData)
         .select()
         .single()
 
-      if (dbError) throw dbError
+      if (dbError) {
+        console.error('Database insert failed:', dbError)
+        throw dbError
+      }
+
+      console.log('Document record created:', newDoc)
 
       setIsOpen(false)
       setFile(null)
-      // No need to refresh - DocumentList will update via real-time subscription
+      
+      // Show success toast
+      showToast({
+        type: 'success',
+        title: 'PDF 업로드 완료',
+        message: '문서를 분석하고 있습니다. 잠시 후 결과를 확인하세요.',
+        duration: 5000
+      })
+      
+      // Call the callback to refresh the document list immediately
+      if (onUploadSuccess) {
+        onUploadSuccess()
+      }
 
       // Trigger AI analysis in background
       if (newDoc) {
+        console.log('Triggering AI analysis...')
+        console.log(`Analysis API endpoint: /api/documents/${newDoc.id}/analyze`)
+        
         fetch(`/api/documents/${newDoc.id}/analyze`, {
           method: 'POST',
-        }).catch(console.error)
+        })
+        .then(response => {
+          console.log(`Analysis API response status: ${response.status}`)
+          if (!response.ok) {
+            console.error(`Analysis API failed with status: ${response.status}`)
+            return response.text().then(text => {
+              console.error('Analysis API error response:', text)
+            })
+          }
+          console.log('Analysis API triggered successfully')
+        })
+        .catch(error => {
+          console.error('Failed to trigger analysis API:', error)
+        })
       }
+
+      console.log('=== PDF Upload Completed Successfully ===')
     } catch (error: any) {
+      console.error('=== PDF Upload Failed ===')
+      console.error('Error details:', error)
+      console.error('Error stack:', error.stack)
       setError(error.message || '업로드 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)

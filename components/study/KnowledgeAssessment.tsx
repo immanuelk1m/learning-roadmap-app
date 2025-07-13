@@ -164,7 +164,9 @@ export default function KnowledgeAssessment({
       const statusData = Object.entries(finalAssessments).map(([nodeId, status]) => ({
         user_id: FIXED_USER_ID,
         node_id: nodeId,
-        status: status
+        understanding_level: status === 'known' ? 100 : 0,
+        last_reviewed: new Date().toISOString(),
+        review_count: 1
       }))
 
       // Try individual inserts if bulk upsert fails

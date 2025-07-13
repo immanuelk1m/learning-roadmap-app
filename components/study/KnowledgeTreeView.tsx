@@ -16,7 +16,7 @@ type KnowledgeNodeWithChildren = KnowledgeNode & { children: KnowledgeNodeWithCh
 
 interface UserStatus {
   node_id: string
-  status: 'known' | 'unclear' | 'unknown'
+  understanding_level: number
 }
 
 interface KnowledgeTreeViewProps {
@@ -66,8 +66,12 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
   }
 
 
-  const getNodeStatus = (nodeId: string) => {
-    return userStatus.find(s => s.node_id === nodeId)?.status || 'unknown'
+  const getNodeStatus = (nodeId: string): 'known' | 'unclear' | 'unknown' => {
+    const level = userStatus.find(s => s.node_id === nodeId)?.understanding_level
+    if (level === undefined) return 'unknown'
+    if (level >= 80) return 'known'
+    if (level >= 30) return 'unclear'
+    return 'unknown'
   }
 
   const renderNode = (node: KnowledgeNodeWithChildren, depth: number = 0) => {

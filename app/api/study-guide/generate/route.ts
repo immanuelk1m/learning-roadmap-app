@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,9 +81,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Categorize concepts
-    const statusMap = new Map(userStatus?.map(s => [s.node_id, s.status]) || [])
-    const knownConcepts = knowledgeNodes.filter(node => statusMap.get(node.id) === 'known')
-    const unknownConcepts = knowledgeNodes.filter(node => statusMap.get(node.id) === 'unknown')
+    const levelMap = new Map(userStatus?.map(s => [s.node_id, s.understanding_level]) || [])
+    const knownConcepts = knowledgeNodes.filter(node => {
+      const level = levelMap.get(node.id)
+      return level !== undefined && level >= 80
+    })
+    const unknownConcepts = knowledgeNodes.filter(node => {
+      const level = levelMap.get(node.id)
+      return level === undefined || level < 30
+    })
 
     if (unknownConcepts.length === 0) {
       // If all concepts are known, create a summary guide
@@ -172,8 +177,11 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
 위 가이드라인에 따라 심화 학습용 해설집을 생성해주세요.
 `
 
-    const result = await model.generateContent(prompt)
-    const studyGuideContent = result.response.text()
+    const result = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    })
+    const studyGuideContent = result.text || ''
 
     // Save study guide to database
     const { data: studyGuide, error: saveError } = await supabase

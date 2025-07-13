@@ -1,18 +1,34 @@
-import { createServiceClient } from '@/lib/supabase/service'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createBrowserClient } from '@/lib/supabase/browser'
 import SubjectList from '@/components/subjects/SubjectList'
 import CreateSubjectButton from '@/components/subjects/CreateSubjectButton'
 
-export default async function HomePage() {
-  const supabase = createServiceClient()
+export default function HomePage() {
+  const [subjects, setSubjects] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createBrowserClient()
   
   // 고정 사용자 ID 사용 (인증 없이)
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
   
-  const { data: subjects } = await supabase
-    .from('subjects')
-    .select('*')
-    .eq('user_id', FIXED_USER_ID)
-    .order('created_at', { ascending: false })
+  const fetchSubjects = async () => {
+    const { data } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('user_id', FIXED_USER_ID)
+      .order('created_at', { ascending: false })
+    
+    if (data) {
+      setSubjects(data)
+    }
+    setLoading(false)
+  }
+  
+  useEffect(() => {
+    fetchSubjects()
+  }, [])
 
   return (
     <div className="min-h-screen bg-neutral-50 relative overflow-hidden">
@@ -34,8 +50,12 @@ export default async function HomePage() {
           <CreateSubjectButton />
         </div>
 
-        {subjects && subjects.length > 0 ? (
-          <SubjectList subjects={subjects} />
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neutral-900"></div>
+          </div>
+        ) : subjects && subjects.length > 0 ? (
+          <SubjectList subjects={subjects} onSubjectDeleted={fetchSubjects} />
         ) : (
           <div className="text-center py-20">
             <div className="mb-8">

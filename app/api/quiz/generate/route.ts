@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiStructuredModel } from '@/lib/gemini/client'
+import { geminiQuizModel } from '@/lib/gemini/client'
 import { QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { QuizResponse } from '@/lib/gemini/schemas'
 
@@ -9,20 +9,16 @@ export async function POST(request: NextRequest) {
     const { documentId, nodeIds } = await request.json()
     
     const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    
+    // Use fixed user ID
+    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
     // Get document
     const { data: document } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
-      .eq('user_id', user.id)
+      .eq('user_id', FIXED_USER_ID)
       .single()
 
     if (!document) {
@@ -39,7 +35,7 @@ export async function POST(request: NextRequest) {
     const { data: userStatus } = await supabase
       .from('user_knowledge_status')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', FIXED_USER_ID)
       .in('node_id', nodeIds)
       .in('status', ['unknown', 'unclear'])
 
@@ -71,17 +67,25 @@ ${weakNodes.map(node => `- ${node.name}: ${node.description}`).join('\n')}
 이 개념들을 중심으로 문제를 생성하되, PDF 내용에 근거해야 합니다.
 `
 
-    const result = await geminiStructuredModel.generateContent([
-      {
-        inlineData: {
-          mimeType: 'application/pdf',
-          data: base64Data,
+    const result = await geminiQuizModel.generateContent({
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType: 'application/pdf',
+                data: base64Data,
+              },
+            },
+            {
+              text: prompt,
+            },
+          ],
         },
-      },
-      prompt,
-    ])
+      ],
+    })
 
-    const response = result.response.text()
+    const response = result.text || ''
     const quizData: QuizResponse = JSON.parse(response)
 
     // Save quiz items to database

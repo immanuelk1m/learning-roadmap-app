@@ -1,9 +1,22 @@
-import { createServiceClient } from '@/lib/supabase/service'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createBrowserClient } from '@/lib/supabase/browser'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Upload, BookOpen } from 'lucide-react'
 import UploadPDFButton from '@/components/documents/UploadPDFButton'
 import DocumentList from '@/components/documents/DocumentList'
+interface Document {
+  id: string
+  title: string
+  status: string
+  created_at: string
+  subject_id: string
+  file_path: string
+  file_size: number | null
+  page_count: number | null
+}
 
 interface SubjectDetailPageProps {
   params: Promise<{
@@ -11,31 +24,74 @@ interface SubjectDetailPageProps {
   }>
 }
 
-export default async function SubjectDetailPage({ params }: SubjectDetailPageProps) {
-  const { id } = await params
-  const supabase = createServiceClient()
+export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
+  const [id, setId] = useState<string | null>(null)
+  const [subject, setSubject] = useState<any>(null)
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createBrowserClient()
   
   // 고정 사용자 ID 사용
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-  // 과목 정보 조회
-  const { data: subject } = await supabase
-    .from('subjects')
-    .select('*')
-    .eq('id', id)
-    .eq('user_id', FIXED_USER_ID)
-    .single()
-
-  if (!subject) {
-    notFound()
+  // 문서 목록 새로고침 함수
+  const refreshDocuments = async () => {
+    if (!id) return
+    
+    const { data } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('subject_id', id)
+      .order('created_at', { ascending: false })
+    
+    if (data) {
+      setDocuments(data)
+    }
   }
 
-  // 문서 목록 조회
-  const { data: documents } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('subject_id', id)
-    .order('created_at', { ascending: false })
+  // 초기 데이터 로드
+  useEffect(() => {
+    params.then(p => setId(p.id))
+  }, [])
+
+  useEffect(() => {
+    if (!id) return
+
+    const fetchData = async () => {
+      setLoading(true)
+      
+      // 과목 정보 조회
+      const { data: subjectData } = await supabase
+        .from('subjects')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', FIXED_USER_ID)
+        .single()
+
+      if (!subjectData) {
+        notFound()
+      }
+
+      setSubject(subjectData)
+      
+      // 문서 목록 조회
+      await refreshDocuments()
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [id])
+
+  if (loading || !subject || !id) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neutral-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -73,7 +129,10 @@ export default async function SubjectDetailPage({ params }: SubjectDetailPagePro
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF 업로드</h3>
                 <p className="text-gray-600 mb-6">학습할 PDF 문서를 업로드하세요</p>
-                <UploadPDFButton subjectId={id} />
+                <UploadPDFButton 
+                  subjectId={id} 
+                  onUploadSuccess={refreshDocuments}
+                />
               </div>
             </div>
 
@@ -88,8 +147,9 @@ export default async function SubjectDetailPage({ params }: SubjectDetailPagePro
                 </h2>
               </div>
               <DocumentList 
-                initialDocuments={documents || []} 
+                initialDocuments={documents} 
                 subjectId={id} 
+                refreshTrigger={documents}
               />
             </div>
           </div>

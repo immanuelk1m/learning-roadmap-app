@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { FileText, Brain } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 import DocumentStatus from './DocumentStatus'
 import DeleteDocumentButton from './DeleteDocumentButton'
 import DocumentItemSkeleton from './DocumentItemSkeleton'
@@ -22,11 +23,22 @@ interface Document {
 interface DocumentListProps {
   initialDocuments: Document[]
   subjectId: string
+  refreshTrigger?: Document[]
 }
 
-export default function DocumentList({ initialDocuments, subjectId }: DocumentListProps) {
+export default function DocumentList({ initialDocuments, subjectId, refreshTrigger }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>(initialDocuments)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const prevDocumentsRef = useRef<Document[]>(initialDocuments)
   const supabase = createClient()
+  const { showToast } = useToast()
+
+  // Update documents when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger) {
+      setDocuments(refreshTrigger)
+    }
+  }, [refreshTrigger])
 
   useEffect(() => {
     // Function to fetch latest documents
@@ -38,9 +50,38 @@ export default function DocumentList({ initialDocuments, subjectId }: DocumentLi
         .order('created_at', { ascending: false })
       
       if (data) {
+        // Check for status changes and show toasts (only if not initial load)
+        if (!isInitialLoading) {
+          data.forEach(newDoc => {
+            const prevDoc = prevDocumentsRef.current.find(d => d.id === newDoc.id)
+            if (prevDoc && prevDoc.status === 'processing') {
+              if (newDoc.status === 'completed') {
+                showToast({
+                  type: 'success',
+                  title: 'PDF 분석 완료',
+                  message: `"${newDoc.title}"의 분석이 완료되었습니다. 이제 학습을 시작할 수 있습니다!`,
+                  duration: 5000
+                })
+              } else if (newDoc.status === 'failed') {
+                showToast({
+                  type: 'error',
+                  title: 'PDF 분석 실패',
+                  message: `"${newDoc.title}"의 분석에 실패했습니다. 다시 시도해주세요.`,
+                  duration: 5000
+                })
+              }
+            }
+          })
+        }
+        
+        prevDocumentsRef.current = data
         setDocuments(data)
+        setIsInitialLoading(false)
       }
     }
+    
+    // Fetch initial data
+    fetchDocuments()
 
     // Subscribe to document changes
     const channel = supabase
@@ -63,7 +104,18 @@ export default function DocumentList({ initialDocuments, subjectId }: DocumentLi
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [subjectId, supabase])
+  }, [subjectId, supabase, showToast, isInitialLoading])
+
+  // Show loading skeleton on initial load
+  if (isInitialLoading) {
+    return (
+      <div className="divide-y divide-gray-100">
+        {[1, 2, 3].map((i) => (
+          <DocumentItemSkeleton key={`skeleton-${i}`} />
+        ))}
+      </div>
+    )
+  }
 
   if (documents.length === 0) {
     return (
@@ -80,7 +132,7 @@ export default function DocumentList({ initialDocuments, subjectId }: DocumentLi
   return (
     <div className="divide-y divide-gray-100">
       {documents.map((doc) => (
-        doc.status === 'processing' ? (
+        (doc.status === 'processing' || doc.status === 'pending') ? (
           <DocumentItemSkeleton key={doc.id} />
         ) : (
           <div key={doc.id} className="px-6 py-5 hover:bg-gray-50 transition-colors">

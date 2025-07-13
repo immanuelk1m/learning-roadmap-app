@@ -148,15 +148,15 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
                         <div className="flex gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 bg-neutral-700 rounded-full"></div>
-                            <span>아는 개념: {userStatus.filter(s => s.status === 'known').length}개</span>
+                            <span>아는 개념: {userStatus.filter(s => s.understanding_level >= 80).length}개</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 bg-neutral-500 rounded-full"></div>
-                            <span>애매한 개념: {userStatus.filter(s => s.status === 'unclear').length}개</span>
+                            <span>애매한 개념: {userStatus.filter(s => s.understanding_level >= 30 && s.understanding_level < 80).length}개</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 bg-neutral-300 rounded-full"></div>
-                            <span>모르는 개념: {userStatus.filter(s => s.status === 'unknown').length}개</span>
+                            <span>모르는 개념: {userStatus.filter(s => s.understanding_level < 30).length}개</span>
                           </div>
                         </div>
                       )}

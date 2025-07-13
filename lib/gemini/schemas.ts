@@ -1,9 +1,12 @@
+import { Type } from '@google/genai'
+
 export interface KnowledgeNode {
+  id: string
+  parent_id: string | null
   name: string
   description: string
   level: number
   prerequisites: string[]
-  children: KnowledgeNode[]
 }
 
 export interface KnowledgeTreeResponse {
@@ -23,76 +26,60 @@ export interface QuizResponse {
   questions: QuizQuestion[]
 }
 
+// Schema for knowledge tree using the new Type enum
+// Simplified flat structure to avoid recursive schema issues
 export const knowledgeTreeSchema = {
-  type: "object",
+  type: Type.OBJECT,
   properties: {
     nodes: {
-      type: "array",
+      type: Type.ARRAY,
       items: {
-        type: "object",
+        type: Type.OBJECT,
         properties: {
-          name: { type: "string" },
-          description: { type: "string" },
-          level: { type: "number" },
-          prerequisites: {
-            type: "array",
-            items: { type: "string" }
+          id: { type: Type.STRING },
+          parent_id: { 
+            type: Type.STRING,
+            nullable: true 
           },
-          children: {
-            type: "array",
-            items: { $ref: "#/definitions/node" }
+          name: { type: Type.STRING },
+          description: { type: Type.STRING },
+          level: { type: Type.INTEGER },
+          prerequisites: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
           }
         },
-        required: ["name", "description", "level", "prerequisites", "children"]
+        required: ["id", "name", "description", "level", "prerequisites"]
       }
     }
   },
-  required: ["nodes"],
-  definitions: {
-    node: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        description: { type: "string" },
-        level: { type: "number" },
-        prerequisites: {
-          type: "array",
-          items: { type: "string" }
-        },
-        children: {
-          type: "array",
-          items: { $ref: "#/definitions/node" }
-        }
-      },
-      required: ["name", "description", "level", "prerequisites", "children"]
-    }
-  }
+  required: ["nodes"]
 }
 
+// Schema for quiz generation using the new Type enum
 export const quizSchema = {
-  type: "object",
+  type: Type.OBJECT,
   properties: {
     questions: {
-      type: "array",
+      type: Type.ARRAY,
       items: {
-        type: "object",
+        type: Type.OBJECT,
         properties: {
-          question: { type: "string" },
+          question: { type: Type.STRING },
           options: {
-            type: "array",
-            items: { type: "string" },
-            minItems: 4,
-            maxItems: 4
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
           },
-          correct_answer: { type: "string" },
-          explanation: { type: "string" },
-          source_quote: { type: "string" },
+          correct_answer: { type: Type.STRING },
+          explanation: { type: Type.STRING },
+          source_quote: { type: Type.STRING },
           difficulty: {
-            type: "string",
+            type: Type.STRING,
             enum: ["easy", "medium", "hard"]
           }
         },
-        required: ["question", "options", "correct_answer", "explanation", "source_quote", "difficulty"]
+        required: ["question", "options", "correct_answer", "explanation", "source_quote", "difficulty"],
+        propertyOrdering: ["question", "options", "correct_answer", "explanation", "source_quote", "difficulty"]
       }
     }
   },
