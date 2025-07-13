@@ -36,39 +36,51 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
   // Update documents when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger) {
+      console.log('[DocumentList] RefreshTrigger updated, documents:', refreshTrigger.length)
       setDocuments(refreshTrigger)
+      prevDocumentsRef.current = refreshTrigger
     }
   }, [refreshTrigger])
 
   useEffect(() => {
     // Function to fetch latest documents
     const fetchDocuments = async () => {
-      const { data } = await supabase
+      console.log('[DocumentList] Fetching documents for subject:', subjectId)
+      const { data, error } = await supabase
         .from('documents')
         .select('*')
         .eq('subject_id', subjectId)
         .order('created_at', { ascending: false })
       
+      if (error) {
+        console.error('[DocumentList] Error fetching documents:', error)
+        return
+      }
+      
       if (data) {
+        console.log('[DocumentList] Fetched documents:', data.length, 'items')
         // Check for status changes and show toasts (only if not initial load)
         if (!isInitialLoading) {
           data.forEach(newDoc => {
             const prevDoc = prevDocumentsRef.current.find(d => d.id === newDoc.id)
-            if (prevDoc && prevDoc.status === 'processing') {
-              if (newDoc.status === 'completed') {
-                showToast({
-                  type: 'success',
-                  title: 'PDF 분석 완료',
-                  message: `"${newDoc.title}"의 분석이 완료되었습니다. 이제 학습을 시작할 수 있습니다!`,
-                  duration: 5000
-                })
-              } else if (newDoc.status === 'failed') {
-                showToast({
-                  type: 'error',
-                  title: 'PDF 분석 실패',
-                  message: `"${newDoc.title}"의 분석에 실패했습니다. 다시 시도해주세요.`,
-                  duration: 5000
-                })
+            if (prevDoc) {
+              console.log(`[DocumentList] Status comparison for "${newDoc.title}": ${prevDoc.status} -> ${newDoc.status}`)
+              if ((prevDoc.status === 'processing' || prevDoc.status === 'pending') && prevDoc.status !== newDoc.status) {
+                if (newDoc.status === 'completed') {
+                  showToast({
+                    type: 'success',
+                    title: 'PDF 분석 완료',
+                    message: `"${newDoc.title}"의 분석이 완료되었습니다. 이제 학습을 시작할 수 있습니다!`,
+                    duration: 5000
+                  })
+                } else if (newDoc.status === 'failed') {
+                  showToast({
+                    type: 'error',
+                    title: 'PDF 분석 실패',
+                    message: `"${newDoc.title}"의 분석에 실패했습니다. 다시 시도해주세요.`,
+                    duration: 5000
+                  })
+                }
               }
             }
           })
@@ -84,6 +96,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
     fetchDocuments()
 
     // Subscribe to document changes
+    console.log('[DocumentList] Setting up realtime subscription for subject:', subjectId)
     const channel = supabase
       .channel(`documents-${subjectId}`)
       .on(
@@ -94,14 +107,27 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
           table: 'documents',
           filter: `subject_id=eq.${subjectId}`,
         },
-        () => {
+        (payload) => {
+          console.log('[DocumentList] Realtime event received:', payload.eventType, payload.new)
+          console.log('[DocumentList] Event details:', {
+            eventType: payload.eventType,
+            documentId: (payload.new as any)?.id,
+            status: (payload.new as any)?.status,
+            old: payload.old
+          })
           // Refetch documents when any change occurs
           fetchDocuments()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[DocumentList] Realtime subscription status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('[DocumentList] Successfully subscribed to realtime updates')
+        }
+      })
 
     return () => {
+      console.log('[DocumentList] Cleaning up realtime subscription')
       supabase.removeChannel(channel)
     }
   }, [subjectId, supabase, showToast, isInitialLoading])
@@ -131,10 +157,9 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
 
   return (
     <div className="divide-y divide-gray-100">
-      {documents.map((doc) => (
-        (doc.status === 'processing' || doc.status === 'pending') ? (
-          <DocumentItemSkeleton key={doc.id} />
-        ) : (
+      {documents.map((doc) => {
+        console.log(`[DocumentList] Rendering document: ${doc.title}, status: ${doc.status}`)
+        return (
           <div key={doc.id} className="px-6 py-5 hover:bg-gray-50 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center flex-1">
@@ -183,7 +208,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
             </div>
           </div>
         )
-      ))}
+      })}
     </div>
   )
 }
