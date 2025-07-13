@@ -4,6 +4,9 @@ import { geminiKnowledgeTreeModel } from '@/lib/gemini/client'
 import { KNOWLEDGE_TREE_PROMPT } from '@/lib/gemini/prompts'
 import { KnowledgeTreeResponse, KnowledgeNode } from '@/lib/gemini/schemas'
 
+// Increase timeout for the API route to handle large PDF processing
+export const maxDuration = 60 // 60 seconds timeout
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -41,13 +44,17 @@ export async function POST(
 
     // Update status to processing
     console.log('Updating document status to processing...')
-    const { error: updateError } = await supabase
+    const { data: updatedDoc, error: updateError } = await supabase
       .from('documents')
       .update({ status: 'processing' })
       .eq('id', id)
+      .select()
+      .single()
     
     if (updateError) {
       console.error('Failed to update status:', updateError)
+    } else {
+      console.log('Document status updated to processing:', updatedDoc)
     }
 
     try {
@@ -70,10 +77,42 @@ export async function POST(
         console.log('Files in directory:', fileList?.map(f => f.name))
       }
 
-      // Get file from storage
-      const { data: fileData, error: downloadError } = await supabase.storage
-        .from('pdf-documents')
-        .download(document.file_path)
+      // Get file from storage with retry logic for timeout issues
+      let fileData: Blob | null = null
+      let downloadError: any = null
+      let retries = 3
+      
+      while (retries > 0 && !fileData) {
+        try {
+          const downloadResult = await supabase.storage
+            .from('pdf-documents')
+            .download(document.file_path)
+          
+          fileData = downloadResult.data
+          downloadError = downloadResult.error
+          
+          if (downloadError) {
+            console.error(`Download attempt failed (${4 - retries}/3):`, downloadError.message)
+            if (retries > 1 && downloadError.message?.includes('timeout')) {
+              console.log('Retrying download after timeout...')
+              await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds before retry
+              retries--
+              continue
+            }
+            break
+          }
+        } catch (error: any) {
+          console.error(`Download attempt error (${4 - retries}/3):`, error)
+          if (retries > 1) {
+            console.log('Retrying download after error...')
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            retries--
+            continue
+          }
+          downloadError = error
+          break
+        }
+      }
 
       if (downloadError) {
         console.error('Storage download error:', downloadError)
@@ -86,6 +125,11 @@ export async function POST(
       }
 
       console.log('File downloaded successfully, size:', fileData.size)
+      
+      // For large files, check if we should use a different approach
+      if (fileData.size > 10 * 1024 * 1024) { // 10MB
+        console.log('Large file detected, processing may take longer...')
+      }
 
       // Convert to base64 for Gemini
       console.log('Converting PDF to base64...')
@@ -235,13 +279,17 @@ export async function POST(
 
       // Update document status
       console.log('Updating document status to completed...')
-      const { error: completeError } = await supabase
+      const { data: completedDoc, error: completeError } = await supabase
         .from('documents')
         .update({ status: 'completed' })
         .eq('id', id)
+        .select()
+        .single()
       
       if (completeError) {
         console.error('Failed to update status to completed:', completeError)
+      } else {
+        console.log('Document status updated to completed:', completedDoc)
       }
 
       console.log('=== Document Analysis Completed Successfully ===')
@@ -254,13 +302,17 @@ export async function POST(
       
       // Update status to failed
       console.log('Updating document status to failed...')
-      const { error: failError } = await supabase
+      const { data: failedDoc, error: failError } = await supabase
         .from('documents')
         .update({ status: 'failed' })
         .eq('id', id)
+        .select()
+        .single()
       
       if (failError) {
         console.error('Failed to update status to failed:', failError)
+      } else {
+        console.log('Document status updated to failed:', failedDoc)
       }
 
       return NextResponse.json(
