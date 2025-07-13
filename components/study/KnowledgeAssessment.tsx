@@ -33,11 +33,11 @@ export default function KnowledgeAssessment({
 
   const currentNode = nodes[currentIndex]
   
-  // Calculate accurate progress based on assessments and skips
+  // Calculate accurate progress based on assessments
+  // Note: skipped nodes are already included in assessments, so we don't count them separately
   const totalAssessed = Object.keys(assessments).length
   const totalSkipped = skippedNodes.size
-  const totalCompleted = totalAssessed + totalSkipped
-  const progress = (totalCompleted / nodes.length) * 100
+  const progress = Math.min((totalAssessed / nodes.length) * 100, 100)
   
   // Calculate remaining assessable nodes
   const remainingAssessableNodes = nodes.filter((node, index) => 
@@ -199,7 +199,7 @@ export default function KnowledgeAssessment({
       <div className="mb-8">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>진행률</span>
-          <span>{totalCompleted} / {nodes.length}</span>
+          <span>{totalAssessed} / {nodes.length}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
@@ -244,7 +244,7 @@ export default function KnowledgeAssessment({
           <button
             onClick={() => handleAssessment('known')}
             disabled={isSubmitting}
-            className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
           >
             <CheckCircle className="h-6 w-6" />
             <span className="text-lg font-medium">알아요</span>
@@ -252,7 +252,7 @@ export default function KnowledgeAssessment({
           <button
             onClick={() => handleAssessment('unknown')}
             disabled={isSubmitting}
-            className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
           >
             <XCircle className="h-6 w-6" />
             <span className="text-lg font-medium">몰라요</span>
@@ -265,11 +265,11 @@ export default function KnowledgeAssessment({
         <h4 className="text-sm font-medium text-gray-700 mb-3">현재까지 평가 결과</h4>
         <div className="grid grid-cols-1 gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+            <div className="w-4 h-4 bg-emerald-500 rounded-full"></div>
             <span className="text-sm text-gray-600">아는 개념: {knownCount}개</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+            <div className="w-4 h-4 bg-rose-500 rounded-full"></div>
             <span className="text-sm text-gray-600">모르는 개념: {unknownCount}개</span>
           </div>
           {skippedNodes.size > 0 && (

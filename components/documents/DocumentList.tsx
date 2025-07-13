@@ -1,81 +1,136 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { FileText, Brain } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import DocumentStatus from './DocumentStatus'
+import DeleteDocumentButton from './DeleteDocumentButton'
+import DocumentItemSkeleton from './DocumentItemSkeleton'
 
 interface Document {
   id: string
-  subject_id: string
   title: string
+  status: string
+  created_at: string
+  subject_id: string
+  file_path: string
   file_size: number | null
   page_count: number | null
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  created_at: string
 }
 
-export default function DocumentList({ documents }: { documents: Document[] }) {
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return 'N/A'
-    const mb = bytes / (1024 * 1024)
-    return `${mb.toFixed(1)} MB`
-  }
+interface DocumentListProps {
+  initialDocuments: Document[]
+  subjectId: string
+}
 
-  const getStatusIcon = (status: Document['status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-5 w-5 text-gray-700" />
-      case 'processing':
-        return <Clock className="h-5 w-5 text-gray-600 animate-spin" />
-      case 'failed':
-        return <AlertCircle className="h-5 w-5 text-gray-500" />
-      default:
-        return <Clock className="h-5 w-5 text-gray-400" />
-    }
-  }
+export default function DocumentList({ initialDocuments, subjectId }: DocumentListProps) {
+  const [documents, setDocuments] = useState<Document[]>(initialDocuments)
+  const supabase = createClient()
 
-  const getStatusText = (status: Document['status']) => {
-    switch (status) {
-      case 'completed':
-        return '분석 완료'
-      case 'processing':
-        return '분석 중...'
-      case 'failed':
-        return '분석 실패'
-      default:
-        return '대기 중'
+  useEffect(() => {
+    // Function to fetch latest documents
+    const fetchDocuments = async () => {
+      const { data } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('subject_id', subjectId)
+        .order('created_at', { ascending: false })
+      
+      if (data) {
+        setDocuments(data)
+      }
     }
+
+    // Subscribe to document changes
+    const channel = supabase
+      .channel(`documents-${subjectId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documents',
+          filter: `subject_id=eq.${subjectId}`,
+        },
+        () => {
+          // Refetch documents when any change occurs
+          fetchDocuments()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [subjectId, supabase])
+
+  if (documents.length === 0) {
+    return (
+      <div className="px-6 py-16 text-center">
+        <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+        <p className="text-lg text-gray-500 font-medium">아직 업로드된 문서가 없습니다</p>
+        <p className="text-sm text-gray-400 mt-2">
+          상단의 업로드 버튼을 눌러 PDF 문서를 추가하세요
+        </p>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="divide-y divide-gray-100">
       {documents.map((doc) => (
-        <Link
-          key={doc.id}
-          href={`/subjects/${doc.subject_id}/study?id=${doc.id}`}
-          className={`block p-6 bg-white rounded-lg shadow hover:shadow-md transition-shadow ${
-            doc.status !== 'completed' ? 'opacity-75 pointer-events-none' : ''
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex items-start">
-              <FileText className="h-6 w-6 text-gray-400 mr-3 mt-0.5" />
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  {doc.title}
-                </h3>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  {doc.page_count && <span>{doc.page_count} 페이지</span>}
-                  <span>{formatFileSize(doc.file_size)}</span>
-                  <span>{new Date(doc.created_at).toLocaleDateString('ko-KR')}</span>
+        doc.status === 'processing' ? (
+          <DocumentItemSkeleton key={doc.id} />
+        ) : (
+          <div key={doc.id} className="px-6 py-5 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center flex-1">
+                <div className="h-10 w-10 bg-neutral-100 rounded-lg flex items-center justify-center mr-4">
+                  <FileText className="h-5 w-5 text-neutral-700" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-medium text-gray-900">
+                    {doc.title}
+                  </h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-sm text-gray-500">
+                      {new Date(doc.created_at).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                    <DocumentStatus 
+                      documentId={doc.id} 
+                      initialStatus={doc.status}
+                      documentTitle={doc.title}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {getStatusIcon(doc.status)}
-              <span className="text-sm text-gray-600">{getStatusText(doc.status)}</span>
+              <div className="flex items-center gap-2">
+                {doc.status === 'completed' ? (
+                  <Link
+                    href={`/subjects/${subjectId}/study/assessment?doc=${doc.id}`}
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-colors"
+                  >
+                    <Brain className="h-4 w-4 mr-2" />
+                    학습하기
+                  </Link>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    {doc.status === 'pending' ? '대기 중' : ''}
+                  </div>
+                )}
+                <DeleteDocumentButton 
+                  documentId={doc.id} 
+                  documentTitle={doc.title} 
+                />
+              </div>
             </div>
           </div>
-        </Link>
+        )
       ))}
     </div>
   )

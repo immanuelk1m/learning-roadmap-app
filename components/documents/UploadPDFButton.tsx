@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { Upload, FileText, X, FilePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -11,7 +10,6 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
   const supabase = createClient()
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,7 +69,7 @@ export default function UploadPDFButton({ subjectId }: { subjectId: string }) {
 
       setIsOpen(false)
       setFile(null)
-      router.refresh()
+      // No need to refresh - DocumentList will update via real-time subscription
 
       // Trigger AI analysis in background
       if (newDoc) {
