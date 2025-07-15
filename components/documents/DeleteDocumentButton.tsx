@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 import { useToast } from '@/components/ui/ToastProvider'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -9,12 +8,12 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 interface DeleteDocumentButtonProps {
   documentId: string
   documentTitle: string
+  onDeleteSuccess?: () => void
 }
 
-export default function DeleteDocumentButton({ documentId, documentTitle }: DeleteDocumentButtonProps) {
+export default function DeleteDocumentButton({ documentId, documentTitle, onDeleteSuccess }: DeleteDocumentButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
   const { showToast } = useToast()
 
   const handleDelete = async () => {
@@ -38,7 +37,11 @@ export default function DeleteDocumentButton({ documentId, documentTitle }: Dele
       })
 
       setIsModalOpen(false)
-      router.refresh()
+      
+      // Call the success callback if provided
+      if (onDeleteSuccess) {
+        onDeleteSuccess()
+      }
     } catch (error: any) {
       showToast({
         type: 'error',

@@ -113,12 +113,22 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
           console.log('[DocumentList] Realtime event received:', payload.eventType, payload.new)
           console.log('[DocumentList] Event details:', {
             eventType: payload.eventType,
-            documentId: (payload.new as any)?.id,
+            documentId: (payload.new as any)?.id || (payload.old as any)?.id,
             status: (payload.new as any)?.status,
             old: payload.old
           })
-          // Refetch documents when any change occurs
-          fetchDocuments()
+          
+          // For DELETE events, immediately update the local state
+          if (payload.eventType === 'DELETE' && payload.old) {
+            const deletedId = (payload.old as any).id
+            console.log('[DocumentList] Document deleted via realtime:', deletedId)
+            setDocuments(prev => prev.filter(d => d.id !== deletedId))
+            // Still refetch to ensure consistency
+            fetchDocuments()
+          } else {
+            // For other events, refetch documents
+            fetchDocuments()
+          }
         }
       )
       .subscribe((status) => {
@@ -205,6 +215,10 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                 <DeleteDocumentButton 
                   documentId={doc.id} 
                   documentTitle={doc.title} 
+                  onDeleteSuccess={() => {
+                    // Optimistically remove the document from the list
+                    setDocuments(prev => prev.filter(d => d.id !== doc.id))
+                  }}
                 />
               </div>
             </div>
