@@ -1,5 +1,6 @@
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Font, Link } from '@react-pdf/renderer'
+import { parseAndRenderMarkdown } from '@/lib/pdf/markdown-parser-simple'
 
 // Register Korean font
 Font.register({
@@ -8,6 +9,12 @@ Font.register({
     { src: 'https://cdn.jsdelivr.net/gh/fonts-archive/NotoSansKR/NotoSansKR-Regular.ttf' },
     { src: 'https://cdn.jsdelivr.net/gh/fonts-archive/NotoSansKR/NotoSansKR-Bold.ttf', fontWeight: 'bold' },
   ]
+})
+
+// Register Bold font separately for better support
+Font.register({
+  family: 'NotoSansKR-Bold',
+  src: 'https://cdn.jsdelivr.net/gh/fonts-archive/NotoSansKR/NotoSansKR-Bold.ttf'
 })
 
 const styles = StyleSheet.create({
@@ -187,6 +194,59 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   
+  // Markdown content container
+  markdownContent: {
+    marginVertical: 5,
+  },
+  
+  // Override markdown styles for PDF
+  markdownOverrides: {
+    paragraph: {
+      fontFamily: 'NotoSansKR',
+      fontSize: 11,
+      lineHeight: 1.8,
+      color: '#4b5563',
+      marginBottom: 10,
+    },
+    bold: {
+      fontFamily: 'NotoSansKR-Bold',
+      fontWeight: undefined,  // Remove default fontWeight to avoid conflicts
+    },
+    code: {
+      fontFamily: 'Courier',
+      backgroundColor: '#f3f4f6',
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+      fontSize: 10,
+      borderRadius: 2,
+    },
+    codeBlock: {
+      fontFamily: 'Courier',
+      backgroundColor: '#f8f9fa',
+      padding: 12,
+      marginVertical: 10,
+      borderRadius: 4,
+      fontSize: 10,
+      lineHeight: 1.5,
+      borderLeft: '3 solid #e5e7eb',
+    },
+    link: {
+      color: '#3b82f6',
+      textDecoration: 'underline',
+      fontSize: 11,
+    },
+    blockquote: {
+      borderLeftWidth: 3,
+      borderLeftColor: '#3b82f6',
+      paddingLeft: 15,
+      marginVertical: 10,
+      backgroundColor: '#f0f9ff',
+      padding: 12,
+      fontStyle: 'italic',
+      color: '#1e40af',
+    },
+  },
+  
   // Tips
   tipBox: {
     backgroundColor: '#fef3c7',
@@ -302,19 +362,30 @@ export default function StudyGuidePDF({
     const lines = studyGuide.content.split('\n')
     let currentConcept = ''
     let currentExplanation: string[] = []
+    let inConceptSection = false
     
-    lines.forEach(line => {
-      // Check if this line is a concept header (### format)
-      if (line.startsWith('### ') && !line.includes('[')) {
+    lines.forEach((line, index) => {
+      // Check if this line is a concept header (### or #### format)
+      const headerMatch = line.match(/^(#{3,4})\s+(.+)$/)
+      if (headerMatch && !headerMatch[2].includes('[')) {
         // Save previous concept if exists
         if (currentConcept && currentExplanation.length > 0) {
           conceptExplanations.set(currentConcept, currentExplanation.join('\n').trim())
         }
         // Start new concept
-        currentConcept = line.substring(4).trim()
+        currentConcept = headerMatch[2].trim()
         currentExplanation = []
-      } else if (currentConcept && line.trim()) {
-        // Add to current concept explanation
+        inConceptSection = true
+      } else if (line.match(/^#{1,2}\s+/)) {
+        // Higher level header, end current concept section
+        if (currentConcept && currentExplanation.length > 0) {
+          conceptExplanations.set(currentConcept, currentExplanation.join('\n').trim())
+        }
+        currentConcept = ''
+        currentExplanation = []
+        inConceptSection = false
+      } else if (inConceptSection) {
+        // Add to current concept explanation (including empty lines for proper formatting)
         currentExplanation.push(line)
       }
     })
@@ -346,14 +417,7 @@ export default function StudyGuidePDF({
     
     // Add custom explanation from study guide if available
     if (customExplanation) {
-      // Clean up the explanation text
-      const cleanedExplanation = customExplanation
-        .replace(/^#### .*$/gm, '') // Remove sub-headers
-        .replace(/^- /gm, '• ') // Replace dashes with bullets
-        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
-        .trim()
-      
-      return `${baseExplanation}\n\n${cleanedExplanation}`
+      return `${baseExplanation}\n\n${customExplanation}`
     }
     
     return baseExplanation
@@ -482,11 +546,9 @@ export default function StudyGuidePDF({
               <Text style={styles.sectionIcon}>💡</Text>
               개념 설명
             </Text>
-            {generateExplanation(node).split('\n\n').map((para, idx) => (
-              <Text key={idx} style={styles.paragraph}>
-                {para}
-              </Text>
-            ))}
+            <View style={styles.markdownContent}>
+              {parseAndRenderMarkdown(generateExplanation(node), styles.markdownOverrides)}
+            </View>
             
             {/* Key Point */}
             <View style={styles.keyPointBox}>
