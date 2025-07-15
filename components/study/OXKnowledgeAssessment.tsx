@@ -181,12 +181,13 @@ export default function OXKnowledgeAssessment({
     }
 
     // Update assessments based on answer
-    const status = isAnswerCorrect ? 'known' : 'unknown'
-    let newAssessments = { ...assessments, [currentNode.id]: status }
+    const status: 'known' | 'unknown' = isAnswerCorrect ? 'known' : 'unknown'
+    let newAssessments: Record<string, 'known' | 'unknown'> = { ...assessments, [currentNode.id]: status }
     let newSkippedNodes = new Set(skippedNodes)
     
     if (!isAnswerCorrect) {
       const nodesToSkip = findDependentNodesToSkip(currentNode.id)
+      setPreviewSkipped(nodesToSkip) // Show which nodes will be skipped
       nodesToSkip.forEach(nodeId => {
         newAssessments[nodeId] = 'unknown'
         newSkippedNodes.add(nodeId)
