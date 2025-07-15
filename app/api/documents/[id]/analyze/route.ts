@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { geminiKnowledgeTreeModel } from '@/lib/gemini/client'
 import { KNOWLEDGE_TREE_PROMPT, OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { KnowledgeTreeResponse, KnowledgeNode } from '@/lib/gemini/schemas'
+import { analyzeLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
+import Logger from '@/lib/logger'
 
 // Increase timeout for the API route to handle large PDF processing
 export const maxDuration = 60 // 60 seconds timeout
@@ -11,12 +13,24 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log('\n=== Document Analysis API Started ===')
-  console.log(`Timestamp: ${new Date().toISOString()}`)
+  const startTime = Date.now()
+  const timer = analyzeLogger.startTimer()
+  const correlationId = request.headers.get('x-correlation-id') || Logger.generateCorrelationId()
+  
+  analyzeLogger.info('Document analysis API started', {
+    correlationId,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      headers: Object.fromEntries(request.headers.entries())
+    }
+  })
   
   try {
     const { id } = await params
-    console.log(`Document ID: ${id}`)
+    analyzeLogger.info('Processing document', {
+      correlationId,
+      documentId: id
+    })
     
     const supabase = await createClient()
     
@@ -24,26 +38,71 @@ export async function POST(
     const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
     // Get document info
-    console.log('Fetching document from database...')
+    supabaseLogger.info('Fetching document from database', {
+      correlationId,
+      documentId: id,
+      metadata: {
+        table: 'documents',
+        operation: 'select'
+      }
+    })
+    
+    const dbTimer = supabaseLogger.startTimer()
     const { data: document, error: docError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', id)
       .eq('user_id', FIXED_USER_ID)
       .single()
-
+    
+    const dbDuration = dbTimer()
+    
     if (docError) {
-      console.error('Database error:', docError)
+      supabaseLogger.error('Database error fetching document', {
+        correlationId,
+        documentId: id,
+        error: docError,
+        duration: dbDuration,
+        metadata: {
+          errorCode: docError.code,
+          errorDetails: docError.details,
+          errorHint: docError.hint
+        }
+      })
       return NextResponse.json({ error: 'Document not found', details: docError }, { status: 404 })
     }
     
     if (!document) {
-      console.error('Document not found in database')
+      analyzeLogger.error('Document not found in database', {
+        correlationId,
+        documentId: id,
+        duration: dbDuration
+      })
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
+    
+    supabaseLogger.info('Document fetched successfully', {
+      correlationId,
+      documentId: id,
+      duration: dbDuration,
+      metadata: {
+        documentStatus: document.status,
+        fileSize: document.file_size,
+        filePath: document.file_path
+      }
+    })
 
     // Update status to processing
-    console.log('Updating document status to processing...')
+    supabaseLogger.info('Updating document status', {
+      correlationId,
+      documentId: id,
+      metadata: {
+        newStatus: 'processing',
+        previousStatus: document.status
+      }
+    })
+    
+    const statusTimer = supabaseLogger.startTimer()
     const { data: updatedDoc, error: updateError } = await supabase
       .from('documents')
       .update({ status: 'processing' })
@@ -51,97 +110,282 @@ export async function POST(
       .select()
       .single()
     
+    const statusDuration = statusTimer()
+    
     if (updateError) {
-      console.error('Failed to update status:', updateError)
+      supabaseLogger.error('Failed to update document status', {
+        correlationId,
+        documentId: id,
+        error: updateError,
+        duration: statusDuration,
+        metadata: {
+          errorCode: updateError.code,
+          errorDetails: updateError.details
+        }
+      })
     } else {
-      console.log('Document status updated to processing:', updatedDoc)
+      supabaseLogger.info('Document status updated', {
+        correlationId,
+        documentId: id,
+        duration: statusDuration,
+        metadata: {
+          updatedDocument: updatedDoc
+        }
+      })
     }
 
     try {
+      // Log memory usage before processing
+      analyzeLogger.logMemoryUsage('before_pdf_processing')
+      
       // Debug: Log document info
-      console.log('Document info:', {
-        id: document.id,
-        title: document.title,
-        file_path: document.file_path,
-        status: document.status
+      analyzeLogger.debug('Document details', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          title: document.title,
+          filePath: document.file_path,
+          fileSize: `${(document.file_size / (1024 * 1024)).toFixed(2)} MB`,
+          status: document.status
+        }
       })
 
       // Check if file exists in storage
+      const storageListTimer = supabaseLogger.startTimer()
+      const storageDir = document.file_path.split('/').slice(0, -1).join('/')
+      
+      supabaseLogger.info('Checking storage for file existence', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          bucket: 'pdf-documents',
+          directory: storageDir,
+          fileName: document.file_path.split('/').pop()
+        }
+      })
+      
       const { data: fileList, error: listError } = await supabase.storage
         .from('pdf-documents')
-        .list(document.file_path.split('/').slice(0, -1).join('/'))
+        .list(storageDir)
 
+      const listDuration = storageListTimer()
+      
       if (listError) {
-        console.error('Storage list error:', listError)
+        supabaseLogger.error('Storage list error', {
+          correlationId,
+          documentId: id,
+          error: listError,
+          duration: listDuration,
+          metadata: {
+            bucket: 'pdf-documents',
+            directory: storageDir
+          }
+        })
       } else {
-        console.log('Files in directory:', fileList?.map(f => f.name))
+        supabaseLogger.info('Storage directory listing successful', {
+          correlationId,
+          documentId: id,
+          duration: listDuration,
+          metadata: {
+            filesFound: fileList?.length || 0,
+            fileNames: fileList?.map(f => f.name) || []
+          }
+        })
       }
 
       // Get file from storage with retry logic for timeout issues
       let fileData: Blob | null = null
       let downloadError: any = null
       let retries = 3
+      const maxRetries = 3
+      
+      analyzeLogger.info('Starting PDF download from storage', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          filePath: document.file_path,
+          fileSize: document.file_size,
+          maxRetries
+        }
+      })
       
       while (retries > 0 && !fileData) {
+        const attemptNum = maxRetries - retries + 1
+        const downloadTimer = supabaseLogger.startTimer()
+        
         try {
+          supabaseLogger.info('Attempting PDF download', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              attempt: attemptNum,
+              retriesLeft: retries - 1
+            }
+          })
+          
           const downloadResult = await supabase.storage
             .from('pdf-documents')
             .download(document.file_path)
           
+          const downloadDuration = downloadTimer()
+          
           fileData = downloadResult.data
           downloadError = downloadResult.error
           
+          if (!downloadError && fileData) {
+            supabaseLogger.info('PDF download successful', {
+              correlationId,
+              documentId: id,
+              duration: downloadDuration,
+              metadata: {
+                attempt: attemptNum,
+                downloadedSize: fileData.size,
+                downloadSpeed: `${((fileData.size / 1024 / 1024) / (downloadDuration / 1000)).toFixed(2)} MB/s`
+              }
+            })
+          } else if (downloadError) {
+            supabaseLogger.warn('PDF download attempt failed', {
+              correlationId,
+              documentId: id,
+              duration: downloadDuration,
+              error: downloadError,
+              metadata: {
+                attempt: attemptNum,
+                errorCode: downloadError.code,
+                willRetry: retries > 1
+              }
+            })
+          }
+          
           if (downloadError) {
-            console.error(`Download attempt failed (${4 - retries}/3):`, downloadError.message)
             if (retries > 1 && downloadError.message?.includes('timeout')) {
-              console.log('Retrying download after timeout...')
-              await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds before retry
+              const retryDelay = 2000 * (maxRetries - retries + 1) // Exponential backoff
+              supabaseLogger.info('Retrying download after timeout', {
+                correlationId,
+                documentId: id,
+                metadata: {
+                  retryDelay,
+                  nextAttempt: attemptNum + 1
+                }
+              })
+              await new Promise(resolve => setTimeout(resolve, retryDelay))
               retries--
               continue
             }
             break
           }
         } catch (error: any) {
-          console.error(`Download attempt error (${4 - retries}/3):`, error)
+          downloadError = error
+          supabaseLogger.error('Download attempt error', {
+            correlationId,
+            documentId: id,
+            error,
+            metadata: {
+              attempt: attemptNum,
+              errorType: error.name,
+              errorMessage: error.message,
+              willRetry: retries > 1
+            }
+          })
+          
           if (retries > 1) {
-            console.log('Retrying download after error...')
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            const retryDelay = 2000 * (maxRetries - retries + 1)
+            await new Promise(resolve => setTimeout(resolve, retryDelay))
             retries--
             continue
           }
-          downloadError = error
           break
         }
       }
 
       if (downloadError) {
-        console.error('Storage download error:', downloadError)
-        console.error('Full error details:', JSON.stringify(downloadError, null, 2))
+        analyzeLogger.error('Failed to download PDF after all retries', {
+          correlationId,
+          documentId: id,
+          error: downloadError,
+          metadata: {
+            totalAttempts: maxRetries,
+            filePath: document.file_path,
+            errorDetails: JSON.stringify(downloadError, null, 2)
+          }
+        })
         throw new Error(`Failed to download file: ${downloadError.message}`)
       }
 
       if (!fileData) {
+        analyzeLogger.error('No file data received from storage', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            filePath: document.file_path
+          }
+        })
         throw new Error('Failed to download file: No data received')
       }
 
-      console.log('File downloaded successfully, size:', fileData.size)
+      analyzeLogger.info('PDF downloaded successfully', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          fileSize: fileData.size,
+          fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`
+        }
+      })
       
       // For large files, check if we should use a different approach
       if (fileData.size > 10 * 1024 * 1024) { // 10MB
-        console.log('Large file detected, processing may take longer...')
+        analyzeLogger.warn('Large file detected', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            fileSize: fileData.size,
+            fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`,
+            threshold: '10 MB'
+          }
+        })
       }
 
       // Convert to base64 for Gemini
-      console.log('Converting PDF to base64...')
+      analyzeLogger.info('Converting PDF to base64', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          originalSize: fileData.size
+        }
+      })
+      
+      const conversionTimer = analyzeLogger.startTimer()
       const base64Data = await fileData.arrayBuffer().then((buffer) =>
         Buffer.from(buffer).toString('base64')
       )
-      console.log(`Base64 data size: ${base64Data.length} characters`)
+      const conversionDuration = conversionTimer()
+      
+      analyzeLogger.info('Base64 conversion completed', {
+        correlationId,
+        documentId: id,
+        duration: conversionDuration,
+        metadata: {
+          base64Length: base64Data.length,
+          base64SizeMB: `${(base64Data.length / (1024 * 1024)).toFixed(2)} MB`,
+          expansionRatio: (base64Data.length / fileData.size).toFixed(2)
+        }
+      })
+
+      // Log memory usage before Gemini call
+      analyzeLogger.logMemoryUsage('before_gemini_analysis')
 
       // Analyze with Gemini using structured output
-      console.log('Sending to Gemini API for analysis...')
-      console.log(`Using model: gemini-2.5-flash`)
-      const startTime = Date.now()
+      geminiLogger.info('Sending PDF to Gemini for knowledge tree extraction', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          model: 'gemini-2.5-flash',
+          promptLength: KNOWLEDGE_TREE_PROMPT.length,
+          pdfSize: fileData.size
+        }
+      })
+      
+      const geminiTimer = geminiLogger.startTimer()
       
       const result = await geminiKnowledgeTreeModel.generateContent({
         contents: [
@@ -161,38 +405,90 @@ export async function POST(
         ],
       })
 
-      const endTime = Date.now()
-      console.log(`Gemini API response time: ${endTime - startTime}ms`)
+      const geminiDuration = geminiTimer()
       
       const response = result.text || ''
-      console.log('Gemini response received:')
-      console.log(`Response length: ${response.length} characters`)
-      console.log('First 500 characters:', response.substring(0, 500))
+      
+      geminiLogger.info('Gemini response received', {
+        correlationId,
+        documentId: id,
+        duration: geminiDuration,
+        metadata: {
+          responseLength: response.length,
+          responsePreview: response.substring(0, 200),
+          processingSpeed: `${(fileData.size / 1024 / 1024 / (geminiDuration / 1000)).toFixed(2)} MB/s`
+        }
+      })
       
       if (!response) {
-        console.error('Empty response from Gemini API')
+        geminiLogger.error('Empty response from Gemini API', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            resultObject: result
+          }
+        })
         throw new Error('Empty response from AI')
       }
       
       let knowledgeTree: KnowledgeTreeResponse
       try {
-        console.log('Parsing JSON response...')
+        geminiLogger.info('Parsing Gemini JSON response', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            responseLength: response.length
+          }
+        })
+        
         knowledgeTree = JSON.parse(response)
-        console.log('Successfully parsed knowledge tree')
-        console.log(`Number of root nodes: ${knowledgeTree.nodes?.length || 0}`)
+        
+        geminiLogger.info('Successfully parsed knowledge tree', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            totalNodes: knowledgeTree.nodes?.length || 0,
+            nodeLevels: [...new Set(knowledgeTree.nodes?.map(n => n.level) || [])],
+            nodeNames: knowledgeTree.nodes?.slice(0, 5).map(n => n.name) || []
+          }
+        })
       } catch (parseError: any) {
-        console.error('JSON parse error:', parseError)
-        console.error('Raw response that failed to parse:', response)
+        geminiLogger.error('Failed to parse Gemini response as JSON', {
+          correlationId,
+          documentId: id,
+          error: parseError,
+          metadata: {
+            errorType: parseError.name,
+            errorMessage: parseError.message,
+            responseLength: response.length,
+            responseStart: response.substring(0, 500),
+            responseEnd: response.substring(response.length - 500)
+          }
+        })
         throw new Error(`Invalid response format from AI: ${parseError.message}`)
       }
 
       // Save flat knowledge nodes to database
       const saveFlatNodes = async (nodes: any[]) => {
-        console.log(`Saving ${nodes?.length || 0} nodes in flat structure`)
+        supabaseLogger.info('Starting knowledge nodes save operation', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            nodeCount: nodes?.length || 0,
+            operation: 'batch_insert'
+          }
+        })
         
         if (!nodes || !Array.isArray(nodes)) {
-          console.warn('Invalid nodes array:', nodes)
-          return
+          supabaseLogger.warn('Invalid nodes array provided', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              nodesType: typeof nodes,
+              nodesValue: nodes
+            }
+          })
+          return {}
         }
 
         // Create a mapping of temporary IDs to actual database IDs
@@ -204,7 +500,15 @@ export async function POST(
           
           // Validate node structure
           if (!node || typeof node !== 'object') {
-            console.warn('Invalid node at index', i, ':', node)
+            supabaseLogger.warn('Invalid node structure', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                nodeIndex: i,
+                nodeType: typeof node,
+                nodeValue: node
+              }
+            })
             continue
           }
           
@@ -219,33 +523,81 @@ export async function POST(
             prerequisites: node.prerequisites || [],
           }
           
-          console.log(`Saving node: "${nodeData.name}" (level ${nodeData.level})`)
+          supabaseLogger.debug('Saving knowledge node', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              nodeName: nodeData.name,
+              nodeLevel: nodeData.level,
+              nodeIndex: i
+            }
+          })
           
           try {
+            const nodeTimer = supabaseLogger.startTimer()
             const { data: savedNode, error: insertError } = await supabase
               .from('knowledge_nodes')
               .insert(nodeData)
               .select()
               .single()
             
+            const nodeDuration = nodeTimer()
+            
             if (insertError) {
-              console.error(`Failed to insert node "${nodeData.name}":`, insertError)
+              supabaseLogger.error('Failed to insert knowledge node', {
+                correlationId,
+                documentId: id,
+                error: insertError,
+                duration: nodeDuration,
+                metadata: {
+                  nodeName: nodeData.name,
+                  nodeIndex: i,
+                  errorCode: insertError.code,
+                  errorDetails: insertError.details
+                }
+              })
               continue
             }
 
-            console.log(`Successfully saved node with ID: ${savedNode.id}`)
+            supabaseLogger.debug('Knowledge node saved successfully', {
+              correlationId,
+              documentId: id,
+              duration: nodeDuration,
+              metadata: {
+                nodeId: savedNode.id,
+                nodeName: savedNode.name,
+                nodeIndex: i
+              }
+            })
             
             // Map temporary ID to actual database ID
             if (node.id && savedNode.id) {
               idMapping[node.id] = savedNode.id
             }
           } catch (nodeError: any) {
-            console.error(`Error saving node "${nodeData.name}":`, nodeError.message)
+            supabaseLogger.error('Exception while saving node', {
+              correlationId,
+              documentId: id,
+              error: nodeError,
+              metadata: {
+                nodeName: nodeData.name,
+                nodeIndex: i,
+                errorType: nodeError.name,
+                errorMessage: nodeError.message
+              }
+            })
           }
         }
         
         // Second pass: Update parent_id references
-        console.log('Updating parent-child relationships...')
+        supabaseLogger.info('Updating parent-child relationships', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            relationshipCount: nodes.filter(n => n.parent_id).length
+          }
+        })
+        
         for (const node of nodes) {
           if (node.parent_id && node.id && idMapping[node.id]) {
             const actualNodeId = idMapping[node.id]
@@ -258,28 +610,85 @@ export async function POST(
                 .eq('id', actualNodeId)
               
               if (updateError) {
-                console.error(`Failed to update parent_id for node ${actualNodeId}:`, updateError)
+                supabaseLogger.error('Failed to update parent_id relationship', {
+                  correlationId,
+                  documentId: id,
+                  error: updateError,
+                  metadata: {
+                    nodeId: actualNodeId,
+                    parentId: actualParentId,
+                    errorCode: updateError.code
+                  }
+                })
               } else {
-                console.log(`Updated parent_id for node ${actualNodeId} to ${actualParentId}`)
+                supabaseLogger.debug('Parent-child relationship updated', {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    nodeId: actualNodeId,
+                    parentId: actualParentId
+                  }
+                })
               }
             }
           }
         }
+        
+        return idMapping
       }
 
       // Ensure knowledgeTree.nodes exists and is an array
       if (!knowledgeTree.nodes || !Array.isArray(knowledgeTree.nodes)) {
-        console.error('Invalid knowledge tree structure:', knowledgeTree)
+        analyzeLogger.error('Invalid knowledge tree structure', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            receivedStructure: typeof knowledgeTree,
+            hasNodes: !!knowledgeTree.nodes,
+            nodesType: knowledgeTree.nodes ? typeof knowledgeTree.nodes : 'undefined'
+          }
+        })
         throw new Error('Invalid knowledge tree structure: nodes array is missing or invalid')
       }
       
-      console.log('Saving knowledge nodes to database...')
-      await saveFlatNodes(knowledgeTree.nodes)
-      console.log('Knowledge nodes saved successfully')
+      analyzeLogger.info('Saving knowledge nodes to database', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          totalNodes: knowledgeTree.nodes.length
+        }
+      })
+      
+      const nodesTimer = analyzeLogger.startTimer()
+      const nodeIdMapping = await saveFlatNodes(knowledgeTree.nodes)
+      const nodesDuration = nodesTimer()
+      
+      analyzeLogger.info('Knowledge nodes saved successfully', {
+        correlationId,
+        documentId: id,
+        duration: nodesDuration,
+        metadata: {
+          mappedNodes: Object.keys(nodeIdMapping).length,
+          totalNodes: knowledgeTree.nodes.length
+        }
+      })
       
       // Generate O/X quiz questions for knowledge assessment
-      console.log('Generating O/X quiz questions for knowledge assessment...')
+      geminiLogger.info('Starting O/X quiz generation', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          nodeCount: knowledgeTree.nodes.length,
+          promptLength: OX_QUIZ_GENERATION_PROMPT.length
+        }
+      })
+      
+      // Log memory before quiz generation
+      analyzeLogger.logMemoryUsage('before_quiz_generation')
+      
       try {
+        const quizTimer = geminiLogger.startTimer()
+        
         const quizResult = await geminiKnowledgeTreeModel.generateContent({
           contents: [
             {
@@ -298,31 +707,40 @@ export async function POST(
           ],
         })
         
+        const quizDuration = quizTimer()
         const quizResponse = quizResult.text || ''
-        console.log('Quiz generation response received')
+        
+        geminiLogger.info('Quiz generation response received', {
+          correlationId,
+          documentId: id,
+          duration: quizDuration,
+          metadata: {
+            responseLength: quizResponse.length,
+            responsePreview: quizResponse.substring(0, 200)
+          }
+        })
         
         if (quizResponse) {
           try {
             const quizData = JSON.parse(quizResponse)
-            console.log(`Generated ${quizData.quiz_items?.length || 0} O/X questions`)
             
-            // Get the ID mapping from saved nodes
-            const { data: savedNodes } = await supabase
-              .from('knowledge_nodes')
-              .select('id, name')
-              .eq('document_id', id)
-            
-            const nodeIdMap: Record<string, string> = {}
-            savedNodes?.forEach((node, index) => {
-              // Map temporary node IDs to actual database IDs
-              const tempId = `node_${index + 1}`
-              nodeIdMap[tempId] = node.id
+            geminiLogger.info('Quiz response parsed successfully', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                quizItemCount: quizData.quiz_items?.length || 0,
+                nodeIds: quizData.quiz_items?.map((item: any) => item.node_id) || []
+              }
             })
             
-            // Save quiz questions to database
+            // Save quiz questions to database using the ID mapping from node creation
             if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
+              let savedCount = 0
+              let failedCount = 0
+              const saveTimer = supabaseLogger.startTimer()
+              
               for (const item of quizData.quiz_items) {
-                const actualNodeId = nodeIdMap[item.node_id]
+                const actualNodeId = nodeIdMapping[item.node_id]
                 if (actualNodeId) {
                   const quizItem = {
                     document_id: id,
@@ -341,24 +759,84 @@ export async function POST(
                     .insert(quizItem)
                   
                   if (quizError) {
-                    console.error(`Failed to save quiz for node ${item.node_id}:`, quizError)
+                    supabaseLogger.error('Failed to save quiz item', {
+                      correlationId,
+                      documentId: id,
+                      metadata: {
+                        nodeId: item.node_id,
+                        actualNodeId,
+                        errorCode: quizError.code,
+                        errorDetails: quizError.details,
+                        quizQuestion: item.question
+                      }
+                    })
+                    failedCount++
+                  } else {
+                    savedCount++
                   }
+                } else {
+                  supabaseLogger.warn('No mapping found for quiz node_id', {
+                    correlationId,
+                    documentId: id,
+                    metadata: {
+                      unmappedNodeId: item.node_id,
+                      availableMappings: Object.keys(nodeIdMapping),
+                      quizQuestion: item.question
+                    }
+                  })
+                  failedCount++
                 }
               }
-              console.log('O/X quiz questions saved successfully')
+              
+              const saveDuration = saveTimer()
+              supabaseLogger.info('Quiz items save operation completed', {
+                correlationId,
+                documentId: id,
+                duration: saveDuration,
+                metadata: {
+                  totalItems: quizData.quiz_items.length,
+                  savedCount,
+                  failedCount,
+                  successRate: `${((savedCount / quizData.quiz_items.length) * 100).toFixed(2)}%`
+                }
+              })
             }
-          } catch (quizParseError) {
-            console.error('Failed to parse quiz response:', quizParseError)
+          } catch (quizParseError: any) {
+            geminiLogger.error('Failed to parse quiz response', {
+              correlationId,
+              documentId: id,
+              error: quizParseError,
+              metadata: {
+                errorType: quizParseError.name,
+                errorMessage: quizParseError.message,
+                responseLength: quizResponse.length,
+                responseStart: quizResponse.substring(0, 200)
+              }
+            })
             // Continue without failing the entire process
           }
         }
-      } catch (quizError) {
-        console.error('Failed to generate O/X quiz questions:', quizError)
+      } catch (quizError: any) {
+        geminiLogger.error('Failed to generate O/X quiz questions', {
+          correlationId,
+          documentId: id,
+          error: quizError,
+          metadata: {
+            errorType: quizError.name,
+            errorMessage: quizError.message,
+            nodeCount: knowledgeTree.nodes.length
+          }
+        })
         // Continue without failing the entire process
       }
 
       // Update document status
-      console.log('Updating document status to completed...')
+      supabaseLogger.info('Updating document status to completed', {
+        correlationId,
+        documentId: id
+      })
+      
+      const completionTimer = supabaseLogger.startTimer()
       const { data: completedDoc, error: completeError } = await supabase
         .from('documents')
         .update({ status: 'completed' })
@@ -366,22 +844,73 @@ export async function POST(
         .select()
         .single()
       
+      const completionDuration = completionTimer()
+      
       if (completeError) {
-        console.error('Failed to update status to completed:', completeError)
+        supabaseLogger.error('Failed to update status to completed', {
+          correlationId,
+          documentId: id,
+          error: completeError,
+          duration: completionDuration,
+          metadata: {
+            errorCode: completeError.code,
+            errorDetails: completeError.details
+          }
+        })
       } else {
-        console.log('Document status updated to completed:', completedDoc)
+        supabaseLogger.info('Document status updated to completed', {
+          correlationId,
+          documentId: id,
+          duration: completionDuration,
+          metadata: {
+            completedDocument: completedDoc
+          }
+        })
       }
 
-      console.log('=== Document Analysis Completed Successfully ===')
+      // Log final memory usage
+      analyzeLogger.logMemoryUsage('after_analysis_complete')
+      
+      const totalDuration = timer()
+      analyzeLogger.info('Document analysis completed successfully', {
+        correlationId,
+        documentId: id,
+        duration: totalDuration,
+        metadata: {
+          fileName: document.title,
+          fileSize: document.file_size,
+          nodeCount: knowledgeTree.nodes.length,
+          processingSpeed: `${(document.file_size / 1024 / 1024 / (totalDuration / 1000)).toFixed(2)} MB/s`
+        }
+      })
+      
+      analyzeLogger.logApiResponse('/api/documents/[id]/analyze', 200, totalDuration, {
+        correlationId,
+        documentId: id
+      })
+      
       return NextResponse.json({ success: true })
     } catch (error: any) {
-      console.error('=== Analysis Failed ===')
-      console.error('Error type:', error.constructor.name)
-      console.error('Error message:', error.message)
-      console.error('Error stack:', error.stack)
+      const errorDuration = timer()
+      
+      analyzeLogger.error('Document analysis failed', {
+        correlationId,
+        documentId: id,
+        error,
+        duration: errorDuration,
+        metadata: {
+          errorType: error.constructor.name,
+          errorMessage: error.message,
+          errorStack: error.stack,
+          documentId: id
+        }
+      })
       
       // Update status to failed
-      console.log('Updating document status to failed...')
+      supabaseLogger.info('Updating document status to failed', {
+        correlationId,
+        documentId: id
+      })
       const { data: failedDoc, error: failError } = await supabase
         .from('documents')
         .update({ status: 'failed' })
@@ -390,21 +919,55 @@ export async function POST(
         .single()
       
       if (failError) {
-        console.error('Failed to update status to failed:', failError)
+        supabaseLogger.error('Failed to update status to failed', {
+          correlationId,
+          documentId: id,
+          error: failError,
+          metadata: {
+            errorCode: failError.code,
+            errorDetails: failError.details
+          }
+        })
       } else {
-        console.log('Document status updated to failed:', failedDoc)
+        supabaseLogger.info('Document status updated to failed', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            failedDocument: failedDoc
+          }
+        })
       }
 
+      analyzeLogger.logApiResponse('/api/documents/[id]/analyze', 500, errorDuration, {
+        correlationId,
+        documentId: id,
+        error: error.message
+      })
+      
       return NextResponse.json(
         { error: 'Analysis failed', details: error.message },
         { status: 500 }
       )
     }
   } catch (error: any) {
-    console.error('=== API Error (Outer catch) ===')
-    console.error('Error type:', error.constructor.name)
-    console.error('Error message:', error.message)
-    console.error('Error stack:', error.stack)
+    const duration = Date.now() - startTime
+    
+    analyzeLogger.error('API error (outer catch)', {
+      correlationId,
+      error,
+      duration,
+      metadata: {
+        errorType: error.constructor.name,
+        errorMessage: error.message,
+        errorStack: error.stack
+      }
+    })
+    
+    analyzeLogger.logApiResponse('/api/documents/[id]/analyze', 500, duration, {
+      correlationId,
+      error: error.message
+    })
+    
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

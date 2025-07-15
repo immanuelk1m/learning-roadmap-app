@@ -2,17 +2,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { geminiKnowledgeTreeModel } from '@/lib/gemini/client'
 import { OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
+import { quizLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
+import Logger from '@/lib/logger'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log('\n=== Quiz Regeneration API Started ===')
-  console.log(`Timestamp: ${new Date().toISOString()}`)
+  const startTime = Date.now()
+  const timer = quizLogger.startTimer()
+  const correlationId = request.headers.get('x-correlation-id') || Logger.generateCorrelationId()
+  
+  quizLogger.info('Quiz regeneration API started', {
+    correlationId,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      headers: Object.fromEntries(request.headers.entries())
+    }
+  })
   
   try {
     const { id } = await params
-    console.log(`Document ID: ${id}`)
+    quizLogger.info('Processing quiz regeneration', {
+      correlationId,
+      documentId: id
+    })
     
     const supabase = await createClient()
     

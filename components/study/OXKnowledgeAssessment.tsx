@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, XCircle, ArrowRight, CircleX, CircleCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { assessmentLogger, supabaseLogger, quizLogger } from '@/lib/logger'
+import Logger from '@/lib/logger'
 
 interface KnowledgeNode {
   id: string
@@ -47,6 +49,35 @@ export default function OXKnowledgeAssessment({
   const [isRegenerating, setIsRegenerating] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  
+  // Generate correlation ID for this assessment session
+  const [correlationId] = useState(() => Logger.generateCorrelationId())
+  const [sessionStartTime] = useState(() => Date.now())
+  
+  useEffect(() => {
+    assessmentLogger.info('OX Knowledge Assessment component mounted', {
+      correlationId,
+      documentId,
+      metadata: {
+        subjectId,
+        totalNodes: nodes.length,
+        nodeNames: nodes.map(n => n.name)
+      }
+    })
+    
+    return () => {
+      const sessionDuration = Date.now() - sessionStartTime
+      assessmentLogger.info('OX Knowledge Assessment component unmounted', {
+        correlationId,
+        documentId,
+        duration: sessionDuration,
+        metadata: {
+          completedAssessments: Object.keys(assessments).length,
+          skippedNodes: skippedNodes.size
+        }
+      })
+    }
+  }, [])
 
   const currentNode = nodes[currentIndex]
   const currentQuestion = questions[currentNode?.id]
@@ -65,8 +96,19 @@ export default function OXKnowledgeAssessment({
   useEffect(() => {
     const loadQuestions = async () => {
       setIsLoading(true)
+      const loadTimer = quizLogger.startTimer()
+      
       try {
         const nodeIds = nodes.map(n => n.id)
+        
+        quizLogger.info('Loading O/X quiz questions', {
+          correlationId,
+          documentId,
+          metadata: {
+            nodeCount: nodeIds.length,
+            nodeIds: nodeIds.slice(0, 10) // Log first 10 for debugging
+          }
+        })
         
         const { data, error } = await supabase
           .from('quiz_items')
@@ -75,8 +117,19 @@ export default function OXKnowledgeAssessment({
           .eq('question_type', 'true_false')
           .eq('is_assessment', true)
 
+        const loadDuration = loadTimer()
+        
         if (error) {
-          console.error('Error loading quiz questions:', error)
+          quizLogger.error('Failed to load quiz questions', {
+            correlationId,
+            documentId,
+            error,
+            duration: loadDuration,
+            metadata: {
+              errorMessage: error.message || error.toString(),
+              nodeIds
+            }
+          })
           setHasQuestions(false)
         } else if (data) {
           const questionMap: Record<string, QuizQuestion> = {}
@@ -91,13 +144,44 @@ export default function OXKnowledgeAssessment({
               }
             }
           })
+          
+          quizLogger.info('Quiz questions loaded successfully', {
+            correlationId,
+            documentId,
+            duration: loadDuration,
+            metadata: {
+              totalQuestions: data.length,
+              mappedQuestions: Object.keys(questionMap).length,
+              unmappedQuestions: data.length - Object.keys(questionMap).length,
+              hasQuestions: Object.keys(questionMap).length > 0
+            }
+          })
+          
           setQuestions(questionMap)
           setHasQuestions(Object.keys(questionMap).length > 0)
         } else {
+          quizLogger.warn('No quiz questions returned', {
+            correlationId,
+            documentId,
+            duration: loadDuration,
+            metadata: {
+              nodeIds
+            }
+          })
           setHasQuestions(false)
         }
-      } catch (error) {
-        console.error('Error in loadQuestions:', error)
+      } catch (error: any) {
+        const duration = loadTimer()
+        quizLogger.error('Exception while loading questions', {
+          correlationId,
+          documentId,
+          error,
+          duration,
+          metadata: {
+            errorType: error.name,
+            errorMessage: error.message
+          }
+        })
         setHasQuestions(false)
       } finally {
         setIsLoading(false)
@@ -105,7 +189,7 @@ export default function OXKnowledgeAssessment({
     }
 
     loadQuestions()
-  }, [nodes, supabase])
+  }, [nodes, supabase, correlationId, documentId])
 
   const buildDependencyMap = () => {
     const dependencyMap = new Map<string, string[]>()
@@ -176,25 +260,79 @@ export default function OXKnowledgeAssessment({
   const handleAnswer = async (answer: 'O' | 'X') => {
     if (showFeedback) return
     
+    const answerTimer = assessmentLogger.startTimer()
+    
     setUserAnswer(answer)
     
     // Determine if answer is correct
     const isAnswerCorrect = currentQuestion?.correct_answer === answer
     setIsCorrect(isAnswerCorrect)
     setShowFeedback(true)
+    
+    assessmentLogger.info('Quiz answer submitted', {
+      correlationId,
+      documentId,
+      metadata: {
+        nodeId: currentNode?.id,
+        nodeName: currentNode?.name,
+        questionId: currentQuestion?.id,
+        userAnswer: answer,
+        correctAnswer: currentQuestion?.correct_answer,
+        isCorrect: isAnswerCorrect,
+        currentIndex,
+        totalNodes: nodes.length
+      }
+    })
 
     // Save quiz attempt
     const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
     if (currentQuestion) {
-      await supabase
-        .from('quiz_attempts')
-        .insert({
-          user_id: FIXED_USER_ID,
-          quiz_item_id: currentQuestion.id,
-          user_answer: answer,
-          is_correct: isAnswerCorrect,
-          time_spent: null
+      try {
+        const { error } = await supabase
+          .from('quiz_attempts')
+          .insert({
+            user_id: FIXED_USER_ID,
+            quiz_item_id: currentQuestion.id,
+            user_answer: answer,
+            is_correct: isAnswerCorrect,
+            time_spent: null
+          })
+        
+        const duration = answerTimer()
+        
+        if (error) {
+          supabaseLogger.error('Failed to save quiz attempt', {
+            correlationId,
+            documentId,
+            error,
+            duration,
+            metadata: {
+              questionId: currentQuestion.id,
+              errorMessage: error.message || error.toString()
+            }
+          })
+        } else {
+          supabaseLogger.info('Quiz attempt saved', {
+            correlationId,
+            documentId,
+            duration,
+            metadata: {
+              questionId: currentQuestion.id,
+              isCorrect: isAnswerCorrect
+            }
+          })
+        }
+      } catch (error: any) {
+        assessmentLogger.error('Exception while saving quiz attempt', {
+          correlationId,
+          documentId,
+          error,
+          metadata: {
+            errorType: error.name,
+            errorMessage: error.message
+          }
         })
+      }
     }
 
     // Update assessments based on answer
@@ -231,7 +369,25 @@ export default function OXKnowledgeAssessment({
 
   const saveAssessments = async (finalAssessments: Record<string, 'known' | 'unknown'>) => {
     setIsSubmitting(true)
+    const saveTimer = assessmentLogger.startTimer()
     const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    
+    const sessionDuration = Date.now() - sessionStartTime
+    const knownCount = Object.values(finalAssessments).filter(v => v === 'known').length
+    const unknownCount = Object.values(finalAssessments).filter(v => v === 'unknown').length
+    
+    assessmentLogger.info('Saving assessment results', {
+      correlationId,
+      documentId,
+      duration: sessionDuration,
+      metadata: {
+        totalAssessed: Object.keys(finalAssessments).length,
+        knownCount,
+        unknownCount,
+        skippedCount: skippedNodes.size,
+        completionRate: `${((Object.keys(finalAssessments).length / nodes.length) * 100).toFixed(2)}%`
+      }
+    })
 
     try {
       const statusData = Object.entries(finalAssessments).map(([nodeId, status]) => ({
@@ -243,6 +399,9 @@ export default function OXKnowledgeAssessment({
         assessment_method: 'quiz' as const
       }))
 
+      let successCount = 0
+      let failCount = 0
+      
       for (const data of statusData) {
         const { error } = await supabase
           .from('user_knowledge_status')
@@ -251,13 +410,50 @@ export default function OXKnowledgeAssessment({
           })
 
         if (error) {
-          console.error('Error saving individual assessment:', error, data)
+          failCount++
+          supabaseLogger.error('Failed to save individual assessment', {
+            correlationId,
+            documentId,
+            error,
+            metadata: {
+              nodeId: data.node_id,
+              errorMessage: error.message || error.toString()
+            }
+          })
+        } else {
+          successCount++
         }
       }
+      
+      const saveDuration = saveTimer()
+      
+      assessmentLogger.info('Assessment results saved', {
+        correlationId,
+        documentId,
+        duration: saveDuration,
+        metadata: {
+          totalItems: statusData.length,
+          successCount,
+          failCount,
+          successRate: `${((successCount / statusData.length) * 100).toFixed(2)}%`,
+          redirectTo: `/subjects/${subjectId}/study?doc=${documentId}`
+        }
+      })
 
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
-    } catch (error) {
-      console.error('Error saving assessments:', error)
+    } catch (error: any) {
+      const saveDuration = saveTimer()
+      assessmentLogger.error('Exception while saving assessments', {
+        correlationId,
+        documentId,
+        error,
+        duration: saveDuration,
+        metadata: {
+          errorType: error.name,
+          errorMessage: error.message,
+          redirectTo: `/subjects/${subjectId}/study?doc=${documentId}`
+        }
+      })
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     }
   }
@@ -267,20 +463,65 @@ export default function OXKnowledgeAssessment({
 
   const handleRegenerateQuiz = async () => {
     setIsRegenerating(true)
+    const regenTimer = quizLogger.startTimer()
+    
+    quizLogger.info('Regenerating O/X quiz', {
+      correlationId,
+      documentId,
+      metadata: {
+        endpoint: `/api/documents/${documentId}/regenerate-quiz`
+      }
+    })
+    
     try {
       const response = await fetch(`/api/documents/${documentId}/regenerate-quiz`, {
         method: 'POST',
+        headers: {
+          'x-correlation-id': correlationId
+        }
       })
+      
+      const regenDuration = regenTimer()
       
       if (response.ok) {
         const result = await response.json()
+        quizLogger.info('Quiz regeneration successful', {
+          correlationId,
+          documentId,
+          duration: regenDuration,
+          metadata: {
+            status: response.status,
+            result,
+            willReload: true
+          }
+        })
         // Reload the page to fetch new questions
         window.location.reload()
       } else {
         const error = await response.json()
+        quizLogger.error('Quiz regeneration failed', {
+          correlationId,
+          documentId,
+          duration: regenDuration,
+          metadata: {
+            status: response.status,
+            errorResponse: error
+          }
+        })
         alert(`퀴즈 생성 실패: ${error.error}`)
       }
-    } catch (error) {
+    } catch (error: any) {
+      const duration = regenTimer()
+      quizLogger.error('Exception during quiz regeneration', {
+        correlationId,
+        documentId,
+        error,
+        duration,
+        metadata: {
+          errorType: error.name,
+          errorMessage: error.message
+        }
+      })
       alert('퀴즈 생성 중 오류가 발생했습니다.')
     } finally {
       setIsRegenerating(false)

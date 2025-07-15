@@ -4,6 +4,8 @@ import { useState, useRef } from 'react'
 import { Upload, FileText, X, FilePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/ToastProvider'
+import { uploadLogger } from '@/lib/logger'
+import Logger from '@/lib/logger'
 
 interface UploadPDFButtonProps {
   subjectId: string
@@ -38,11 +40,18 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
   const handleUpload = async () => {
     if (!file) return
 
-    console.log('=== PDF Upload Started ===')
-    console.log(`File: ${file.name}`)
-    console.log(`Size: ${(file.size / (1024 * 1024)).toFixed(2)} MB`)
-    console.log(`Type: ${file.type}`)
-    console.log(`Subject ID: ${subjectId}`)
+    const correlationId = Logger.generateCorrelationId()
+    const timer = uploadLogger.startTimer()
+
+    uploadLogger.info('PDF upload started', {
+      correlationId,
+      metadata: {
+        fileName: file.name,
+        fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        fileType: file.type,
+        subjectId,
+      }
+    })
 
     setLoading(true)
     setError(null)
@@ -55,8 +64,13 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       const fileExt = file.name.split('.').pop()
       const fileName = `${FIXED_USER_ID}/${subjectId}/${Date.now()}.${fileExt}`
 
-      console.log('Uploading to Supabase Storage...')
-      console.log(`Storage path: ${fileName}`)
+      uploadLogger.info('Uploading to Supabase Storage', {
+        correlationId,
+        metadata: {
+          storagePath: fileName,
+          bucketName: 'pdf-documents'
+        }
+      })
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('pdf-documents')
@@ -66,14 +80,36 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         })
 
       if (uploadError) {
-        console.error('Storage upload failed:', uploadError)
+        uploadLogger.error('Storage upload failed', {
+          correlationId,
+          error: uploadError,
+          metadata: {
+            errorMessage: uploadError.message,
+            storagePath: fileName
+          }
+        })
         throw uploadError
       }
 
-      console.log('Storage upload successful:', uploadData)
+      const uploadDuration = timer()
+      uploadLogger.info('Storage upload successful', {
+        correlationId,
+        duration: uploadDuration,
+        metadata: {
+          uploadData,
+          uploadSpeed: `${((file.size / 1024 / 1024) / (uploadDuration / 1000)).toFixed(2)} MB/s`
+        }
+      })
 
       // Create document record in database
-      console.log('Creating document record...')
+      uploadLogger.info('Creating document record', {
+        correlationId,
+        metadata: {
+          operation: 'database_insert',
+          table: 'documents'
+        }
+      })
+      
       const documentData = {
         subject_id: subjectId,
         user_id: FIXED_USER_ID,
@@ -82,7 +118,11 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         file_size: file.size,
         status: 'processing',
       }
-      console.log('Document data:', documentData)
+      
+      uploadLogger.debug('Document data prepared', {
+        correlationId,
+        metadata: { documentData }
+      })
 
       const { data: newDoc, error: dbError } = await supabase
         .from('documents')
@@ -91,12 +131,25 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         .single()
 
       if (dbError) {
-        console.error('Database insert failed:', dbError)
+        uploadLogger.error('Database insert failed', {
+          correlationId,
+          error: dbError,
+          metadata: {
+            errorMessage: dbError.message,
+            table: 'documents'
+          }
+        })
         throw dbError
       }
 
-      console.log('Document record created:', newDoc)
-      console.log('[UploadPDFButton] Document will trigger realtime update')
+      uploadLogger.info('Document record created', {
+        correlationId,
+        documentId: newDoc.id,
+        metadata: {
+          documentRecord: newDoc,
+          willTriggerRealtime: true
+        }
+      })
 
       setIsOpen(false)
       setFile(null)
@@ -116,33 +169,119 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
 
       // Trigger AI analysis in background
       if (newDoc) {
-        console.log('Triggering AI analysis...')
-        console.log(`Analysis API endpoint: /api/documents/${newDoc.id}/analyze`)
-        
-        fetch(`/api/documents/${newDoc.id}/analyze`, {
-          method: 'POST',
-        })
-        .then(response => {
-          console.log(`Analysis API response status: ${response.status}`)
-          if (!response.ok) {
-            console.error(`Analysis API failed with status: ${response.status}`)
-            return response.text().then(text => {
-              console.error('Analysis API error response:', text)
-            })
+        const analysisEndpoint = `/api/documents/${newDoc.id}/analyze`
+        uploadLogger.info('Triggering AI analysis', {
+          correlationId,
+          documentId: newDoc.id,
+          metadata: {
+            endpoint: analysisEndpoint,
+            method: 'POST'
           }
-          console.log('Analysis API triggered successfully')
-          console.log('[UploadPDFButton] Analysis started, waiting for realtime updates')
         })
-        .catch(error => {
-          console.error('Failed to trigger analysis API:', error)
-        })
+        
+        // Add retry logic for analysis API
+        const maxRetries = 3
+        let retryCount = 0
+        
+        const triggerAnalysis = async () => {
+          try {
+            const analysisTimer = uploadLogger.startTimer()
+            const response = await fetch(analysisEndpoint, {
+              method: 'POST',
+              headers: {
+                'x-correlation-id': correlationId
+              }
+            })
+            
+            const analysisDuration = analysisTimer()
+            
+            if (!response.ok) {
+              const errorText = await response.text()
+              uploadLogger.error('Analysis API failed', {
+                correlationId,
+                documentId: newDoc.id,
+                duration: analysisDuration,
+                metadata: {
+                  status: response.status,
+                  statusText: response.statusText,
+                  errorResponse: errorText,
+                  retryCount,
+                  willRetry: retryCount < maxRetries
+                }
+              })
+              
+              if (retryCount < maxRetries) {
+                retryCount++
+                const retryDelay = Math.pow(2, retryCount) * 1000 // Exponential backoff
+                uploadLogger.info(`Retrying analysis after ${retryDelay}ms`, {
+                  correlationId,
+                  documentId: newDoc.id,
+                  metadata: { retryCount, retryDelay }
+                })
+                setTimeout(triggerAnalysis, retryDelay)
+              }
+            } else {
+              uploadLogger.info('Analysis API triggered successfully', {
+                correlationId,
+                documentId: newDoc.id,
+                duration: analysisDuration,
+                metadata: {
+                  status: response.status,
+                  retryCount
+                }
+              })
+            }
+          } catch (error: any) {
+            uploadLogger.error('Failed to trigger analysis API', {
+              correlationId,
+              documentId: newDoc.id,
+              error,
+              metadata: {
+                errorMessage: error.message,
+                errorType: error.name,
+                retryCount,
+                willRetry: retryCount < maxRetries
+              }
+            })
+            
+            if (retryCount < maxRetries) {
+              retryCount++
+              const retryDelay = Math.pow(2, retryCount) * 1000
+              setTimeout(triggerAnalysis, retryDelay)
+            }
+          }
+        }
+        
+        // Trigger analysis with retry logic
+        triggerAnalysis()
       }
 
-      console.log('=== PDF Upload Completed Successfully ===')
+      const totalDuration = timer()
+      uploadLogger.info('PDF upload completed successfully', {
+        correlationId,
+        documentId: newDoc?.id,
+        duration: totalDuration,
+        metadata: {
+          fileName: file.name,
+          fileSize: file.size,
+          uploadSpeed: `${((file.size / 1024 / 1024) / (totalDuration / 1000)).toFixed(2)} MB/s`
+        }
+      })
     } catch (error: any) {
-      console.error('=== PDF Upload Failed ===')
-      console.error('Error details:', error)
-      console.error('Error stack:', error.stack)
+      const duration = timer()
+      uploadLogger.error('PDF upload failed', {
+        correlationId,
+        error,
+        duration,
+        metadata: {
+          errorType: error.name,
+          errorMessage: error.message,
+          errorStack: error.stack,
+          fileName: file.name,
+          fileSize: file.size,
+          subjectId
+        }
+      })
       setError(error.message || '업로드 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)

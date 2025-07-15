@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import OXKnowledgeAssessment from '@/components/study/OXKnowledgeAssessment'
+import { assessmentLogger, supabaseLogger } from '@/lib/logger'
+import Logger from '@/lib/logger'
 
 interface AssessmentPageProps {
   params: Promise<{
@@ -14,50 +16,159 @@ interface AssessmentPageProps {
 }
 
 export default async function AssessmentPage({ params, searchParams }: AssessmentPageProps) {
+  const startTime = Date.now()
+  const correlationId = Logger.generateCorrelationId()
+  const timer = assessmentLogger.startTimer()
+  
   const { id } = await params
   const { doc: documentId } = await searchParams
   const supabase = createServiceClient()
+  
+  assessmentLogger.info('Assessment page loading', {
+    correlationId,
+    metadata: {
+      subjectId: id,
+      documentId,
+      timestamp: new Date().toISOString()
+    }
+  })
   
   // Use fixed user ID
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   if (!documentId) {
+    assessmentLogger.warn('No document ID provided, redirecting', {
+      correlationId,
+      metadata: {
+        subjectId: id,
+        redirectTo: `/subjects/${id}`
+      }
+    })
     redirect(`/subjects/${id}`)
   }
 
   // Get subject info
+  supabaseLogger.info('Fetching subject info', {
+    correlationId,
+    metadata: {
+      subjectId: id,
+      operation: 'select',
+      table: 'subjects'
+    }
+  })
+  
+  const subjectTimer = supabaseLogger.startTimer()
   const { data: subject } = await supabase
     .from('subjects')
     .select('*')
     .eq('id', id)
     .eq('user_id', FIXED_USER_ID)
     .single()
-
+  
+  const subjectDuration = subjectTimer()
+  
   if (!subject) {
+    assessmentLogger.error('Subject not found', {
+      correlationId,
+      duration: subjectDuration,
+      metadata: {
+        subjectId: id,
+        userId: FIXED_USER_ID
+      }
+    })
     notFound()
   }
+  
+  supabaseLogger.info('Subject fetched successfully', {
+    correlationId,
+    duration: subjectDuration,
+    metadata: {
+      subjectName: subject.name
+    }
+  })
 
   // Get document info
+  supabaseLogger.info('Fetching document info', {
+    correlationId,
+    documentId,
+    metadata: {
+      operation: 'select',
+      table: 'documents'
+    }
+  })
+  
+  const docTimer = supabaseLogger.startTimer()
   const { data: document } = await supabase
     .from('documents')
     .select('*')
     .eq('id', documentId)
     .eq('subject_id', id)
     .single()
-
+  
+  const docDuration = docTimer()
+  
   if (!document || document.status !== 'completed') {
+    assessmentLogger.warn('Document not ready for assessment', {
+      correlationId,
+      documentId,
+      duration: docDuration,
+      metadata: {
+        documentExists: !!document,
+        documentStatus: document?.status,
+        redirectTo: `/subjects/${id}`
+      }
+    })
     redirect(`/subjects/${id}`)
   }
+  
+  supabaseLogger.info('Document fetched successfully', {
+    correlationId,
+    documentId,
+    duration: docDuration,
+    metadata: {
+      documentTitle: document.title,
+      documentStatus: document.status
+    }
+  })
 
   // Get knowledge nodes (we'll sort them by dependency later)
+  supabaseLogger.info('Fetching knowledge nodes', {
+    correlationId,
+    documentId,
+    metadata: {
+      operation: 'select',
+      table: 'knowledge_nodes'
+    }
+  })
+  
+  const nodesTimer = supabaseLogger.startTimer()
   const { data: rawKnowledgeNodes } = await supabase
     .from('knowledge_nodes')
     .select('*')
     .eq('document_id', documentId)
-
+  
+  const nodesDuration = nodesTimer()
+  
   if (!rawKnowledgeNodes || rawKnowledgeNodes.length === 0) {
+    assessmentLogger.error('No knowledge nodes found', {
+      correlationId,
+      documentId,
+      duration: nodesDuration,
+      metadata: {
+        redirectTo: `/subjects/${id}`
+      }
+    })
     redirect(`/subjects/${id}`)
   }
+  
+  supabaseLogger.info('Knowledge nodes fetched', {
+    correlationId,
+    documentId,
+    duration: nodesDuration,
+    metadata: {
+      nodeCount: rawKnowledgeNodes.length
+    }
+  })
 
   // Sort nodes by dependency (root nodes first)
   const sortNodesByDependency = (nodes: any[]) => {
@@ -97,19 +208,67 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
     return sorted
   }
 
+  const sortTimer = assessmentLogger.startTimer()
   const knowledgeNodes = sortNodesByDependency(rawKnowledgeNodes)
+  const sortDuration = sortTimer()
+  
+  assessmentLogger.info('Knowledge nodes sorted by dependency', {
+    correlationId,
+    documentId,
+    duration: sortDuration,
+    metadata: {
+      originalCount: rawKnowledgeNodes.length,
+      sortedCount: knowledgeNodes.length,
+      rootNodes: knowledgeNodes.filter(n => !n.prerequisites || n.prerequisites.length === 0).length
+    }
+  })
 
   // Check if user already has assessments
+  supabaseLogger.info('Checking existing assessment status', {
+    correlationId,
+    documentId,
+    metadata: {
+      nodeIds: knowledgeNodes.map(n => n.id),
+      operation: 'select',
+      table: 'user_knowledge_status'
+    }
+  })
+  
+  const statusTimer = supabaseLogger.startTimer()
   const { data: existingStatus } = await supabase
     .from('user_knowledge_status')
     .select('*')
     .eq('user_id', FIXED_USER_ID)
     .in('node_id', knowledgeNodes.map(n => n.id))
-
+  
+  const statusDuration = statusTimer()
+  
   // If already assessed, go to study page
   if (existingStatus && existingStatus.length > 0) {
+    assessmentLogger.info('User already assessed, redirecting to study', {
+      correlationId,
+      documentId,
+      duration: statusDuration,
+      metadata: {
+        existingAssessments: existingStatus.length,
+        redirectTo: `/subjects/${id}/study?doc=${documentId}`
+      }
+    })
     redirect(`/subjects/${id}/study?doc=${documentId}`)
   }
+  
+  const totalDuration = timer()
+  assessmentLogger.info('Assessment page ready', {
+    correlationId,
+    documentId,
+    duration: totalDuration,
+    metadata: {
+      subjectName: subject.name,
+      documentTitle: document.title,
+      nodeCount: knowledgeNodes.length,
+      pageLoadTime: `${totalDuration}ms`
+    }
+  })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
