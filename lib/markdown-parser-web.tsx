@@ -1,4 +1,11 @@
 import React from 'react'
+import dynamic from 'next/dynamic'
+
+// Dynamic import to avoid SSR issues with mermaid
+const MermaidDiagram = dynamic(() => import('@/components/ui/MermaidDiagram'), {
+  ssr: false,
+  loading: () => <div className="bg-gray-100 rounded-lg p-4 my-4 animate-pulse h-64" />
+})
 
 // 웹에서 사용할 마크다운 파서
 export function parseMarkdownToReact(content: string): React.ReactElement[] {
@@ -69,6 +76,7 @@ export function parseMarkdownToReact(content: string): React.ReactElement[] {
   
   let inCodeBlock = false
   let codeBlockLines: string[] = []
+  let codeBlockLanguage = ''
   let inList = false
   let listItems: string[] = []
   
@@ -78,12 +86,23 @@ export function parseMarkdownToReact(content: string): React.ReactElement[] {
     // Code block
     if (line.startsWith('```')) {
       if (inCodeBlock) {
-        elements.push(
-          <pre key={elements.length} className="bg-gray-100 p-4 rounded-lg overflow-x-auto mb-4">
-            <code className="text-sm font-mono">{codeBlockLines.join('\n')}</code>
-          </pre>
-        )
+        // Check if it's a mermaid block
+        if (codeBlockLanguage === 'mermaid') {
+          elements.push(
+            <MermaidDiagram 
+              key={elements.length} 
+              chart={codeBlockLines.join('\n')} 
+            />
+          )
+        } else {
+          elements.push(
+            <pre key={elements.length} className="bg-gray-100 p-4 rounded-lg overflow-x-auto mb-4">
+              <code className="text-sm font-mono">{codeBlockLines.join('\n')}</code>
+            </pre>
+          )
+        }
         codeBlockLines = []
+        codeBlockLanguage = ''
         inCodeBlock = false
       } else {
         processParagraph()
@@ -92,6 +111,9 @@ export function parseMarkdownToReact(content: string): React.ReactElement[] {
           inList = false
         }
         inCodeBlock = true
+        // Extract language from ```language
+        const langMatch = line.match(/^```(\w+)?/)
+        codeBlockLanguage = langMatch?.[1] || ''
       }
       continue
     }

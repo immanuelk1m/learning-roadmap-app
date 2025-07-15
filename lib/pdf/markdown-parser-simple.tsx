@@ -153,6 +153,7 @@ export function parseAndRenderMarkdown(content: string, customStyles?: any): any
   
   let inCodeBlock = false
   let codeBlockLines: string[] = []
+  let codeBlockLanguage = ''
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -160,16 +161,32 @@ export function parseAndRenderMarkdown(content: string, customStyles?: any): any
     // Code block
     if (line.startsWith('```')) {
       if (inCodeBlock) {
-        elements.push(
-          <View key={elements.length} style={finalStyles.codeBlock}>
-            <Text>{codeBlockLines.join('\n')}</Text>
-          </View>
-        )
+        // For mermaid blocks in PDF, show as styled code block with a note
+        if (codeBlockLanguage === 'mermaid') {
+          elements.push(
+            <View key={elements.length} style={finalStyles.codeBlock}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 5, color: '#4f46e5' }}>
+                [Mermaid Diagram - View in Web Version]
+              </Text>
+              <Text style={{ fontSize: 9 }}>{codeBlockLines.join('\n')}</Text>
+            </View>
+          )
+        } else {
+          elements.push(
+            <View key={elements.length} style={finalStyles.codeBlock}>
+              <Text>{codeBlockLines.join('\n')}</Text>
+            </View>
+          )
+        }
         codeBlockLines = []
+        codeBlockLanguage = ''
         inCodeBlock = false
       } else {
         processParagraph()
         inCodeBlock = true
+        // Extract language from ```language
+        const langMatch = line.match(/^```(\w+)?/)
+        codeBlockLanguage = langMatch?.[1] || ''
       }
       continue
     }
