@@ -329,7 +329,7 @@ export async function POST(
                     node_id: actualNodeId,
                     question: item.question,
                     question_type: 'true_false' as const,
-                    options: ['O', 'X'],
+                    options: JSON.stringify(['O', 'X']), // JSONB expects JSON string
                     correct_answer: item.correct_answer,
                     explanation: item.explanation,
                     difficulty: 1, // Default difficulty for assessment

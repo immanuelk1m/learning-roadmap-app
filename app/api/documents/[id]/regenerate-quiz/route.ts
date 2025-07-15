@@ -1,0 +1,180 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { geminiKnowledgeTreeModel } from '@/lib/gemini/client'
+import { OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  console.log('\n=== Quiz Regeneration API Started ===')
+  console.log(`Timestamp: ${new Date().toISOString()}`)
+  
+  try {
+    const { id } = await params
+    console.log(`Document ID: ${id}`)
+    
+    const supabase = await createClient()
+    
+    // Use fixed user ID
+    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+
+    // Get document info
+    console.log('Fetching document from database...')
+    const { data: document, error: docError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', FIXED_USER_ID)
+      .single()
+
+    if (docError || !document) {
+      console.error('Document not found:', docError)
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    }
+
+    // Check if document is completed
+    if (document.status !== 'completed') {
+      return NextResponse.json({ error: 'Document must be completed before regenerating quiz' }, { status: 400 })
+    }
+
+    // Get existing knowledge nodes
+    console.log('Fetching knowledge nodes...')
+    const { data: knowledgeNodes, error: nodesError } = await supabase
+      .from('knowledge_nodes')
+      .select('*')
+      .eq('document_id', id)
+      .order('position', { ascending: true })
+
+    if (nodesError || !knowledgeNodes || knowledgeNodes.length === 0) {
+      console.error('No knowledge nodes found:', nodesError)
+      return NextResponse.json({ error: 'No knowledge nodes found for this document' }, { status: 404 })
+    }
+
+    console.log(`Found ${knowledgeNodes.length} knowledge nodes`)
+
+    // Delete existing quiz questions for this document
+    console.log('Deleting existing quiz questions...')
+    const { error: deleteError } = await supabase
+      .from('quiz_items')
+      .delete()
+      .eq('document_id', id)
+      .eq('is_assessment', true)
+
+    if (deleteError) {
+      console.error('Error deleting existing quiz questions:', deleteError)
+    }
+
+    // Download the PDF file
+    console.log('Downloading PDF file...')
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('pdf-documents')
+      .download(document.file_path)
+
+    if (downloadError || !fileData) {
+      console.error('Error downloading file:', downloadError)
+      return NextResponse.json({ error: 'Failed to download PDF file' }, { status: 500 })
+    }
+
+    // Convert to base64
+    console.log('Converting PDF to base64...')
+    const base64Data = await fileData.arrayBuffer().then((buffer) =>
+      Buffer.from(buffer).toString('base64')
+    )
+
+    // Generate O/X quiz questions using Gemini
+    console.log('Generating O/X quiz questions with Gemini...')
+    try {
+      const quizResult = await geminiKnowledgeTreeModel.generateContent({
+        contents: [
+          {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'application/pdf',
+                  data: base64Data,
+                },
+              },
+              {
+                text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(knowledgeNodes.map((node, index) => ({
+                  id: `node_${index + 1}`,
+                  name: node.name,
+                  description: node.description,
+                  level: node.level,
+                  prerequisites: node.prerequisites
+                })), null, 2)}`,
+              },
+            ],
+          },
+        ],
+      })
+
+      const quizResponse = quizResult.text || ''
+      console.log('Quiz generation response received')
+
+      if (quizResponse) {
+        const quizData = JSON.parse(quizResponse)
+        console.log(`Generated ${quizData.quiz_items?.length || 0} O/X questions`)
+
+        // Create node ID mapping
+        const nodeIdMap: Record<string, string> = {}
+        knowledgeNodes.forEach((node, index) => {
+          const tempId = `node_${index + 1}`
+          nodeIdMap[tempId] = node.id
+        })
+
+        // Save quiz questions to database
+        let savedCount = 0
+        if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
+          for (const item of quizData.quiz_items) {
+            const actualNodeId = nodeIdMap[item.node_id]
+            if (actualNodeId) {
+              const quizItem = {
+                document_id: id,
+                node_id: actualNodeId,
+                question: item.question,
+                question_type: 'true_false' as const,
+                options: JSON.stringify(['O', 'X']), // JSONB expects JSON string
+                correct_answer: item.correct_answer,
+                explanation: item.explanation || null,
+                difficulty: 1,
+                is_assessment: true,
+              }
+
+              const { error: quizError } = await supabase
+                .from('quiz_items')
+                .insert(quizItem)
+
+              if (quizError) {
+                console.error(`Failed to save quiz for node ${item.node_id}:`, quizError)
+              } else {
+                savedCount++
+              }
+            }
+          }
+        }
+
+        console.log(`Successfully saved ${savedCount} quiz questions`)
+        return NextResponse.json({ 
+          success: true, 
+          message: `Generated and saved ${savedCount} O/X quiz questions`,
+          count: savedCount
+        })
+      } else {
+        throw new Error('Empty response from Gemini')
+      }
+    } catch (error: any) {
+      console.error('Error generating quiz questions:', error)
+      return NextResponse.json(
+        { error: 'Failed to generate quiz questions', details: error.message },
+        { status: 500 }
+      )
+    }
+  } catch (error: any) {
+    console.error('API Error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    )
+  }
+}

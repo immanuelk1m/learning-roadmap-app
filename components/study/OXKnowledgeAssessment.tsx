@@ -42,6 +42,9 @@ export default function OXKnowledgeAssessment({
   const [showFeedback, setShowFeedback] = useState(false)
   const [userAnswer, setUserAnswer] = useState<'O' | 'X' | null>(null)
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasQuestions, setHasQuestions] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -61,34 +64,48 @@ export default function OXKnowledgeAssessment({
   // Load quiz questions for all nodes
   useEffect(() => {
     const loadQuestions = async () => {
-      const nodeIds = nodes.map(n => n.id)
-      
-      const { data, error } = await supabase
-        .from('quiz_items')
-        .select('*')
-        .in('node_id', nodeIds)
-        .eq('question_type', 'true_false')
-        .eq('is_assessment', true)
+      setIsLoading(true)
+      try {
+        const nodeIds = nodes.map(n => n.id)
+        
+        const { data, error } = await supabase
+          .from('quiz_items')
+          .select('*')
+          .in('node_id', nodeIds)
+          .eq('question_type', 'true_false')
+          .eq('is_assessment', true)
 
-      if (data && !error) {
-        const questionMap: Record<string, QuizQuestion> = {}
-        data.forEach(item => {
-          if (item.node_id) {
-            questionMap[item.node_id] = {
-              id: item.id,
-              node_id: item.node_id,
-              question: item.question,
-              correct_answer: item.correct_answer,
-              explanation: item.explanation
+        if (error) {
+          console.error('Error loading quiz questions:', error)
+          setHasQuestions(false)
+        } else if (data) {
+          const questionMap: Record<string, QuizQuestion> = {}
+          data.forEach(item => {
+            if (item.node_id) {
+              questionMap[item.node_id] = {
+                id: item.id,
+                node_id: item.node_id,
+                question: item.question,
+                correct_answer: item.correct_answer,
+                explanation: item.explanation
+              }
             }
-          }
-        })
-        setQuestions(questionMap)
+          })
+          setQuestions(questionMap)
+          setHasQuestions(Object.keys(questionMap).length > 0)
+        } else {
+          setHasQuestions(false)
+        }
+      } catch (error) {
+        console.error('Error in loadQuestions:', error)
+        setHasQuestions(false)
+      } finally {
+        setIsLoading(false)
       }
     }
 
     loadQuestions()
-  }, [nodes])
+  }, [nodes, supabase])
 
   const buildDependencyMap = () => {
     const dependencyMap = new Map<string, string[]>()
@@ -248,11 +265,70 @@ export default function OXKnowledgeAssessment({
   const knownCount = Object.values(assessments).filter(v => v === 'known').length
   const unknownCount = Object.values(assessments).filter(v => v === 'unknown').length
 
-  if (!currentNode || !currentQuestion) {
+  const handleRegenerateQuiz = async () => {
+    setIsRegenerating(true)
+    try {
+      const response = await fetch(`/api/documents/${documentId}/regenerate-quiz`, {
+        method: 'POST',
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        // Reload the page to fetch new questions
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`퀴즈 생성 실패: ${error.error}`)
+      }
+    } catch (error) {
+      alert('퀴즈 생성 중 오류가 발생했습니다.')
+    } finally {
+      setIsRegenerating(false)
+    }
+  }
+
+  if (isLoading) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <p className="text-center text-gray-600">퀴즈 문제를 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasQuestions) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">
+              이 문서에 대한 O/X 퀴즈 문제가 없습니다.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              이 문서는 O/X 퀴즈 기능이 추가되기 전에 처리되었습니다.
+              <br />
+              퀴즈를 생성하려면 아래 버튼을 클릭하세요.
+            </p>
+            <button
+              onClick={handleRegenerateQuiz}
+              disabled={isRegenerating}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRegenerating ? '퀴즈 생성 중...' : 'O/X 퀴즈 생성하기'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentNode || !currentQuestion) {
+    // This shouldn't happen if hasQuestions is true, but just in case
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <p className="text-center text-gray-600">퀴즈를 준비하는 중...</p>
         </div>
       </div>
     )
