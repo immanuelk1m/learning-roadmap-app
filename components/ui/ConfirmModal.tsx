@@ -29,7 +29,7 @@ const ConfirmModal: FC<ConfirmModalProps> = ({ isOpen, onClose, onConfirm, title
       <div className="relative w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl animate-in zoom-in-95 fade-in-0 duration-300">
         <div className="flex flex-col items-center text-center">
           <h3 className="mb-2 text-2xl font-bold text-neutral-900">{title}</h3>
-          <p className="mb-8 text-base text-neutral-600 [word-break:keep-all] [overflow-wrap:break-word]">
+          <p className="mb-8 text-base text-neutral-600 [word-break:keep-all] [overflow-wrap:break-word] text-center">
             {description}
           </p>
 
