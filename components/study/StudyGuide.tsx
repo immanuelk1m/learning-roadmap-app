@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, BookOpen, CheckCircle, XCircle, AlertCircle, FileText, Download } from 'lucide-react'
 import StudyGuideSkeleton from './StudyGuideSkeleton'
+import { parseMarkdownToReact } from '@/lib/markdown-parser-web'
 
 interface StudyGuideProps {
   documentId: string
@@ -152,43 +153,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
   }
 
   const formatContent = (content: string) => {
-    // Split content into sections and format
-    const sections = content.split('\n\n').filter(section => section.trim())
-    
-    return sections.map((section, index) => {
-      // Check if section is a header (starts with #)
-      if (section.startsWith('#')) {
-        const level = section.match(/^#+/)?.[0].length || 1
-        const text = section.replace(/^#+\s*/, '')
-        
-        if (level === 1) {
-          return (
-            <h2 key={index} className="text-xl font-bold text-gray-900 mb-3 border-b pb-2">
-              {text}
-            </h2>
-          )
-        } else if (level === 2) {
-          return (
-            <h3 key={index} className="text-lg font-semibold text-gray-800 mb-2 mt-4">
-              {text}
-            </h3>
-          )
-        } else {
-          return (
-            <h4 key={index} className="text-base font-medium text-gray-700 mb-2 mt-3">
-              {text}
-            </h4>
-          )
-        }
-      }
-      
-      // Regular paragraph
-      return (
-        <p key={index} className="text-gray-700 mb-3 leading-relaxed">
-          {section}
-        </p>
-      )
-    })
+    return parseMarkdownToReact(content)
   }
 
   if (loading) {

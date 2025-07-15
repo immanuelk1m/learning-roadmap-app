@@ -26,6 +26,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   
+  // Headers
+  h1: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    marginTop: 10,
+    color: '#1f2937',
+  },
+  
   // Cover page styles
   coverPage: {
     padding: 60,
@@ -474,9 +483,17 @@ export default function StudyGuidePDF({
         <Text style={styles.coverMeta}>생성일: {createdDate}</Text>
       </Page>
       
+      {/* Full Study Guide Content */}
+      <Page size="A4" style={[styles.page]} wrap>
+        <Text style={styles.h1}>📚 전체 학습 가이드</Text>
+        <View style={styles.markdownContent} wrap>
+          {parseAndRenderMarkdown(studyGuide.content, styles.markdownOverrides)}
+        </View>
+      </Page>
+      
       {/* Table of Contents */}
       <Page size="A4" style={[styles.page, styles.tocPage]}>
-        <Text style={styles.tocTitle}>📋 목차</Text>
+        <Text style={styles.tocTitle}>📋 개념별 상세 해설 목차</Text>
         
         {rootNodes.map((node, index) => (
           <View key={node.id}>
