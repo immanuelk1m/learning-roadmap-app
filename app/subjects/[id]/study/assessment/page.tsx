@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import KnowledgeAssessment from '@/components/study/KnowledgeAssessment'
+import OXKnowledgeAssessment from '@/components/study/OXKnowledgeAssessment'
 
 interface AssessmentPageProps {
   params: Promise<{
@@ -141,12 +141,12 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
             학습 전 지식 평가
           </h2>
           <p className="text-gray-600">
-            각 개념에 대해 알고 있는지 평가해주세요. 
-            쉬운 개념부터 어려운 개념 순으로 진행됩니다.
+            각 개념에 대한 O/X 퀴즈를 통해 지식을 평가합니다.
+            정답을 맞추면 해당 개념을 아는 것으로, 틀리면 모르는 것으로 기록됩니다.
           </p>
         </div>
 
-        <KnowledgeAssessment
+        <OXKnowledgeAssessment
           nodes={knowledgeNodes}
           subjectId={id}
           documentId={documentId}

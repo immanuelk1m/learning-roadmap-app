@@ -142,9 +142,10 @@ export interface Database {
           id: string
           user_id: string
           node_id: string
-          status: 'known' | 'unclear' | 'unknown'
-          confidence_score: number
+          understanding_level: number
           last_reviewed: string | null
+          review_count: number
+          assessment_method: 'self_reported' | 'quiz' | 'test'
           created_at: string
           updated_at: string
         }
@@ -152,9 +153,10 @@ export interface Database {
           id?: string
           user_id: string
           node_id: string
-          status?: 'known' | 'unclear' | 'unknown'
-          confidence_score?: number
+          understanding_level?: number
           last_reviewed?: string | null
+          review_count?: number
+          assessment_method?: 'self_reported' | 'quiz' | 'test'
           created_at?: string
           updated_at?: string
         }
@@ -162,9 +164,10 @@ export interface Database {
           id?: string
           user_id?: string
           node_id?: string
-          status?: 'known' | 'unclear' | 'unknown'
-          confidence_score?: number
+          understanding_level?: number
           last_reviewed?: string | null
+          review_count?: number
+          assessment_method?: 'self_reported' | 'quiz' | 'test'
           created_at?: string
           updated_at?: string
         }
@@ -175,11 +178,13 @@ export interface Database {
           document_id: string
           node_id: string | null
           question: string
+          question_type: 'multiple_choice' | 'true_false' | 'short_answer'
           options: Json
           correct_answer: string
-          explanation: string
-          source_quote: string
-          difficulty: 'easy' | 'medium' | 'hard'
+          explanation: string | null
+          difficulty: number
+          page_reference: number | null
+          is_assessment: boolean
           created_at: string
         }
         Insert: {
@@ -187,11 +192,13 @@ export interface Database {
           document_id: string
           node_id?: string | null
           question: string
-          options: Json
+          question_type: 'multiple_choice' | 'true_false' | 'short_answer'
+          options?: Json
           correct_answer: string
-          explanation: string
-          source_quote: string
-          difficulty?: 'easy' | 'medium' | 'hard'
+          explanation?: string | null
+          difficulty?: number
+          page_reference?: number | null
+          is_assessment?: boolean
           created_at?: string
         }
         Update: {
@@ -199,11 +206,13 @@ export interface Database {
           document_id?: string
           node_id?: string | null
           question?: string
+          question_type?: 'multiple_choice' | 'true_false' | 'short_answer'
           options?: Json
           correct_answer?: string
-          explanation?: string
-          source_quote?: string
-          difficulty?: 'easy' | 'medium' | 'hard'
+          explanation?: string | null
+          difficulty?: number
+          page_reference?: number | null
+          is_assessment?: boolean
           created_at?: string
         }
       }
@@ -294,6 +303,32 @@ export interface Database {
           document_id?: string
           analysis_type?: string
           result?: Json
+          created_at?: string
+        }
+      }
+      knowledge_assessment_quizzes: {
+        Row: {
+          id: string
+          node_id: string
+          question: string
+          correct_answer: boolean
+          explanation: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          node_id: string
+          question: string
+          correct_answer: boolean
+          explanation?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          node_id?: string
+          question?: string
+          correct_answer?: boolean
+          explanation?: string | null
           created_at?: string
         }
       }

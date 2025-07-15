@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { geminiKnowledgeTreeModel } from '@/lib/gemini/client'
-import { KNOWLEDGE_TREE_PROMPT } from '@/lib/gemini/prompts'
+import { KNOWLEDGE_TREE_PROMPT, OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { KnowledgeTreeResponse, KnowledgeNode } from '@/lib/gemini/schemas'
 
 // Increase timeout for the API route to handle large PDF processing
@@ -276,6 +276,86 @@ export async function POST(
       console.log('Saving knowledge nodes to database...')
       await saveFlatNodes(knowledgeTree.nodes)
       console.log('Knowledge nodes saved successfully')
+      
+      // Generate O/X quiz questions for knowledge assessment
+      console.log('Generating O/X quiz questions for knowledge assessment...')
+      try {
+        const quizResult = await geminiKnowledgeTreeModel.generateContent({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'application/pdf',
+                    data: base64Data,
+                  },
+                },
+                {
+                  text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(knowledgeTree.nodes, null, 2)}`,
+                },
+              ],
+            },
+          ],
+        })
+        
+        const quizResponse = quizResult.text || ''
+        console.log('Quiz generation response received')
+        
+        if (quizResponse) {
+          try {
+            const quizData = JSON.parse(quizResponse)
+            console.log(`Generated ${quizData.quiz_items?.length || 0} O/X questions`)
+            
+            // Get the ID mapping from saved nodes
+            const { data: savedNodes } = await supabase
+              .from('knowledge_nodes')
+              .select('id, name')
+              .eq('document_id', id)
+            
+            const nodeIdMap: Record<string, string> = {}
+            savedNodes?.forEach((node, index) => {
+              // Map temporary node IDs to actual database IDs
+              const tempId = `node_${index + 1}`
+              nodeIdMap[tempId] = node.id
+            })
+            
+            // Save quiz questions to database
+            if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
+              for (const item of quizData.quiz_items) {
+                const actualNodeId = nodeIdMap[item.node_id]
+                if (actualNodeId) {
+                  const quizItem = {
+                    document_id: id,
+                    node_id: actualNodeId,
+                    question: item.question,
+                    question_type: 'true_false' as const,
+                    options: ['O', 'X'],
+                    correct_answer: item.correct_answer,
+                    explanation: item.explanation,
+                    difficulty: 1, // Default difficulty for assessment
+                    is_assessment: true,
+                  }
+                  
+                  const { error: quizError } = await supabase
+                    .from('quiz_items')
+                    .insert(quizItem)
+                  
+                  if (quizError) {
+                    console.error(`Failed to save quiz for node ${item.node_id}:`, quizError)
+                  }
+                }
+              }
+              console.log('O/X quiz questions saved successfully')
+            }
+          } catch (quizParseError) {
+            console.error('Failed to parse quiz response:', quizParseError)
+            // Continue without failing the entire process
+          }
+        }
+      } catch (quizError) {
+        console.error('Failed to generate O/X quiz questions:', quizError)
+        // Continue without failing the entire process
+      }
 
       // Update document status
       console.log('Updating document status to completed...')
