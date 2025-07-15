@@ -38,6 +38,7 @@ export const geminiKnowledgeTreeModel = {
           maxOutputTokens: 8192,
           responseMimeType: "application/json",
           responseSchema: knowledgeTreeSchema,
+          systemInstruction: "You are an expert curriculum designer for Korean university students. Always respond in Korean language. Analyze educational content and create structured knowledge trees.",
         },
       })
       
@@ -80,6 +81,7 @@ export const geminiQuizModel = {
         maxOutputTokens: 8192,
         responseMimeType: "application/json",
         responseSchema: quizSchema,
+        systemInstruction: "You are an expert quiz creator for Korean university students. Always create questions, options, and explanations in Korean language. Focus on testing understanding rather than memorization.",
       },
     })
   }
@@ -94,6 +96,7 @@ export const geminiModel = {
       config: {
         temperature: 0.7,
         maxOutputTokens: 8192,
+        systemInstruction: "You are a helpful AI assistant for Korean students. Always respond in Korean language unless specifically asked otherwise.",
       },
     })
   }

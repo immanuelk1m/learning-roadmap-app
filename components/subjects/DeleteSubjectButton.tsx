@@ -100,10 +100,6 @@ export default function DeleteSubjectButton({ subjectId, subjectName, onDelete }
             
             <p className="text-gray-600 mb-6">
               정말로 "<span className="font-semibold text-gray-900">{subjectName}</span>" 과목을 삭제하시겠습니까?
-              <br />
-              <span className="text-sm text-red-600 mt-2 block">
-                ⚠️ 이 작업은 되돌릴 수 없으며, 과목의 모든 문서와 학습 기록이 삭제됩니다.
-              </span>
             </p>
 
             <div className="flex gap-3">

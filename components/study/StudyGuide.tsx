@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, BookOpen, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react'
+import { Loader2, BookOpen, CheckCircle, XCircle, AlertCircle, FileText, Download } from 'lucide-react'
 import StudyGuideSkeleton from './StudyGuideSkeleton'
 
 interface StudyGuideProps {
@@ -30,46 +30,13 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ErrorState | null>(null)
   const [generating, setGenerating] = useState(false)
-  const [hasCheckedGuide, setHasCheckedGuide] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
-    checkExistingGuide()
+    loadStudyGuide()
   }, [documentId, userId])
 
-  const checkExistingGuide = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const { data, error } = await supabase
-        .from('study_guides')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('document_id', documentId)
-        .single()
-
-      if (error && error.code !== 'PGRST116') {
-        throw error
-      }
-
-      setStudyGuide(data)
-      setHasCheckedGuide(true)
-    } catch (err: any) {
-      if (err.code === 'PGRST116') {
-        // No study guide exists yet - this is normal
-        setHasCheckedGuide(true)
-      } else {
-        console.error('Error checking study guide:', err)
-        setError({
-          type: 'general',
-          message: err.message || 'Failed to check study guide'
-        })
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const loadStudyGuide = async () => {
     try {
@@ -149,6 +116,41 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
     }
   }
 
+  const downloadPDF = async () => {
+    try {
+      setDownloading(true)
+      const response = await fetch('/api/study-guide/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId,
+          userId
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to download PDF')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `study-guide-${documentId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Error downloading PDF:', err)
+      alert('PDF 다운로드 중 오류가 발생했습니다.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   const formatContent = (content: string) => {
     // Split content into sections and format
     const sections = content.split('\n\n').filter(section => section.trim())
@@ -189,7 +191,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
     })
   }
 
-  if (loading && !hasCheckedGuide) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -255,7 +257,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
     )
   }
 
-  if (!studyGuide && hasCheckedGuide) {
+  if (!studyGuide) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-12">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 max-w-md w-full text-center">
@@ -264,7 +266,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-3">PDF 해설집 생성</h3>
           <p className="text-gray-600 mb-8">
-            지식 평가를 완료한 후, 개인 맞춤 해설집을 생성할 수 있습니다.
+            개인 맞춤 해설집을 생성하여 효율적으로 학습하세요.
           </p>
           <button
             onClick={generateStudyGuide}
@@ -272,17 +274,13 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
           >
             <FileText className="h-5 w-5" />
-            PDF 해설 생성
+            PDF 해설집 생성
           </button>
         </div>
       </div>
     )
   }
 
-  // Type guard to ensure studyGuide is not null
-  if (!studyGuide) {
-    return null // This should never happen due to the conditions above
-  }
 
   return (
     <div className="h-full overflow-auto">
@@ -291,20 +289,34 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-gray-900">개인 맞춤 해설집</h2>
-            <span className="text-sm text-gray-500">
-              {new Date(studyGuide.updated_at).toLocaleDateString('ko-KR')} 생성
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">
+                {new Date(studyGuide.updated_at).toLocaleDateString('ko-KR')} 생성
+              </span>
+              <button
+                onClick={downloadPDF}
+                disabled={downloading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
+              >
+                {downloading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                PDF 다운로드
+              </button>
+            </div>
           </div>
           
           {/* Study Status Summary */}
           <div className="flex gap-6 text-sm mb-4">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>이해한 개념: {studyGuide.known_concepts.length}개</span>
+              <span>아는 개념: {studyGuide.known_concepts.length}개</span>
             </div>
             <div className="flex items-center gap-2">
               <XCircle className="h-4 w-4 text-red-500" />
-              <span>학습 필요: {studyGuide.unknown_concepts.length}개</span>
+              <span>모르는 개념: {studyGuide.unknown_concepts.length}개</span>
             </div>
           </div>
         </div>

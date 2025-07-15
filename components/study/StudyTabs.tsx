@@ -28,8 +28,7 @@ export default function StudyTabs({
       id: 'guide' as const,
       label: 'PDF 해설집',
       icon: BookOpen,
-      content: studyGuideContent,
-      disabled: !hasStudyGuide
+      content: studyGuideContent
     }
   ]
 
@@ -42,11 +41,10 @@ export default function StudyTabs({
           return (
             <button
               key={tab.id}
-              onClick={() => !tab.disabled && setActiveTab(tab.id)}
-              disabled={tab.disabled}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative",
-                "hover:text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed",
+                "hover:text-gray-900",
                 activeTab === tab.id
                   ? "text-blue-600 border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-gray-700"
@@ -54,11 +52,6 @@ export default function StudyTabs({
             >
               <Icon className="h-4 w-4" />
               {tab.label}
-              {tab.disabled && (
-                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full ml-2">
-                  생성 중
-                </span>
-              )}
             </button>
           )
         })}

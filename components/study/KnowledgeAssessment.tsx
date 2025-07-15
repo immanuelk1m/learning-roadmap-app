@@ -11,6 +11,7 @@ interface KnowledgeNode {
   description: string
   level: number
   prerequisites: string[]
+  parent_id: string | null
 }
 
 interface KnowledgeAssessmentProps {
@@ -28,6 +29,7 @@ export default function KnowledgeAssessment({
   const [assessments, setAssessments] = useState<Record<string, 'known' | 'unknown'>>({})
   const [skippedNodes, setSkippedNodes] = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [previewSkipped, setPreviewSkipped] = useState<string[]>([])
   const router = useRouter()
   const supabase = createClient()
 
@@ -72,9 +74,17 @@ export default function KnowledgeAssessment({
     const nodesToSkip: string[] = []
     const processed = new Set<string>()
     
-    // Find all concepts that depend on this node (by name)
-    const dependentIds = dependencyMap.get(node.name) || []
-    const queue = [...dependentIds]
+    // 1. Find all nodes that have this node as a prerequisite (by name)
+    const prerequisiteDependents = dependencyMap.get(node.name) || []
+    
+    // 2. Find all nodes that have this node as a parent (by id)
+    const childNodes = nodes
+      .filter(n => n.parent_id === nodeId)
+      .map(n => n.id)
+    
+    // 3. Combine both types of dependencies
+    const allDependents = [...new Set([...prerequisiteDependents, ...childNodes])]
+    const queue = [...allDependents]
     
     while (queue.length > 0) {
       const currentId = queue.shift()!
@@ -86,11 +96,18 @@ export default function KnowledgeAssessment({
       if (!(currentId in assessments)) {
         nodesToSkip.push(currentId)
         
-        // Find this node's dependents and add to queue
+        // Find this node's dependents (both types)
         const currentNode = nodes.find(n => n.id === currentId)
         if (currentNode) {
-          const moreDependents = dependencyMap.get(currentNode.name) || []
-          queue.push(...moreDependents)
+          // Add prerequisite dependents
+          const morePrerequisiteDependents = dependencyMap.get(currentNode.name) || []
+          
+          // Add child nodes
+          const moreChildNodes = nodes
+            .filter(n => n.parent_id === currentId)
+            .map(n => n.id)
+          
+          queue.push(...morePrerequisiteDependents, ...moreChildNodes)
         }
       }
     }
@@ -122,7 +139,18 @@ export default function KnowledgeAssessment({
     return newAssessments
   }
 
+  // Preview which nodes will be skipped
+  const handlePreview = (status: 'known' | 'unknown') => {
+    if (status === 'unknown') {
+      const willBeSkipped = findDependentNodesToSkip(currentNode.id)
+      setPreviewSkipped(willBeSkipped)
+    } else {
+      setPreviewSkipped([])
+    }
+  }
+
   const handleAssessment = async (status: 'known' | 'unknown') => {
+    setPreviewSkipped([]) // Clear preview
     let newAssessments = { ...assessments, [currentNode.id]: status }
     let newSkippedNodes = new Set(skippedNodes)
     
@@ -164,7 +192,7 @@ export default function KnowledgeAssessment({
       const statusData = Object.entries(finalAssessments).map(([nodeId, status]) => ({
         user_id: FIXED_USER_ID,
         node_id: nodeId,
-        understanding_level: status === 'known' ? 100 : 0,
+        understanding_level: status === 'known' ? 80 : 20,
         last_reviewed: new Date().toISOString(),
         review_count: 1
       }))
@@ -252,6 +280,8 @@ export default function KnowledgeAssessment({
             <span className="text-lg font-medium">알아요</span>
           </button>
           <button
+            onMouseEnter={() => handlePreview('unknown')}
+            onMouseLeave={() => setPreviewSkipped([])}
             onClick={() => handleAssessment('unknown')}
             disabled={isSubmitting}
             className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
@@ -260,6 +290,35 @@ export default function KnowledgeAssessment({
             <span className="text-lg font-medium">몰라요</span>
           </button>
         </div>
+        
+        {/* Preview of nodes to be skipped */}
+        {previewSkipped.length > 0 && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm font-medium text-yellow-800 mb-2">
+              이 개념을 모른다고 표시하면 다음 {previewSkipped.length}개 개념이 자동으로 건너뛰어집니다:
+            </p>
+            <ul className="space-y-1">
+              {previewSkipped.slice(0, 5).map(id => {
+                const node = nodes.find(n => n.id === id)
+                return node ? (
+                  <li key={id} className="text-sm text-yellow-700 flex items-center gap-2">
+                    <span className="text-yellow-500">•</span>
+                    <span>{node.name}</span>
+                    {node.parent_id === currentNode.id && (
+                      <span className="text-xs text-yellow-600">(하위 개념)</span>
+                    )}
+                  </li>
+                ) : null
+              })}
+              {previewSkipped.length > 5 && (
+                <li className="text-sm text-yellow-700 flex items-center gap-2">
+                  <span className="text-yellow-500">•</span>
+                  <span>... 그 외 {previewSkipped.length - 5}개</span>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Current Status */}

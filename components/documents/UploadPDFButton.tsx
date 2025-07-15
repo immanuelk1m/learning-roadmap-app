@@ -96,6 +96,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       }
 
       console.log('Document record created:', newDoc)
+      console.log('[UploadPDFButton] Document will trigger realtime update')
 
       setIsOpen(false)
       setFile(null)
@@ -130,6 +131,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
             })
           }
           console.log('Analysis API triggered successfully')
+          console.log('[UploadPDFButton] Analysis started, waiting for realtime updates')
         })
         .catch(error => {
           console.error('Failed to trigger analysis API:', error)

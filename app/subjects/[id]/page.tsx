@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createBrowserClient } from '@/lib/supabase/browser'
+import { createClient } from '@/lib/supabase/client'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Upload, BookOpen } from 'lucide-react'
@@ -29,7 +29,7 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   const [subject, setSubject] = useState<any>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
+  const supabase = createClient()
   
   // 고정 사용자 ID 사용
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
@@ -38,13 +38,17 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   const refreshDocuments = async () => {
     if (!id) return
     
-    const { data } = await supabase
+    console.log('[SubjectDetailPage] Refreshing documents...')
+    const { data, error } = await supabase
       .from('documents')
       .select('*')
       .eq('subject_id', id)
       .order('created_at', { ascending: false })
     
-    if (data) {
+    if (error) {
+      console.error('[SubjectDetailPage] Error refreshing documents:', error)
+    } else if (data) {
+      console.log('[SubjectDetailPage] Refreshed documents:', data.length)
       setDocuments(data)
     }
   }

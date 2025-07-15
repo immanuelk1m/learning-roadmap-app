@@ -9,6 +9,7 @@ interface DocumentStatusProps {
 }
 
 export default function DocumentStatus({ initialStatus }: DocumentStatusProps) {
+  // 직접 props의 status를 사용하여 실시간 업데이트 반영
   const status = initialStatus
 
   const getStatusDisplay = () => {

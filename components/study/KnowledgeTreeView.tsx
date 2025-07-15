@@ -66,11 +66,10 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
   }
 
 
-  const getNodeStatus = (nodeId: string): 'known' | 'unclear' | 'unknown' => {
+  const getNodeStatus = (nodeId: string): 'known' | 'unknown' => {
     const level = userStatus.find(s => s.node_id === nodeId)?.understanding_level
     if (level === undefined) return 'unknown'
-    if (level >= 80) return 'known'
-    if (level >= 30) return 'unclear'
+    if (level >= 50) return 'known'
     return 'unknown'
   }
 
@@ -83,20 +82,18 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
     const indentWidth = depth * 32 // 32px per level
     const isRootLevel = depth === 0
 
-    // Grayscale color scheme with depth-based styling
+    // Modern green and red color scheme with depth-based styling
     const getNodeStyles = () => {
       const baseStyles = {
-        known: 'bg-neutral-100 border-neutral-400 text-neutral-900',
-        unclear: 'bg-neutral-50 border-neutral-300 text-neutral-800',
-        unknown: 'bg-white border-neutral-200 text-neutral-700'
+        known: 'bg-green-50 border-green-300 text-green-900',
+        unknown: 'bg-red-50 border-red-300 text-red-900'
       }
 
       // Root level nodes get stronger styling
       if (isRootLevel) {
         return {
-          known: 'bg-neutral-800 border-neutral-700 text-white',
-          unclear: 'bg-neutral-600 border-neutral-500 text-white',
-          unknown: 'bg-neutral-400 border-neutral-300 text-white'
+          known: 'bg-green-500 border-green-600 text-white',
+          unknown: 'bg-red-500 border-red-600 text-white'
         }
       }
 
@@ -183,13 +180,10 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
                   </div>
                   {/* Status indicator */}
                   <div className={`ml-4 px-3 py-1 rounded-full text-xs font-medium ${
-                    status === 'known' ? 'bg-neutral-700 text-white' :
-                    status === 'unclear' ? 'bg-neutral-500 text-white' :
-                    'bg-neutral-300 text-neutral-700'
+                    status === 'known' ? 'bg-green-600 text-white' :
+                    'bg-red-600 text-white'
                   }`}>
-                    {status === 'known' ? '✓ 앎' :
-                     status === 'unclear' ? '? 애매함' :
-                     '✗ 모름'}
+                    {status === 'known' ? '✓ 아는 개념' : '✗ 모르는 개념'}
                   </div>
                 </div>
               </div>

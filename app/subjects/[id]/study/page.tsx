@@ -145,18 +145,14 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
                         지식 트리
                       </h2>
                       {userStatus && userStatus.length > 0 && (
-                        <div className="flex gap-4 text-sm">
+                        <div className="flex gap-6 text-sm">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-neutral-700 rounded-full"></div>
-                            <span>아는 개념: {userStatus.filter(s => s.understanding_level >= 80).length}개</span>
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span>아는 개념: {userStatus.filter(s => s.understanding_level >= 50).length}개</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-neutral-500 rounded-full"></div>
-                            <span>애매한 개념: {userStatus.filter(s => s.understanding_level >= 30 && s.understanding_level < 80).length}개</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-neutral-300 rounded-full"></div>
-                            <span>모르는 개념: {userStatus.filter(s => s.understanding_level < 30).length}개</span>
+                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                            <span>모르는 개념: {userStatus.filter(s => s.understanding_level < 50).length}개</span>
                           </div>
                         </div>
                       )}
