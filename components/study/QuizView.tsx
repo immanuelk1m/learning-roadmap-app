@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Brain, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import QuizSkeleton from './QuizSkeleton'
 
 interface QuizQuestion {
   id: string
@@ -123,11 +124,7 @@ export default function QuizView({ documentId, nodeIds }: QuizViewProps) {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
-      </div>
-    )
+    return <QuizSkeleton />
   }
 
   if (questions.length === 0) {

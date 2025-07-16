@@ -112,7 +112,7 @@ export const geminiStudyGuideModel = {
       contents: input.contents,
       config: {
         temperature: 0.7,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 32768,
         responseMimeType: "application/json",
         responseSchema: studyGuideSchema,
         systemInstruction: "You are an expert educational content creator for Korean university students. Create comprehensive study guides with clear structure and key points. Always write in Korean.",

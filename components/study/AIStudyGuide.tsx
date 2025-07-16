@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Book, Brain, FileText } from 'lucide-react'
+import AIStudyGuideSkeleton from './AIStudyGuideSkeleton'
 
 interface KnowledgeNode {
   id: string
@@ -137,17 +138,15 @@ export default function AIStudyGuide({ nodes, userStatus, documentId }: AIStudyG
               </div>
             )}
 
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
-                </div>
-              ) : (
+            {loading ? (
+              <AIStudyGuideSkeleton />
+            ) : (
+              <div className="bg-white p-6 rounded-lg shadow-sm">
                 <div className="prose max-w-none">
                   <p>{explanation}</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">

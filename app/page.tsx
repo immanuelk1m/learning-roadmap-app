@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@/lib/supabase/browser'
 import SubjectList from '@/components/subjects/SubjectList'
 import CreateSubjectButton from '@/components/subjects/CreateSubjectButton'
+import SubjectListSkeleton from '@/components/subjects/SubjectListSkeleton'
 
 export default function HomePage() {
   const [subjects, setSubjects] = useState<any[]>([])
@@ -51,9 +52,7 @@ export default function HomePage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neutral-900"></div>
-          </div>
+          <SubjectListSkeleton />
         ) : subjects && subjects.length > 0 ? (
           <SubjectList subjects={subjects} onSubjectDeleted={fetchSubjects} />
         ) : (

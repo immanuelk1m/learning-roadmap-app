@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ArrowLeft, Upload, BookOpen } from 'lucide-react'
 import UploadPDFButton from '@/components/documents/UploadPDFButton'
 import DocumentList from '@/components/documents/DocumentList'
+import SubjectDetailSkeleton from '@/components/subjects/SubjectDetailSkeleton'
 interface Document {
   id: string
   title: string
@@ -87,14 +88,7 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   }, [id])
 
   if (loading || !subject || !id) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neutral-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">로딩 중...</p>
-        </div>
-      </div>
-    )
+    return <SubjectDetailSkeleton />
   }
 
   return (

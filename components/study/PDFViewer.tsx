@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
+import PDFViewerSkeleton from './PDFViewerSkeleton'
 
 interface PDFViewerProps {
   documentId: string
@@ -56,11 +57,7 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
   }, [filePath, supabase])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    )
+    return <PDFViewerSkeleton />
   }
 
   if (error) {
