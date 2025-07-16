@@ -102,10 +102,19 @@ export async function POST(request: NextRequest) {
       .from('pdf-documents')
       .download(document.file_path)
 
-    let documentContent = ''
-    if (fileData) {
-      documentContent = await fileData.text()
+    if (!fileData) {
+      return NextResponse.json(
+        { error: 'Failed to download PDF file' },
+        { status: 500 }
+      )
     }
+
+    // Convert PDF to base64 for Gemini
+    console.log('Converting PDF to base64...')
+    const base64Data = await fileData.arrayBuffer().then((buffer) =>
+      Buffer.from(buffer).toString('base64')
+    )
+    console.log(`PDF converted to base64, size: ${(base64Data.length / 1024 / 1024).toFixed(2)} MB`)
 
     // Generate study guide using Gemini
     const studyGuideContext = unknownConcepts.length > 0 ? `
@@ -139,6 +148,12 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
       contents: [
         {
           parts: [
+            {
+              inlineData: {
+                mimeType: 'application/pdf',
+                data: base64Data,
+              },
+            },
             {
               text: prompt,
             },
