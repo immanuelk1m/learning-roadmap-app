@@ -232,7 +232,25 @@ export async function POST(
         throw new Error('Empty response from Gemini')
       }
     } catch (error: any) {
-      console.error('Error generating quiz questions:', error)
+      geminiLogger.error('Error generating quiz questions from Gemini', {
+        correlationId,
+        documentId: id,
+        error: error,
+        isError: true,
+        metadata: {
+          errorMessage: error.message,
+          errorStack: error.stack,
+          errorDetails: error.details,
+        }
+      });
+
+      if (error.message && error.message.includes('429')) {
+        return NextResponse.json(
+          { error: 'API 요청 사용량을 초과하여 퀴즈를 생성할 수 없습니다. 잠시 후 다시 시도해주세요.' },
+          { status: 429 }
+        );
+      }
+      
       return NextResponse.json(
         { error: 'Failed to generate quiz questions', details: error.message },
         { status: 500 }

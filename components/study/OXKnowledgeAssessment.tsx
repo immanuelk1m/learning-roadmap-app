@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { CheckCircle, XCircle, ArrowRight, CircleX, CircleCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { assessmentLogger, supabaseLogger, quizLogger } from '@/lib/logger'
@@ -500,20 +501,22 @@ export default function OXKnowledgeAssessment({
             willReload: true
           }
         })
+        toast.success('퀴즈를 성공적으로 다시 생성했습니다. 페이지를 새로고침합니다.')
         // Reload the page to fetch new questions
         window.location.reload()
       } else {
-        const error = await response.json()
+        const errorData = await response.json()
+        const errorMessage = errorData.error || '알 수 없는 오류가 발생했습니다.'
         quizLogger.error('Quiz regeneration failed', {
           correlationId,
           documentId,
           duration: regenDuration,
           metadata: {
             status: response.status,
-            errorResponse: error
+            errorResponse: errorData
           }
         })
-        alert(`퀴즈 생성 실패: ${error.error}`)
+        toast.error(`퀴즈 생성 실패: ${errorMessage}`)
       }
     } catch (error: any) {
       const duration = regenTimer()
@@ -527,7 +530,7 @@ export default function OXKnowledgeAssessment({
           errorMessage: error.message
         }
       })
-      alert('퀴즈 생성 중 오류가 발생했습니다.')
+      toast.error('퀴즈 생성 중 네트워크 오류가 발생했습니다.')
     } finally {
       setIsRegenerating(false)
     }
