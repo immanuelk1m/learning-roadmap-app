@@ -902,7 +902,7 @@ export async function POST(
                     document_id: id,
                     node_id: nodeId,
                     question: item.question,
-                    question_type: 'true_false' as const,
+                    question_type: 'TRUE_FALSE' as const,
                     options: JSON.stringify(['O', 'X']), // JSONB expects JSON string
                     correct_answer: item.correct_answer,
                     explanation: item.explanation,
