@@ -188,13 +188,15 @@ export const OX_QUIZ_GENERATION_PROMPT = `당신은 학생의 사전 지식을 �
 {
   "quiz_items": [
     {
-      "node_id": "해당 노드 ID",
+      "node_id": "제공된 노드 객체의 id 필드값을 그대로 사용",
       "question": "참/거짓을 판단할 수 있는 명확한 문장",
       "correct_answer": "O" 또는 "X",
       "explanation": "정답인 이유를 간단히 설명"
     }
   ]
 }
+
+**중요**: node_id는 반드시 제공된 지식 노드 객체의 "id" 필드 값을 그대로 사용하세요. 임의로 생성하거나 변경하지 마세요.
 
 ## 좋은 O/X 문제의 예시
 

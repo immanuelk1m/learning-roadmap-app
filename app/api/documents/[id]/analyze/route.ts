@@ -700,7 +700,11 @@ export async function POST(
                   },
                 },
                 {
-                  text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(knowledgeTree.nodes, null, 2)}`,
+                  text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(knowledgeTree.nodes.map((node, index) => ({
+                    ...node,
+                    node_index: index,
+                    original_id: node.id
+                  })), null, 2)}`,
                 },
               ],
             },
@@ -729,7 +733,9 @@ export async function POST(
               documentId: id,
               metadata: {
                 quizItemCount: quizData.quiz_items?.length || 0,
-                nodeIds: quizData.quiz_items?.map((item: any) => item.node_id) || []
+                nodeIds: quizData.quiz_items?.map((item: any) => item.node_id) || [],
+                availableMappings: Object.keys(nodeIdMapping),
+                mappingEntries: Object.entries(nodeIdMapping).slice(0, 5)
               }
             })
             
@@ -740,7 +746,26 @@ export async function POST(
               const saveTimer = supabaseLogger.startTimer()
               
               for (const item of quizData.quiz_items) {
-                const actualNodeId = nodeIdMapping[item.node_id]
+                // Try different mapping strategies
+                let actualNodeId = nodeIdMapping[item.node_id]
+                
+                // If direct mapping fails, try using the node name
+                if (!actualNodeId && item.node_id) {
+                  // Check if the node_id is actually the node name
+                  const nodeByName = knowledgeTree.nodes.find(n => n.name === item.node_id || n.id === item.node_id)
+                  if (nodeByName) {
+                    actualNodeId = nodeIdMapping[nodeByName.id]
+                  }
+                }
+                
+                // If still no mapping, try by index
+                if (!actualNodeId && typeof item.node_index === 'number') {
+                  const nodeByIndex = knowledgeTree.nodes[item.node_index]
+                  if (nodeByIndex) {
+                    actualNodeId = nodeIdMapping[nodeByIndex.id]
+                  }
+                }
+                
                 if (actualNodeId) {
                   const quizItem = {
                     document_id: id,
@@ -780,8 +805,10 @@ export async function POST(
                     documentId: id,
                     metadata: {
                       unmappedNodeId: item.node_id,
+                      nodeIndex: item.node_index,
                       availableMappings: Object.keys(nodeIdMapping),
-                      quizQuestion: item.question
+                      quizQuestion: item.question,
+                      quizItem: item
                     }
                   })
                   failedCount++
@@ -800,6 +827,19 @@ export async function POST(
                   successRate: `${((savedCount / quizData.quiz_items.length) * 100).toFixed(2)}%`
                 }
               })
+              
+              // If no quiz items were saved, this is a critical error
+              if (savedCount === 0 && quizData.quiz_items.length > 0) {
+                analyzeLogger.error('CRITICAL: No quiz items were saved', {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    attemptedItems: quizData.quiz_items.length,
+                    nodeIdMapping: Object.entries(nodeIdMapping).slice(0, 5),
+                    sampleQuizItems: quizData.quiz_items.slice(0, 3)
+                  }
+                })
+              }
             }
           } catch (quizParseError: any) {
             geminiLogger.error('Failed to parse quiz response', {
@@ -830,10 +870,35 @@ export async function POST(
         // Continue without failing the entire process
       }
 
+      // Validate that quiz generation was successful
+      const { data: savedQuizItems } = await supabase
+        .from('quiz_items')
+        .select('id')
+        .eq('document_id', id)
+        .eq('is_assessment', true)
+      
+      const quizValidationSuccess = savedQuizItems && savedQuizItems.length > 0
+      
+      if (!quizValidationSuccess) {
+        analyzeLogger.error('Document completed but no O/X quiz items were saved', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            nodeCount: knowledgeTree.nodes.length,
+            expectedQuizCount: knowledgeTree.nodes.length,
+            actualQuizCount: savedQuizItems?.length || 0
+          }
+        })
+      }
+
       // Update document status
       supabaseLogger.info('Updating document status to completed', {
         correlationId,
-        documentId: id
+        documentId: id,
+        metadata: {
+          quizGenerationSuccess: quizValidationSuccess,
+          quizItemCount: savedQuizItems?.length || 0
+        }
       })
       
       const completionTimer = supabaseLogger.startTimer()

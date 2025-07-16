@@ -111,11 +111,12 @@ export async function POST(
               },
               {
                 text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(knowledgeNodes.map((node, index) => ({
-                  id: `node_${index + 1}`,
+                  id: node.id,  // Use actual database ID
                   name: node.name,
                   description: node.description,
                   level: node.level,
-                  prerequisites: node.prerequisites
+                  prerequisites: node.prerequisites,
+                  db_id: node.id  // Also include as db_id for clarity
                 })), null, 2)}`,
               },
             ],
@@ -124,24 +125,48 @@ export async function POST(
       })
 
       const quizResponse = quizResult.text || ''
-      console.log('Quiz generation response received')
+      quizLogger.info('Quiz generation response received', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          responseLength: quizResponse.length,
+          responsePreview: quizResponse.substring(0, 200)
+        }
+      })
 
       if (quizResponse) {
         const quizData = JSON.parse(quizResponse)
-        console.log(`Generated ${quizData.quiz_items?.length || 0} O/X questions`)
+        quizLogger.info(`Generated ${quizData.quiz_items?.length || 0} O/X questions`, {
+          correlationId,
+          documentId: id,
+          metadata: {
+            quizItems: quizData.quiz_items?.length || 0,
+            sampleItems: quizData.quiz_items?.slice(0, 2)
+          }
+        })
 
-        // Create node ID mapping
+        // Create node ID mapping - now we use actual node IDs
         const nodeIdMap: Record<string, string> = {}
-        knowledgeNodes.forEach((node, index) => {
-          const tempId = `node_${index + 1}`
-          nodeIdMap[tempId] = node.id
+        knowledgeNodes.forEach((node) => {
+          nodeIdMap[node.id] = node.id  // Direct mapping since we're using actual IDs
+          nodeIdMap[node.name] = node.id  // Also map by name as fallback
         })
 
         // Save quiz questions to database
         let savedCount = 0
         if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
           for (const item of quizData.quiz_items) {
-            const actualNodeId = nodeIdMap[item.node_id]
+            // Try to find the actual node ID
+            let actualNodeId = nodeIdMap[item.node_id] || nodeIdMap[item.db_id]
+            
+            // If not found, try by name
+            if (!actualNodeId && item.node_id) {
+              const nodeByName = knowledgeNodes.find(n => n.name === item.node_id)
+              if (nodeByName) {
+                actualNodeId = nodeByName.id
+              }
+            }
+            
             if (actualNodeId) {
               const quizItem = {
                 document_id: id,
@@ -160,10 +185,29 @@ export async function POST(
                 .insert(quizItem)
 
               if (quizError) {
-                console.error(`Failed to save quiz for node ${item.node_id}:`, quizError)
+                quizLogger.error(`Failed to save quiz for node ${item.node_id}`, {
+                  correlationId,
+                  documentId: id,
+                  error: quizError,
+                  metadata: {
+                    nodeId: actualNodeId,
+                    quizItem: item
+                  }
+                })
               } else {
                 savedCount++
               }
+            } else {
+              quizLogger.warn('Could not find node mapping for quiz item', {
+                correlationId,
+                documentId: id,
+                metadata: {
+                  itemNodeId: item.node_id,
+                  itemDbId: item.db_id,
+                  availableNodes: knowledgeNodes.map(n => ({ id: n.id, name: n.name })),
+                  quizQuestion: item.question
+                }
+              })
             }
           }
         }
