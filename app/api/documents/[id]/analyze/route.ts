@@ -673,12 +673,40 @@ export async function POST(
         }
       })
       
+      // Get the saved nodes from database with their actual IDs
+      const { data: savedNodes, error: fetchNodesError } = await supabase
+        .from('knowledge_nodes')
+        .select('*')
+        .eq('document_id', id)
+        .order('position', { ascending: true })
+      
+      if (fetchNodesError || !savedNodes || savedNodes.length === 0) {
+        analyzeLogger.error('Failed to fetch saved nodes for quiz generation', {
+          correlationId,
+          documentId: id,
+          error: fetchNodesError,
+          metadata: {
+            savedNodesCount: savedNodes?.length || 0
+          }
+        })
+        throw new Error('Failed to fetch saved nodes for quiz generation')
+      }
+      
+      analyzeLogger.info('Fetched saved nodes for quiz generation', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          savedNodesCount: savedNodes.length,
+          sampleNodes: savedNodes.slice(0, 3).map(n => ({ id: n.id, name: n.name }))
+        }
+      })
+      
       // Generate O/X quiz questions for knowledge assessment
       geminiLogger.info('Starting O/X quiz generation', {
         correlationId,
         documentId: id,
         metadata: {
-          nodeCount: knowledgeTree.nodes.length,
+          nodeCount: savedNodes.length,
           promptLength: OX_QUIZ_GENERATION_PROMPT.length
         }
       })
@@ -688,6 +716,15 @@ export async function POST(
       
       try {
         const quizTimer = geminiLogger.startTimer()
+        
+        // Pass actual database nodes to Gemini
+        const nodesForQuiz = savedNodes.map(node => ({
+          id: node.id,  // Use actual database ID
+          name: node.name,
+          description: node.description,
+          level: node.level,
+          prerequisites: node.prerequisites || []
+        }))
         
         const quizResult = await geminiKnowledgeTreeModel.generateContent({
           contents: [
@@ -700,11 +737,7 @@ export async function POST(
                   },
                 },
                 {
-                  text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(knowledgeTree.nodes.map((node, index) => ({
-                    ...node,
-                    node_index: index,
-                    original_id: node.id
-                  })), null, 2)}`,
+                  text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(nodesForQuiz, null, 2)}`,
                 },
               ],
             },
@@ -739,37 +772,23 @@ export async function POST(
               }
             })
             
-            // Save quiz questions to database using the ID mapping from node creation
+            // Save quiz questions to database with direct node IDs
             if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
               let savedCount = 0
               let failedCount = 0
               const saveTimer = supabaseLogger.startTimer()
               
               for (const item of quizData.quiz_items) {
-                // Try different mapping strategies
-                let actualNodeId = nodeIdMapping[item.node_id]
+                // Since we passed actual database IDs to Gemini, the node_id should be valid
+                const nodeId = item.node_id
                 
-                // If direct mapping fails, try using the node name
-                if (!actualNodeId && item.node_id) {
-                  // Check if the node_id is actually the node name
-                  const nodeByName = knowledgeTree.nodes.find(n => n.name === item.node_id || n.id === item.node_id)
-                  if (nodeByName) {
-                    actualNodeId = nodeIdMapping[nodeByName.id]
-                  }
-                }
+                // Verify the node exists in our saved nodes
+                const nodeExists = savedNodes.find(n => n.id === nodeId)
                 
-                // If still no mapping, try by index
-                if (!actualNodeId && typeof item.node_index === 'number') {
-                  const nodeByIndex = knowledgeTree.nodes[item.node_index]
-                  if (nodeByIndex) {
-                    actualNodeId = nodeIdMapping[nodeByIndex.id]
-                  }
-                }
-                
-                if (actualNodeId) {
+                if (nodeExists) {
                   const quizItem = {
                     document_id: id,
-                    node_id: actualNodeId,
+                    node_id: nodeId,
                     question: item.question,
                     question_type: 'true_false' as const,
                     options: JSON.stringify(['O', 'X']), // JSONB expects JSON string
@@ -788,8 +807,8 @@ export async function POST(
                       correlationId,
                       documentId: id,
                       metadata: {
-                        nodeId: item.node_id,
-                        actualNodeId,
+                        nodeId: nodeId,
+                        nodeName: nodeExists.name,
                         errorCode: quizError.code,
                         errorDetails: quizError.details,
                         quizQuestion: item.question
@@ -800,13 +819,12 @@ export async function POST(
                     savedCount++
                   }
                 } else {
-                  supabaseLogger.warn('No mapping found for quiz node_id', {
+                  supabaseLogger.warn('Quiz item references non-existent node', {
                     correlationId,
                     documentId: id,
                     metadata: {
-                      unmappedNodeId: item.node_id,
-                      nodeIndex: item.node_index,
-                      availableMappings: Object.keys(nodeIdMapping),
+                      nodeId: item.node_id,
+                      availableNodeIds: savedNodes.map(n => n.id),
                       quizQuestion: item.question,
                       quizItem: item
                     }
