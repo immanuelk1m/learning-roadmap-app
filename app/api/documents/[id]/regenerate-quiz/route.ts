@@ -236,7 +236,6 @@ export async function POST(
         correlationId,
         documentId: id,
         error: error,
-        isError: true,
         metadata: {
           errorMessage: error.message,
           errorStack: error.stack,
