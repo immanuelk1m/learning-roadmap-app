@@ -13,6 +13,71 @@ export interface KnowledgeTreeResponse {
   nodes: KnowledgeNode[]
 }
 
+// Base interface for all question types
+export interface BaseQuizQuestion {
+  question: string
+  explanation: string
+  source_quote: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  node_id?: string  // Link to knowledge node
+}
+
+// Multiple choice question (current type)
+export interface MultipleChoiceQuestion extends BaseQuizQuestion {
+  type: 'multiple_choice'
+  options: string[]
+  correct_answer: string
+}
+
+// True/False question
+export interface TrueFalseQuestion extends BaseQuizQuestion {
+  type: 'true_false'
+  correct_answer: boolean
+}
+
+// Short answer question
+export interface ShortAnswerQuestion extends BaseQuizQuestion {
+  type: 'short_answer'
+  acceptable_answers: string[]  // Multiple acceptable variations
+  hint?: string
+}
+
+// Fill in the blank question
+export interface FillInTheBlankQuestion extends BaseQuizQuestion {
+  type: 'fill_in_blank'
+  template: string  // e.g., "The capital of Korea is ___"
+  blanks: Array<{
+    position: number
+    answer: string
+    alternatives?: string[]  // Alternative correct answers
+  }>
+}
+
+// Matching question
+export interface MatchingQuestion extends BaseQuizQuestion {
+  type: 'matching'
+  left_items: string[]
+  right_items: string[]
+  correct_pairs: Array<{
+    left_index: number
+    right_index: number
+  }>
+}
+
+// Union type for all question types
+export type ExtendedQuizQuestion = 
+  | MultipleChoiceQuestion 
+  | TrueFalseQuestion 
+  | ShortAnswerQuestion 
+  | FillInTheBlankQuestion 
+  | MatchingQuestion
+
+// Extended quiz response
+export interface ExtendedQuizResponse {
+  questions: ExtendedQuizQuestion[]
+}
+
+// Legacy interface for backward compatibility
 export interface QuizQuestion {
   question: string
   options: string[]
@@ -104,6 +169,108 @@ export const quizSchema = {
         },
         required: ["question", "options", "correct_answer", "explanation", "source_quote", "difficulty"],
         propertyOrdering: ["question", "options", "correct_answer", "explanation", "source_quote", "difficulty"]
+      }
+    }
+  },
+  required: ["questions"]
+}
+
+// Extended schema for diverse question types
+export const extendedQuizSchema = {
+  type: Type.OBJECT,
+  properties: {
+    questions: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          type: {
+            type: Type.STRING,
+            enum: ["multiple_choice", "true_false", "short_answer", "fill_in_blank", "matching"]
+          },
+          question: { type: Type.STRING },
+          explanation: { type: Type.STRING },
+          source_quote: { type: Type.STRING },
+          difficulty: {
+            type: Type.STRING,
+            enum: ["easy", "medium", "hard"]
+          },
+          node_id: { 
+            type: Type.STRING,
+            nullable: true
+          },
+          // Multiple choice specific
+          options: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            nullable: true
+          },
+          correct_answer: { 
+            type: Type.STRING,
+            nullable: true
+          },
+          // True/False specific
+          correct_answer_bool: {
+            type: Type.BOOLEAN,
+            nullable: true
+          },
+          // Short answer specific
+          acceptable_answers: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            nullable: true
+          },
+          hint: {
+            type: Type.STRING,
+            nullable: true
+          },
+          // Fill in the blank specific
+          template: {
+            type: Type.STRING,
+            nullable: true
+          },
+          blanks: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                position: { type: Type.INTEGER },
+                answer: { type: Type.STRING },
+                alternatives: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  nullable: true
+                }
+              },
+              required: ["position", "answer"]
+            },
+            nullable: true
+          },
+          // Matching specific
+          left_items: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            nullable: true
+          },
+          right_items: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            nullable: true
+          },
+          correct_pairs: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                left_index: { type: Type.INTEGER },
+                right_index: { type: Type.INTEGER }
+              },
+              required: ["left_index", "right_index"]
+            },
+            nullable: true
+          }
+        },
+        required: ["type", "question", "explanation", "source_quote", "difficulty"]
       }
     }
   },

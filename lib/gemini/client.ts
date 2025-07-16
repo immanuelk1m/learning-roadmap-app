@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema } from './schemas'
+import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema } from './schemas'
 
 if (!process.env.GEMINI_API_KEY) {
   console.error('=== GEMINI API KEY ERROR ===')
@@ -131,6 +131,23 @@ export const geminiModel = {
         temperature: 0.7,
         maxOutputTokens: 8192,
         systemInstruction: "You are a helpful AI assistant for Korean students. Always respond in Korean language unless specifically asked otherwise.",
+      },
+    })
+  }
+}
+
+// Extended Quiz Generation Model configuration
+export const geminiExtendedQuizModel = {
+  generateContent: async (input: any) => {
+    return genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: input.contents,
+      config: {
+        temperature: 0.6,
+        maxOutputTokens: 16384,
+        responseMimeType: "application/json",
+        responseSchema: extendedQuizSchema,
+        systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
       },
     })
   }

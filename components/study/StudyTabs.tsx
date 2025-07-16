@@ -2,20 +2,22 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { FileText, BookOpen } from 'lucide-react'
+import { FileText, BookOpen, Brain } from 'lucide-react'
 
 interface StudyTabsProps {
   knowledgeTreeContent: React.ReactNode
   studyGuideContent: React.ReactNode
+  quizContent: React.ReactNode
   hasStudyGuide: boolean
 }
 
 export default function StudyTabs({ 
   knowledgeTreeContent, 
   studyGuideContent, 
+  quizContent,
   hasStudyGuide 
 }: StudyTabsProps) {
-  const [activeTab, setActiveTab] = useState<'knowledge' | 'guide'>('knowledge')
+  const [activeTab, setActiveTab] = useState<'knowledge' | 'guide' | 'quiz'>('knowledge')
 
   const tabs = [
     {
@@ -29,6 +31,12 @@ export default function StudyTabs({
       label: 'PDF 해설집',
       icon: BookOpen,
       content: studyGuideContent
+    },
+    {
+      id: 'quiz' as const,
+      label: '연습문제',
+      icon: Brain,
+      content: quizContent
     }
   ]
 

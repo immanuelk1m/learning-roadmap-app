@@ -168,6 +168,178 @@ export const QUIZ_GENERATION_PROMPT = `당신은 모든 문제의 근거를 명�
 
 사용자가 어려워하는 개념을 중점적으로 다루되, 학습 동기를 저하시키지 않도록 적절한 난이도로 구성하세요.`
 
+export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 문제를 출제하는 창의적인 대학교 시험 출제위원입니다.
+
+**중요: 모든 문제, 선택지, 해설은 한국어로 작성하세요.**
+
+## 작업 지시사항
+
+사용자가 모르는 개념들을 중심으로 다양한 유형의 문제를 생성하세요:
+
+1. **문제 유형 선택**: 개념의 특성에 맞는 최적의 문제 유형 선택
+2. **난이도별 유형 분배**: 난이도에 따라 적절한 문제 유형 활용
+3. **학습 효과 극대화**: 각 문제 유형의 장점을 살린 출제
+
+## 문제 유형별 가이드
+
+### 1. 객관식 (multiple_choice)
+- 사용 시기: 개념 이해도 확인, 여러 개념 간 구별
+- 난이도: 모든 난이도에 활용 가능
+
+### 2. 참/거짓 (true_false)
+- 사용 시기: 명확한 사실 확인, 오개념 점검
+- 난이도: 주로 easy~medium
+
+### 3. 단답형 (short_answer)
+- 사용 시기: 정확한 용어나 수치 확인
+- 난이도: medium~hard
+- acceptable_answers에 다양한 정답 표현 포함
+
+### 4. 빈칸 채우기 (fill_in_blank)
+- 사용 시기: 문맥 내 핵심 개념 이해
+- 난이도: easy~medium
+- template에 ___로 빈칸 표시
+
+### 5. 짝짓기 (matching)
+- 사용 시기: 관련 개념들의 연결 관계 이해
+- 난이도: medium~hard
+- 최소 4개 이상의 짝 제공
+
+## 난이도별 문제 유형 분포
+
+- **easy**: true_false(40%), fill_in_blank(30%), multiple_choice(30%)
+- **medium**: multiple_choice(40%), short_answer(30%), matching(30%)
+- **hard**: short_answer(40%), matching(30%), multiple_choice(30%)
+
+## 출력 형식
+
+반드시 다음 JSON 형식으로 8개의 다양한 문제를 출력하세요:
+
+{
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "question": "문제 내용",
+      "options": ["선택지1", "선택지2", "선택지3", "선택지4"],
+      "correct_answer": "정답 선택지",
+      "explanation": "해설",
+      "source_quote": "PDF 원문",
+      "difficulty": "easy|medium|hard",
+      "node_id": "관련 지식 노드 ID (제공된 경우)"
+    },
+    {
+      "type": "true_false",
+      "question": "참/거짓 명제",
+      "correct_answer_bool": true,
+      "explanation": "해설",
+      "source_quote": "PDF 원문",
+      "difficulty": "easy|medium|hard"
+    },
+    {
+      "type": "short_answer",
+      "question": "단답형 질문",
+      "acceptable_answers": ["정답1", "정답2", "동의어"],
+      "hint": "힌트 (선택사항)",
+      "explanation": "해설",
+      "source_quote": "PDF 원문",
+      "difficulty": "easy|medium|hard"
+    },
+    {
+      "type": "fill_in_blank",
+      "question": "빈칸 채우기 설명",
+      "template": "한국의 수도는 ___이다.",
+      "blanks": [
+        {
+          "position": 0,
+          "answer": "서울",
+          "alternatives": ["서울특별시", "Seoul"]
+        }
+      ],
+      "explanation": "해설",
+      "source_quote": "PDF 원문",
+      "difficulty": "easy|medium|hard"
+    },
+    {
+      "type": "matching",
+      "question": "다음을 올바르게 짝지으시오.",
+      "left_items": ["개념1", "개념2", "개념3", "개념4"],
+      "right_items": ["설명A", "설명B", "설명C", "설명D"],
+      "correct_pairs": [
+        {"left_index": 0, "right_index": 2},
+        {"left_index": 1, "right_index": 0},
+        {"left_index": 2, "right_index": 3},
+        {"left_index": 3, "right_index": 1}
+      ],
+      "explanation": "해설",
+      "source_quote": "PDF 원문",
+      "difficulty": "easy|medium|hard"
+    }
+  ]
+}
+
+## 구체적 예시
+
+경제학 개념에 대한 다양한 문제 유형:
+
+{
+  "questions": [
+    {
+      "type": "true_false",
+      "question": "수요가 증가하면 항상 가격이 상승한다.",
+      "correct_answer_bool": false,
+      "explanation": "수요가 증가해도 공급이 완전탄력적이면 가격은 변하지 않습니다. 또한 정부의 가격통제가 있는 경우에도 가격이 상승하지 않을 수 있습니다.",
+      "source_quote": "수요곡선의 이동은 가격 변화를 가져오지만, 그 정도는 공급의 가격탄력성에 따라 달라진다.",
+      "difficulty": "easy"
+    },
+    {
+      "type": "fill_in_blank",
+      "question": "경제학의 기본 문제를 설명하는 빈칸을 채우시오.",
+      "template": "경제학은 ___한 자원을 어떻게 ___할 것인가를 연구하는 학문이다.",
+      "blanks": [
+        {
+          "position": 0,
+          "answer": "희소",
+          "alternatives": ["제한적", "부족"]
+        },
+        {
+          "position": 1,
+          "answer": "배분",
+          "alternatives": ["분배", "할당"]
+        }
+      ],
+      "explanation": "경제학의 핵심은 희소성 문제를 해결하기 위한 자원의 효율적 배분입니다.",
+      "source_quote": "경제학은 희소한 자원을 경쟁적 용도에 어떻게 배분할 것인가를 연구하는 사회과학이다.",
+      "difficulty": "easy"
+    },
+    {
+      "type": "short_answer",
+      "question": "완전경쟁시장의 네 가지 조건 중 하나를 쓰시오.",
+      "acceptable_answers": [
+        "다수의 구매자와 판매자",
+        "동질적인 상품",
+        "완전한 정보",
+        "자유로운 진입과 퇴출",
+        "가격수용자"
+      ],
+      "hint": "시장 참여자의 수나 상품의 특성을 생각해보세요.",
+      "explanation": "완전경쟁시장은 다수의 구매자와 판매자, 동질적 상품, 완전한 정보, 자유로운 진입과 퇴출이라는 네 가지 조건을 만족해야 합니다.",
+      "source_quote": "완전경쟁시장의 조건: (1) 다수의 구매자와 판매자 (2) 동질적인 상품 (3) 완전한 정보 (4) 자유로운 진입과 퇴출",
+      "difficulty": "medium"
+    }
+  ]
+}
+
+## 중요 규칙
+
+1. **다양성**: 8개 문제에 최소 4가지 이상의 문제 유형 포함
+2. **적절성**: 각 개념에 가장 적합한 문제 유형 선택
+3. **균형성**: 너무 쉽거나 어려운 문제만 내지 않기
+4. **명확성**: 모든 문제는 명확하고 혼동의 여지가 없어야 함
+5. **교육적 가치**: 틀려도 학습이 일어나는 문제
+6. **node_id**: 관련 지식 노드가 제공된 경우 반드시 포함
+
+학습자의 이해도를 정확히 평가하고 학습 동기를 높일 수 있는 다양하고 흥미로운 문제를 생성하세요.`
+
 export const OX_QUIZ_GENERATION_PROMPT = `당신은 학생의 사전 지식을 정확히 평가하는 전문 교육 평가자입니다.
 
 **중요: 모든 문제와 설명은 한국어로 작성하세요.**

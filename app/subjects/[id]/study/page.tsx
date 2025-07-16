@@ -6,6 +6,7 @@ import KnowledgeTreeView from '@/components/study/KnowledgeTreeView'
 import PDFViewer from '@/components/study/PDFViewer'
 import StudyTabs from '@/components/study/StudyTabs'
 import StudyGuide from '@/components/study/StudyGuide'
+import ExtendedQuizView from '@/components/quiz/ExtendedQuizView'
 
 interface StudyPageProps {
   params: Promise<{
@@ -176,6 +177,16 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
                   documentId={document.id}
                   userId={FIXED_USER_ID}
                 />
+              }
+              quizContent={
+                <div className="h-full overflow-auto">
+                  <div className="p-6">
+                    <ExtendedQuizView
+                      documentId={document.id}
+                      nodeIds={knowledgeNodes?.map(n => n.id) || []}
+                    />
+                  </div>
+                </div>
               }
             />
           </div>
