@@ -902,8 +902,8 @@ export async function POST(
                     document_id: id,
                     node_id: nodeId,
                     question: item.question,
-                    question_type: 'TRUE_FALSE' as const,
-                    options: JSON.stringify(['O', 'X']), // JSONB expects JSON string
+                    question_type: 'true_false' as const,
+                    options: ['O', 'X'], // Pass array directly to Supabase client for JSONB
                     correct_answer: item.correct_answer,
                     explanation: item.explanation,
                     difficulty: 1, // Default difficulty for assessment
