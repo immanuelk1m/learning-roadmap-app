@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import { knowledgeTreeSchema, quizSchema } from './schemas'
+import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema } from './schemas'
 
 if (!process.env.GEMINI_API_KEY) {
   console.error('=== GEMINI API KEY ERROR ===')
@@ -82,6 +82,40 @@ export const geminiQuizModel = {
         responseMimeType: "application/json",
         responseSchema: quizSchema,
         systemInstruction: "You are an expert quiz creator for Korean university students. Always create questions, options, and explanations in Korean language. Focus on testing understanding rather than memorization.",
+      },
+    })
+  }
+}
+
+// O/X Quiz Generation Model configuration
+export const geminiOXQuizModel = {
+  generateContent: async (input: any) => {
+    return genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: input.contents,
+      config: {
+        temperature: 0.4,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+        responseSchema: oxQuizSchema,
+        systemInstruction: "You are an expert assessment creator for Korean university students. Create O/X (True/False) questions to evaluate student understanding of concepts. Always write questions and explanations in Korean.",
+      },
+    })
+  }
+}
+
+// Study Guide Generation Model configuration
+export const geminiStudyGuideModel = {
+  generateContent: async (input: any) => {
+    return genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: input.contents,
+      config: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+        responseSchema: studyGuideSchema,
+        systemInstruction: "You are an expert educational content creator for Korean university students. Create comprehensive study guides with clear structure and key points. Always write in Korean.",
       },
     })
   }

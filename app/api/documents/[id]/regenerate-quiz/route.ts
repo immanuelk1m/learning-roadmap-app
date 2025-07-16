@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiKnowledgeTreeModel } from '@/lib/gemini/client'
+import { geminiOXQuizModel } from '@/lib/gemini/client'
 import { OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
+import { OXQuizResponse } from '@/lib/gemini/schemas'
+import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { quizLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
 
@@ -99,7 +101,7 @@ export async function POST(
     // Generate O/X quiz questions using Gemini
     console.log('Generating O/X quiz questions with Gemini...')
     try {
-      const quizResult = await geminiKnowledgeTreeModel.generateContent({
+      const quizResult = await geminiOXQuizModel.generateContent({
         contents: [
           {
             parts: [
@@ -135,7 +137,16 @@ export async function POST(
       })
 
       if (quizResponse) {
-        const quizData = JSON.parse(quizResponse)
+        const quizData = parseGeminiResponse<OXQuizResponse>(
+          quizResponse,
+          { correlationId, documentId: id, responseType: 'ox_quiz_regeneration' }
+        )
+        
+        validateResponseStructure(
+          quizData,
+          ['quiz_items'],
+          { correlationId, documentId: id, responseType: 'ox_quiz_regeneration' }
+        )
         quizLogger.info(`Generated ${quizData.quiz_items?.length || 0} O/X questions`, {
           correlationId,
           documentId: id,
@@ -157,7 +168,7 @@ export async function POST(
         if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
           for (const item of quizData.quiz_items) {
             // Try to find the actual node ID
-            let actualNodeId = nodeIdMap[item.node_id] || nodeIdMap[item.db_id]
+            let actualNodeId = nodeIdMap[item.node_id]
             
             // If not found, try by name
             if (!actualNodeId && item.node_id) {
@@ -203,7 +214,6 @@ export async function POST(
                 documentId: id,
                 metadata: {
                   itemNodeId: item.node_id,
-                  itemDbId: item.db_id,
                   availableNodes: knowledgeNodes.map(n => ({ id: n.id, name: n.name })),
                   quizQuestion: item.question
                 }

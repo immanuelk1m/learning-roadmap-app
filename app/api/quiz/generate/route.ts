@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { geminiQuizModel } from '@/lib/gemini/client'
 import { QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { QuizResponse } from '@/lib/gemini/schemas'
+import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -104,7 +105,21 @@ ${index + 1}. **${node.name}**
     })
 
     const response = result.text || ''
-    const quizData: QuizResponse = JSON.parse(response)
+    
+    if (!response) {
+      throw new Error('Empty response from Gemini API')
+    }
+    
+    const quizData = parseGeminiResponse<QuizResponse>(
+      response,
+      { documentId, responseType: 'quiz_generation' }
+    )
+    
+    validateResponseStructure(
+      quizData,
+      ['questions'],
+      { documentId, responseType: 'quiz_generation' }
+    )
 
     // Save quiz items to database
     const quizItems = await Promise.all(

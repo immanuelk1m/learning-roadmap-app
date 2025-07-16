@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiKnowledgeTreeModel } from '@/lib/gemini/client'
+import { geminiKnowledgeTreeModel, geminiOXQuizModel } from '@/lib/gemini/client'
 import { KNOWLEDGE_TREE_PROMPT, OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
-import { KnowledgeTreeResponse, KnowledgeNode } from '@/lib/gemini/schemas'
+import { KnowledgeTreeResponse, KnowledgeNode, OXQuizResponse } from '@/lib/gemini/schemas'
+import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { analyzeLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
 
 // Increase timeout for the API route to handle large PDF processing
-export const maxDuration = 60 // 60 seconds timeout
+export const maxDuration = 300 // 300 seconds (5 minutes) timeout
 
 export async function POST(
   request: NextRequest,
@@ -374,7 +375,7 @@ export async function POST(
       // Log memory usage before Gemini call
       analyzeLogger.logMemoryUsage('before_gemini_analysis')
 
-      // Analyze with Gemini using structured output
+      // Analyze with Gemini using structured output with retry logic
       geminiLogger.info('Sending PDF to Gemini for knowledge tree extraction', {
         correlationId,
         documentId: id,
@@ -385,29 +386,99 @@ export async function POST(
         }
       })
       
-      const geminiTimer = geminiLogger.startTimer()
+      let response = ''
+      let geminiDuration = 0
+      let geminiRetries = 3
+      let geminiError: any = null
       
-      const result = await geminiKnowledgeTreeModel.generateContent({
-        contents: [
-          {
-            parts: [
+      while (geminiRetries > 0 && !response) {
+        const geminiTimer = geminiLogger.startTimer()
+        try {
+          const result = await geminiKnowledgeTreeModel.generateContent({
+            contents: [
               {
-                inlineData: {
-                  mimeType: 'application/pdf',
-                  data: base64Data,
-                },
-              },
-              {
-                text: KNOWLEDGE_TREE_PROMPT,
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: 'application/pdf',
+                      data: base64Data,
+                    },
+                  },
+                  {
+                    text: KNOWLEDGE_TREE_PROMPT,
+                  },
+                ],
               },
             ],
-          },
-        ],
-      })
-
-      const geminiDuration = geminiTimer()
+          })
+          
+          geminiDuration = geminiTimer()
+          response = result.text || ''
+          
+          // With structured output, the response should always be valid JSON
+          if (response) {
+            try {
+              const parsedResponse = parseGeminiResponse<KnowledgeTreeResponse>(
+                response,
+                { correlationId, documentId: id, responseType: 'knowledge_tree' }
+              )
+              // Validate the structure
+              validateResponseStructure(
+                parsedResponse,
+                ['nodes'],
+                { correlationId, documentId: id, responseType: 'knowledge_tree' }
+              )
+              if (Array.isArray(parsedResponse.nodes)) {
+                // Valid response structure
+                break
+              } else {
+                throw new Error('Invalid response structure: nodes is not an array')
+              }
+            } catch (parseError) {
+              geminiLogger.warn('Invalid response from Gemini, retrying', {
+                correlationId,
+                documentId: id,
+                metadata: {
+                  attempt: 4 - geminiRetries,
+                  responseLength: response.length,
+                  parseError: (parseError as Error).message
+                }
+              })
+              response = ''
+              geminiError = parseError
+            }
+          }
+        } catch (error: any) {
+          geminiDuration = geminiTimer()
+          geminiError = error
+          geminiLogger.error('Gemini API error', {
+            correlationId,
+            documentId: id,
+            error,
+            metadata: {
+              attempt: 4 - geminiRetries,
+              willRetry: geminiRetries > 1
+            }
+          })
+        }
+        
+        geminiRetries--
+        if (geminiRetries > 0 && !response) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
+      }
       
-      const response = result.text || ''
+      if (!response) {
+        geminiLogger.error('Empty response from Gemini API after all retries', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            lastError: geminiError,
+            totalRetries: 3
+          }
+        })
+        throw new Error(`Empty response from AI: ${geminiError?.message || 'Unknown error'}`)
+      }
       
       geminiLogger.info('Gemini response received', {
         correlationId,
@@ -420,53 +491,28 @@ export async function POST(
         }
       })
       
-      if (!response) {
-        geminiLogger.error('Empty response from Gemini API', {
-          correlationId,
-          documentId: id,
-          metadata: {
-            resultObject: result
-          }
-        })
-        throw new Error('Empty response from AI')
-      }
+      // Parse the final response
+      const knowledgeTree = parseGeminiResponse<KnowledgeTreeResponse>(
+        response,
+        { correlationId, documentId: id, responseType: 'knowledge_tree' }
+      )
       
-      let knowledgeTree: KnowledgeTreeResponse
-      try {
-        geminiLogger.info('Parsing Gemini JSON response', {
-          correlationId,
-          documentId: id,
-          metadata: {
-            responseLength: response.length
-          }
-        })
-        
-        knowledgeTree = JSON.parse(response)
-        
-        geminiLogger.info('Successfully parsed knowledge tree', {
-          correlationId,
-          documentId: id,
-          metadata: {
-            totalNodes: knowledgeTree.nodes?.length || 0,
-            nodeLevels: [...new Set(knowledgeTree.nodes?.map(n => n.level) || [])],
-            nodeNames: knowledgeTree.nodes?.slice(0, 5).map(n => n.name) || []
-          }
-        })
-      } catch (parseError: any) {
-        geminiLogger.error('Failed to parse Gemini response as JSON', {
-          correlationId,
-          documentId: id,
-          error: parseError,
-          metadata: {
-            errorType: parseError.name,
-            errorMessage: parseError.message,
-            responseLength: response.length,
-            responseStart: response.substring(0, 500),
-            responseEnd: response.substring(response.length - 500)
-          }
-        })
-        throw new Error(`Invalid response format from AI: ${parseError.message}`)
-      }
+      // Validate the final structure
+      validateResponseStructure(
+        knowledgeTree,
+        ['nodes'],
+        { correlationId, documentId: id, responseType: 'knowledge_tree' }
+      )
+      
+      geminiLogger.info('Successfully parsed knowledge tree', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          totalNodes: knowledgeTree.nodes?.length || 0,
+          nodeLevels: [...new Set(knowledgeTree.nodes?.map(n => n.level) || [])],
+          nodeNames: knowledgeTree.nodes?.slice(0, 5).map(n => n.name) || []
+        }
+      })
 
       // Save flat knowledge nodes to database
       const saveFlatNodes = async (nodes: any[]) => {
@@ -726,26 +772,89 @@ export async function POST(
           prerequisites: node.prerequisites || []
         }))
         
-        const quizResult = await geminiKnowledgeTreeModel.generateContent({
-          contents: [
-            {
-              parts: [
+        let quizResponse = ''
+        let quizDuration = 0
+        let quizRetries = 3
+        let quizGeminiError: any = null
+        
+        while (quizRetries > 0 && !quizResponse) {
+          const attemptTimer = geminiLogger.startTimer()
+          try {
+            const quizResult = await geminiOXQuizModel.generateContent({
+              contents: [
                 {
-                  inlineData: {
-                    mimeType: 'application/pdf',
-                    data: base64Data,
-                  },
-                },
-                {
-                  text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(nodesForQuiz, null, 2)}`,
+                  parts: [
+                    {
+                      inlineData: {
+                        mimeType: 'application/pdf',
+                        data: base64Data,
+                      },
+                    },
+                    {
+                      text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(nodesForQuiz, null, 2)}`,
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-        })
-        
-        const quizDuration = quizTimer()
-        const quizResponse = quizResult.text || ''
+            })
+            
+            const attemptDuration = attemptTimer()
+            quizDuration += attemptDuration
+            quizResponse = quizResult.text || ''
+            
+            // With structured output, the response should always be valid JSON
+            if (quizResponse) {
+              try {
+                const parsedQuizResponse = parseGeminiResponse<OXQuizResponse>(
+                  quizResponse,
+                  { correlationId, documentId: id, responseType: 'ox_quiz' }
+                )
+                // Validate the structure
+                validateResponseStructure(
+                  parsedQuizResponse,
+                  ['quiz_items'],
+                  { correlationId, documentId: id, responseType: 'ox_quiz' }
+                )
+                if (Array.isArray(parsedQuizResponse.quiz_items)) {
+                  // Valid response structure
+                  break
+                } else {
+                  throw new Error('Invalid quiz response structure: quiz_items is not an array')
+                }
+              } catch (parseError) {
+                geminiLogger.warn('Invalid quiz response from Gemini, retrying', {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    attempt: 4 - quizRetries,
+                    responseLength: quizResponse.length,
+                    parseError: (parseError as Error).message
+                  }
+                })
+                quizResponse = ''
+                quizGeminiError = parseError
+              }
+            }
+          } catch (error: any) {
+            const attemptDuration = attemptTimer()
+            quizDuration += attemptDuration
+            quizGeminiError = error
+            geminiLogger.error('Gemini quiz generation API error', {
+              correlationId,
+              documentId: id,
+              error,
+              metadata: {
+                attempt: 4 - quizRetries,
+                willRetry: quizRetries > 1
+              }
+            })
+          }
+          
+          quizRetries--
+          if (quizRetries > 0 && !quizResponse) {
+            await new Promise(resolve => setTimeout(resolve, 2000))
+          }
+        }
         
         geminiLogger.info('Quiz generation response received', {
           correlationId,
@@ -759,7 +868,10 @@ export async function POST(
         
         if (quizResponse) {
           try {
-            const quizData = JSON.parse(quizResponse)
+            const quizData = parseGeminiResponse<OXQuizResponse>(
+              quizResponse,
+              { correlationId, documentId: id, responseType: 'ox_quiz' }
+            )
             
             geminiLogger.info('Quiz response parsed successfully', {
               correlationId,
