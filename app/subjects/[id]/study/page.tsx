@@ -1,12 +1,11 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Sparkles } from 'lucide-react'
 import KnowledgeTreeView from '@/components/study/KnowledgeTreeView'
 import PDFViewer from '@/components/study/PDFViewer'
 import StudyTabs from '@/components/study/StudyTabs'
 import StudyGuide from '@/components/study/StudyGuide'
-import ExtendedQuizView from '@/components/quiz/ExtendedQuizView'
 
 interface StudyPageProps {
   params: Promise<{
@@ -113,6 +112,15 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
                 )}
               </div>
             </div>
+            {document && (
+              <Link
+                href={`/subjects/${id}/quiz?doc=${document.id}`}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                문제풀고 지식트리 완성하기!
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -177,16 +185,6 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
                   documentId={document.id}
                   userId={FIXED_USER_ID}
                 />
-              }
-              quizContent={
-                <div className="h-full overflow-auto">
-                  <div className="p-6">
-                    <ExtendedQuizView
-                      documentId={document.id}
-                      nodeIds={knowledgeNodes?.map(n => n.id) || []}
-                    />
-                  </div>
-                </div>
               }
             />
           </div>
