@@ -178,7 +178,7 @@ export interface Database {
           document_id: string
           node_id: string | null
           question: string
-          question_type: 'multiple_choice' | 'true_false' | 'short_answer'
+          question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_in_blank' | 'matching'
           options: Json
           correct_answer: string
           explanation: string | null
@@ -192,7 +192,7 @@ export interface Database {
           document_id: string
           node_id?: string | null
           question: string
-          question_type: 'multiple_choice' | 'true_false' | 'short_answer'
+          question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_in_blank' | 'matching'
           options?: Json
           correct_answer: string
           explanation?: string | null

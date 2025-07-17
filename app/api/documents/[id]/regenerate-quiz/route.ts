@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiOXQuizModel } from '@/lib/gemini/client'
-import { OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
-import { OXQuizResponse } from '@/lib/gemini/schemas'
+import { geminiExtendedQuizModel } from '@/lib/gemini/client'
+import { EXTENDED_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
+import { ExtendedQuizResponse, ExtendedQuizQuestion } from '@/lib/gemini/schemas'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { quizLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
@@ -98,10 +98,10 @@ export async function POST(
       Buffer.from(buffer).toString('base64')
     )
 
-    // Generate O/X quiz questions using Gemini
-    console.log('Generating O/X quiz questions with Gemini...')
+    // Generate diverse quiz questions using Gemini
+    console.log('Generating diverse quiz questions with Gemini...')
     try {
-      const quizResult = await geminiOXQuizModel.generateContent({
+      const quizResult = await geminiExtendedQuizModel.generateContent({
         contents: [
           {
             parts: [
@@ -112,13 +112,13 @@ export async function POST(
                 },
               },
               {
-                text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(knowledgeNodes.map((node, index) => ({
+                text: `${EXTENDED_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 다양한 유형의 평가 문제를 생성하세요. 각 노드당 1-2개의 문제를 만들어주세요:\n${JSON.stringify(knowledgeNodes.map((node, index) => ({
                   id: node.id,  // Use actual database ID
                   name: node.name,
                   description: node.description,
                   level: node.level,
                   prerequisites: node.prerequisites,
-                  db_id: node.id  // Also include as db_id for clarity
+                  node_id: node.id  // For matching with quiz questions
                 })), null, 2)}`,
               },
             ],
@@ -137,22 +137,23 @@ export async function POST(
       })
 
       if (quizResponse) {
-        const quizData = parseGeminiResponse<OXQuizResponse>(
+        const quizData = parseGeminiResponse<ExtendedQuizResponse>(
           quizResponse,
-          { correlationId, documentId: id, responseType: 'ox_quiz_regeneration' }
+          { correlationId, documentId: id, responseType: 'extended_quiz_regeneration' }
         )
         
         validateResponseStructure(
           quizData,
-          ['quiz_items'],
-          { correlationId, documentId: id, responseType: 'ox_quiz_regeneration' }
+          ['questions'],
+          { correlationId, documentId: id, responseType: 'extended_quiz_regeneration' }
         )
-        quizLogger.info(`Generated ${quizData.quiz_items?.length || 0} O/X questions`, {
+        quizLogger.info(`Generated ${quizData.questions?.length || 0} diverse questions`, {
           correlationId,
           documentId: id,
           metadata: {
-            quizItems: quizData.quiz_items?.length || 0,
-            sampleItems: quizData.quiz_items?.slice(0, 2)
+            totalQuestions: quizData.questions?.length || 0,
+            questionTypes: quizData.questions?.map(q => q.type),
+            sampleQuestions: quizData.questions?.slice(0, 2)
           }
         })
 
@@ -165,30 +166,68 @@ export async function POST(
 
         // Save quiz questions to database
         let savedCount = 0
-        if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
-          for (const item of quizData.quiz_items) {
+        if (quizData.questions && Array.isArray(quizData.questions)) {
+          for (const question of quizData.questions) {
             // Try to find the actual node ID
-            let actualNodeId = nodeIdMap[item.node_id]
+            let actualNodeId = question.node_id ? nodeIdMap[question.node_id] : null
             
             // If not found, try by name
-            if (!actualNodeId && item.node_id) {
-              const nodeByName = knowledgeNodes.find(n => n.name === item.node_id)
+            if (!actualNodeId && question.node_id) {
+              const nodeByName = knowledgeNodes.find(n => n.name === question.node_id)
               if (nodeByName) {
                 actualNodeId = nodeByName.id
               }
             }
             
+            // If still no node_id, use first node as fallback
+            if (!actualNodeId && knowledgeNodes.length > 0) {
+              actualNodeId = knowledgeNodes[0].id
+            }
+            
             if (actualNodeId) {
-              const quizItem = {
+              // Prepare base quiz item
+              const quizItem: any = {
                 document_id: id,
                 node_id: actualNodeId,
-                question: item.question,
-                question_type: 'true_false' as const,
-                options: ['O', 'X'], // Direct array for JSONB
-                correct_answer: item.correct_answer,
-                explanation: item.explanation || null,
-                difficulty: 'easy' as const, // Use valid difficulty value
+                question: question.question,
+                question_type: question.type,
+                explanation: question.explanation || null,
+                source_quote: question.source_quote || null,
+                difficulty: question.difficulty || 'medium',
                 is_assessment: true,
+              }
+              
+              // Add type-specific fields
+              switch (question.type) {
+                case 'multiple_choice':
+                  quizItem.options = question.options || []
+                  quizItem.correct_answer = question.correct_answer || ''
+                  break
+                  
+                case 'true_false':
+                  quizItem.options = ['참', '거짓']
+                  // ExtendedQuizSchema uses correct_answer_bool for true_false questions
+                  quizItem.correct_answer = (question as any).correct_answer_bool ? '참' : '거짓'
+                  break
+                  
+                case 'short_answer':
+                  quizItem.correct_answer = question.acceptable_answers?.[0] || ''
+                  quizItem.acceptable_answers = question.acceptable_answers || []
+                  quizItem.hint = question.hint || null
+                  break
+                  
+                case 'fill_in_blank':
+                  quizItem.template = question.template || ''
+                  quizItem.blanks = question.blanks || []
+                  quizItem.correct_answer = question.blanks?.[0]?.answer || ''
+                  break
+                  
+                case 'matching':
+                  quizItem.left_items = question.left_items || []
+                  quizItem.right_items = question.right_items || []
+                  quizItem.correct_pairs = question.correct_pairs || []
+                  quizItem.correct_answer = 'matching'
+                  break
               }
 
               const { data: insertedQuiz, error: quizError } = await supabase
@@ -198,12 +237,13 @@ export async function POST(
                 .single()
 
               if (quizError) {
-                quizLogger.error(`Failed to save quiz for node ${item.node_id}`, {
+                quizLogger.error(`Failed to save quiz for node ${question.node_id}`, {
                   correlationId,
                   documentId: id,
                   error: quizError,
                   metadata: {
                     nodeId: actualNodeId,
+                    questionType: question.type,
                     errorCode: quizError.code,
                     errorDetails: quizError.details,
                     errorMessage: quizError.message,
@@ -225,7 +265,8 @@ export async function POST(
                   metadata: {
                     quizItemId: insertedQuiz?.id,
                     nodeId: actualNodeId,
-                    question: item.question.substring(0, 100) + '...'
+                    questionType: question.type,
+                    question: question.question.substring(0, 100) + '...'
                   }
                 })
                 savedCount++
@@ -235,9 +276,10 @@ export async function POST(
                 correlationId,
                 documentId: id,
                 metadata: {
-                  itemNodeId: item.node_id,
+                  questionNodeId: question.node_id,
+                  questionType: question.type,
                   availableNodes: knowledgeNodes.map(n => ({ id: n.id, name: n.name })),
-                  quizQuestion: item.question
+                  quizQuestion: question.question
                 }
               })
             }
@@ -279,19 +321,19 @@ export async function POST(
           correlationId,
           documentId: id,
           metadata: {
-            generatedCount: quizData.quiz_items?.length || 0,
+            generatedCount: quizData.questions?.length || 0,
             reportedSavedCount: savedCount,
             actualSavedCount,
             discrepancy: savedCount !== actualSavedCount
           }
         })
         
-        if (actualSavedCount === 0 && quizData.quiz_items?.length > 0) {
+        if (actualSavedCount === 0 && quizData.questions?.length > 0) {
           quizLogger.error('CRITICAL: Database verification shows no quiz items saved', {
             correlationId,
             documentId: id,
             metadata: {
-              attemptedItems: quizData.quiz_items.length,
+              attemptedItems: quizData.questions.length,
               reportedSaved: savedCount,
               actualSaved: actualSavedCount
             }
@@ -306,7 +348,7 @@ export async function POST(
         
         return NextResponse.json({ 
           success: true, 
-          message: `Generated and saved ${actualSavedCount} O/X quiz questions`,
+          message: `Generated and saved ${actualSavedCount} diverse quiz questions`,
           count: actualSavedCount
         })
       } else {

@@ -23,8 +23,17 @@ interface QuizQuestion {
   id: string
   node_id: string
   question: string
+  question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_in_blank' | 'matching'
+  options?: any
   correct_answer: string
   explanation: string | null
+  acceptable_answers?: string[]
+  hint?: string
+  template?: string
+  blanks?: any[]
+  left_items?: string[]
+  right_items?: string[]
+  correct_pairs?: any[]
 }
 
 interface OXKnowledgeAssessmentProps {
@@ -45,7 +54,8 @@ export default function OXKnowledgeAssessment({
   const [previewSkipped, setPreviewSkipped] = useState<string[]>([])
   const [questions, setQuestions] = useState<Record<string, QuizQuestion>>({})
   const [showFeedback, setShowFeedback] = useState(false)
-  const [userAnswer, setUserAnswer] = useState<'O' | 'X' | null>(null)
+  const [userAnswer, setUserAnswer] = useState<string | null>(null)
+  const [userAnswers, setUserAnswers] = useState<{[key: string]: string}>({})  // For multiple blanks or matching
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [hasQuestions, setHasQuestions] = useState(false)
@@ -104,7 +114,7 @@ export default function OXKnowledgeAssessment({
       try {
         const nodeIds = nodes.map(n => n.id)
         
-        quizLogger.info('Loading O/X quiz questions', {
+        quizLogger.info('Loading assessment quiz questions', {
           correlationId,
           documentId,
           metadata: {
@@ -117,7 +127,7 @@ export default function OXKnowledgeAssessment({
           .from('quiz_items')
           .select('*')
           .in('node_id', nodeIds)
-          .eq('question_type', 'true_false')
+          .in('question_type', ['multiple_choice', 'true_false', 'short_answer', 'fill_in_blank', 'matching'])
           .eq('is_assessment', true)
 
         const loadDuration = loadTimer()
@@ -142,8 +152,17 @@ export default function OXKnowledgeAssessment({
                 id: item.id,
                 node_id: item.node_id,
                 question: item.question,
+                question_type: item.question_type,
+                options: item.options,
                 correct_answer: item.correct_answer,
-                explanation: item.explanation
+                explanation: item.explanation,
+                acceptable_answers: item.acceptable_answers,
+                hint: item.hint,
+                template: item.template,
+                blanks: item.blanks,
+                left_items: item.left_items,
+                right_items: item.right_items,
+                correct_pairs: item.correct_pairs
               }
             }
           })
@@ -260,16 +279,68 @@ export default function OXKnowledgeAssessment({
     return -1
   }
 
-  const handleAnswer = async (answer: 'O' | 'X') => {
+  const handleAnswer = async (answer?: string) => {
     if (showFeedback || isProcessingAnswer) return
     
     const answerTimer = assessmentLogger.startTimer()
     
     setIsProcessingAnswer(true)
-    setUserAnswer(answer)
     
-    // Determine if answer is correct
-    const isAnswerCorrect = currentQuestion?.correct_answer === answer
+    // Get the answer based on question type
+    let submittedAnswer = answer || userAnswer || ''
+    
+    // For fill-in-blank and matching, answers come from userAnswers state
+    if (currentQuestion?.question_type === 'fill_in_blank') {
+      submittedAnswer = Object.values(userAnswers).join('|')
+    } else if (currentQuestion?.question_type === 'matching') {
+      submittedAnswer = JSON.stringify(userAnswers)
+    }
+    
+    setUserAnswer(submittedAnswer)
+    
+    // Determine if answer is correct based on question type
+    let isAnswerCorrect = false
+    
+    switch (currentQuestion?.question_type) {
+      case 'multiple_choice':
+      case 'true_false':
+        isAnswerCorrect = currentQuestion?.correct_answer === submittedAnswer
+        break
+        
+      case 'short_answer':
+        const acceptableAnswers = currentQuestion?.acceptable_answers || [currentQuestion?.correct_answer || '']
+        isAnswerCorrect = acceptableAnswers.some(ans => 
+          ans.toLowerCase().trim() === submittedAnswer.toLowerCase().trim()
+        )
+        break
+        
+      case 'fill_in_blank':
+        if (currentQuestion?.blanks) {
+          const allCorrect = currentQuestion.blanks.every((blank, index) => {
+            const userAns = userAnswers[index]?.toLowerCase().trim()
+            const correctAns = blank.answer?.toLowerCase().trim()
+            const alternatives = blank.alternatives?.map((alt: string) => alt.toLowerCase().trim()) || []
+            return userAns === correctAns || alternatives.includes(userAns)
+          })
+          isAnswerCorrect = allCorrect
+        }
+        break
+        
+      case 'matching':
+        if (currentQuestion?.correct_pairs) {
+          const userPairs = Object.entries(userAnswers).map(([left, right]) => ({
+            left: parseInt(left),
+            right: parseInt(right)
+          }))
+          isAnswerCorrect = currentQuestion.correct_pairs.every(correctPair =>
+            userPairs.some(userPair => 
+              userPair.left === correctPair.left_index && userPair.right === correctPair.right_index
+            )
+          )
+        }
+        break
+    }
+    
     setIsCorrect(isAnswerCorrect)
     setShowFeedback(true)
     
@@ -361,6 +432,7 @@ export default function OXKnowledgeAssessment({
   const handleNext = async () => {
     setShowFeedback(false)
     setUserAnswer(null)
+    setUserAnswers({})
     setIsCorrect(null)
     
     const nextAssessableIndex = findNextAssessableNode()
@@ -466,6 +538,142 @@ export default function OXKnowledgeAssessment({
   const knownCount = Object.values(assessments).filter(v => v === 'known').length
   const unknownCount = Object.values(assessments).filter(v => v === 'unknown').length
 
+  // Render question input based on type
+  const renderQuestionInput = () => {
+    if (!currentQuestion) return null
+    
+    switch (currentQuestion.question_type) {
+      case 'multiple_choice':
+        return (
+          <div className="space-y-3">
+            {currentQuestion.options?.map((option: string, index: number) => (
+              <button
+                key={index}
+                onClick={() => handleAnswer(option)}
+                disabled={isSubmitting || isProcessingAnswer}
+                className="w-full text-left px-6 py-4 bg-white border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50"
+              >
+                <span className="font-medium">{String.fromCharCode(65 + index)}. </span>
+                {option}
+              </button>
+            ))}
+          </div>
+        )
+        
+      case 'true_false':
+        return (
+          <div className="flex gap-4">
+            <button
+              onClick={() => handleAnswer('참')}
+              disabled={isSubmitting || isProcessingAnswer}
+              className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+            >
+              <CircleCheck className="h-6 w-6" />
+              <span className="text-lg font-medium">참</span>
+            </button>
+            <button
+              onClick={() => handleAnswer('거짓')}
+              disabled={isSubmitting || isProcessingAnswer}
+              className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+            >
+              <CircleX className="h-6 w-6" />
+              <span className="text-lg font-medium">거짓</span>
+            </button>
+          </div>
+        )
+        
+      case 'short_answer':
+        return (
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={userAnswer || ''}
+              onChange={(e) => setUserAnswer(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAnswer()}
+              placeholder="답을 입력하세요"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
+              disabled={isSubmitting || isProcessingAnswer}
+            />
+            {currentQuestion.hint && (
+              <p className="text-sm text-gray-500">힌트: {currentQuestion.hint}</p>
+            )}
+            <button
+              onClick={() => handleAnswer()}
+              disabled={isSubmitting || isProcessingAnswer || !userAnswer}
+              className="w-full px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50"
+            >
+              답변 제출
+            </button>
+          </div>
+        )
+        
+      case 'fill_in_blank':
+        return (
+          <div className="space-y-4">
+            <div className="text-left">
+              {currentQuestion.template?.split('___').map((part, index) => (
+                <span key={index}>
+                  {part}
+                  {index < (currentQuestion.template?.split('___').length || 0) - 1 && (
+                    <input
+                      type="text"
+                      value={userAnswers[index] || ''}
+                      onChange={(e) => setUserAnswers({...userAnswers, [index]: e.target.value})}
+                      className="inline-block mx-2 px-3 py-1 border-b-2 border-gray-300 focus:border-blue-500 focus:outline-none"
+                      disabled={isSubmitting || isProcessingAnswer}
+                    />
+                  )}
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={() => handleAnswer()}
+              disabled={isSubmitting || isProcessingAnswer || Object.keys(userAnswers).length === 0}
+              className="w-full px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50"
+            >
+              답변 제출
+            </button>
+          </div>
+        )
+        
+      case 'matching':
+        // 간단한 매칭 UI - 실제로는 더 복잡한 UI가 필요할 수 있음
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-medium mb-2">항목</h4>
+                {currentQuestion.left_items?.map((item, index) => (
+                  <div key={index} className="mb-2 p-2 bg-gray-100 rounded">
+                    {index + 1}. {item}
+                  </div>
+                ))}
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">짝</h4>
+                {currentQuestion.right_items?.map((item, index) => (
+                  <div key={index} className="mb-2 p-2 bg-gray-100 rounded">
+                    {String.fromCharCode(65 + index)}. {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">매칭 문제는 현재 간단한 형태로만 표시됩니다.</p>
+            <button
+              onClick={() => handleAnswer()}
+              disabled={isSubmitting || isProcessingAnswer}
+              className="w-full px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50"
+            >
+              다음으로 (임시)
+            </button>
+          </div>
+        )
+        
+      default:
+        return null
+    }
+  }
+
 
   if (isLoading) {
     return <OXQuizSkeleton />
@@ -477,10 +685,10 @@ export default function OXKnowledgeAssessment({
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="text-center">
             <p className="text-gray-600 mb-4">
-              이 문서에 대한 O/X 퀴즈 문제가 없습니다.
+              이 문서에 대한 평가 문제가 없습니다.
             </p>
             <p className="text-sm text-gray-500">
-              문서 분석 시 O/X 퀴즈가 자동으로 생성됩니다.
+              문서 분석 시 다양한 유형의 평가 문제가 자동으로 생성됩니다.
             </p>
           </div>
         </div>
@@ -545,24 +753,7 @@ export default function OXKnowledgeAssessment({
           {isProcessingAnswer ? (
             <OXQuizFeedbackSkeleton />
           ) : !showFeedback ? (
-            <div className="flex gap-4">
-              <button
-                onClick={() => handleAnswer('O')}
-                disabled={isSubmitting || isProcessingAnswer}
-                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-              >
-                <CircleCheck className="h-6 w-6" />
-                <span className="text-lg font-medium">O (맞다)</span>
-              </button>
-              <button
-                onClick={() => handleAnswer('X')}
-                disabled={isSubmitting || isProcessingAnswer}
-                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-              >
-                <CircleX className="h-6 w-6" />
-                <span className="text-lg font-medium">X (틀리다)</span>
-              </button>
-            </div>
+            renderQuestionInput()
           ) : (
             <div className="space-y-4">
               {/* Feedback */}
