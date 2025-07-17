@@ -40,14 +40,12 @@ interface OXKnowledgeAssessmentProps {
   nodes: KnowledgeNode[]
   subjectId: string
   documentId: string
-  retryFailed?: boolean
 }
 
 export default function OXKnowledgeAssessment({ 
   nodes, 
   subjectId, 
-  documentId,
-  retryFailed = false 
+  documentId
 }: OXKnowledgeAssessmentProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [assessments, setAssessments] = useState<Record<string, 'known' | 'unknown'>>({})
@@ -62,8 +60,6 @@ export default function OXKnowledgeAssessment({
   const [isLoading, setIsLoading] = useState(true)
   const [hasQuestions, setHasQuestions] = useState(false)
   const [isProcessingAnswer, setIsProcessingAnswer] = useState(false)
-  const [failedQuestionIds, setFailedQuestionIds] = useState<string[]>([])
-  const [displayNodes, setDisplayNodes] = useState<KnowledgeNode[]>(nodes)
   const router = useRouter()
   const supabase = createClient()
   
@@ -80,7 +76,7 @@ export default function OXKnowledgeAssessment({
       documentId,
       metadata: {
         subjectId,
-        totalNodes: displayNodes.length,
+        totalNodes: nodes.length,
         nodeNames: nodes.map(n => n.name)
       }
     })
@@ -99,63 +95,18 @@ export default function OXKnowledgeAssessment({
     }
   }, [])
 
-  const currentNode = displayNodes[currentIndex]
+  const currentNode = nodes[currentIndex]
   const currentQuestion = questions[currentNode?.id]
   
   const totalAssessed = Object.keys(assessments).length
   const totalSkipped = skippedNodes.size
-  const progress = Math.min((totalAssessed / displayNodes.length) * 100, 100)
+  const progress = Math.min((totalAssessed / nodes.length) * 100, 100)
   
-  const remainingAssessableNodes = displayNodes.filter((node, index) => 
+  const remainingAssessableNodes = nodes.filter((node, index) => 
     index > currentIndex && 
     !skippedNodes.has(node.id) && 
     !(node.id in assessments)
   ).length
-
-  // Load failed questions when retrying
-  useEffect(() => {
-    const loadFailedQuestions = async () => {
-      if (!retryFailed) return
-      
-      try {
-        // Get all quiz items for this document
-        const { data: quizItems } = await supabase
-          .from('quiz_items')
-          .select('id, node_id')
-          .eq('document_id', documentId)
-          .eq('is_assessment', true)
-        
-        if (!quizItems || quizItems.length === 0) return
-        
-        // Get failed attempts
-        const quizItemIds = quizItems.map(q => q.id)
-        const { data: attempts } = await supabase
-          .from('quiz_attempts')
-          .select('quiz_item_id')
-          .eq('user_id', FIXED_USER_ID)
-          .in('quiz_item_id', quizItemIds)
-          .eq('is_correct', false)
-        
-        if (attempts && attempts.length > 0) {
-          const failedIds = attempts.map(a => a.quiz_item_id)
-          setFailedQuestionIds(failedIds)
-          
-          // Filter nodes to only include those with failed questions
-          const failedNodeIds = quizItems
-            .filter(q => failedIds.includes(q.id))
-            .map(q => q.node_id)
-            .filter(Boolean) as string[]
-          
-          const filteredNodes = nodes.filter(n => failedNodeIds.includes(n.id))
-          setDisplayNodes(filteredNodes)
-        }
-      } catch (error) {
-        console.error('Error loading failed questions:', error)
-      }
-    }
-    
-    loadFailedQuestions()
-  }, [retryFailed, documentId])
 
   // Load quiz questions for all nodes
   useEffect(() => {
@@ -164,32 +115,23 @@ export default function OXKnowledgeAssessment({
       const loadTimer = quizLogger.startTimer()
       
       try {
-        const nodeIds = displayNodes.map(n => n.id)
+        const nodeIds = nodes.map(n => n.id)
         
         quizLogger.info('Loading assessment quiz questions', {
           correlationId,
           documentId,
           metadata: {
             nodeCount: nodeIds.length,
-            nodeIds: nodeIds.slice(0, 10), // Log first 10 for debugging
-            retryFailed,
-            failedQuestionIds: failedQuestionIds.length
+            nodeIds: nodeIds.slice(0, 10) // Log first 10 for debugging
           }
         })
         
-        let query = supabase
+        const { data, error } = await supabase
           .from('quiz_items')
           .select('*')
           .in('node_id', nodeIds)
           .in('question_type', ['multiple_choice', 'true_false', 'short_answer', 'fill_in_blank', 'matching'])
           .eq('is_assessment', true)
-        
-        // If retrying failed, only get those specific questions
-        if (retryFailed && failedQuestionIds.length > 0) {
-          query = query.in('id', failedQuestionIds)
-        }
-        
-        const { data, error } = await query
 
         const loadDuration = loadTimer()
         
@@ -272,12 +214,12 @@ export default function OXKnowledgeAssessment({
     }
 
     loadQuestions()
-  }, [displayNodes, failedQuestionIds, retryFailed, supabase, correlationId, documentId])
+  }, [nodes, supabase, correlationId, documentId])
 
   const buildDependencyMap = () => {
     const dependencyMap = new Map<string, string[]>()
     
-    displayNodes.forEach(node => {
+    nodes.forEach(node => {
       node.prerequisites.forEach(prerequisiteName => {
         if (!dependencyMap.has(prerequisiteName)) {
           dependencyMap.set(prerequisiteName, [])
@@ -292,14 +234,14 @@ export default function OXKnowledgeAssessment({
   const dependencyMap = buildDependencyMap()
 
   const findDependentNodesToSkip = (nodeId: string): string[] => {
-    const node = displayNodes.find(n => n.id === nodeId)
+    const node = nodes.find(n => n.id === nodeId)
     if (!node) return []
     
     const nodesToSkip: string[] = []
     const processed = new Set<string>()
     
     const prerequisiteDependents = dependencyMap.get(node.name) || []
-    const childNodes = displayNodes
+    const childNodes = nodes
       .filter(n => n.parent_id === nodeId)
       .map(n => n.id)
     
@@ -315,10 +257,10 @@ export default function OXKnowledgeAssessment({
       if (!(currentId in assessments)) {
         nodesToSkip.push(currentId)
         
-        const currentNode = displayNodes.find(n => n.id === currentId)
+        const currentNode = nodes.find(n => n.id === currentId)
         if (currentNode) {
           const morePrerequisiteDependents = dependencyMap.get(currentNode.name) || []
-          const moreChildNodes = displayNodes
+          const moreChildNodes = nodes
             .filter(n => n.parent_id === currentId)
             .map(n => n.id)
           
@@ -331,8 +273,8 @@ export default function OXKnowledgeAssessment({
   }
 
   const findNextAssessableNode = (startIndex: number = currentIndex + 1): number => {
-    for (let i = startIndex; i < displayNodes.length; i++) {
-      const nodeId = displayNodes[i].id
+    for (let i = startIndex; i < nodes.length; i++) {
+      const nodeId = nodes[i].id
       if (!skippedNodes.has(nodeId) && !(nodeId in assessments)) {
         return i
       }
@@ -416,7 +358,7 @@ export default function OXKnowledgeAssessment({
         correctAnswer: currentQuestion?.correct_answer,
         isCorrect: isAnswerCorrect,
         currentIndex,
-        totalNodes: displayNodes.length
+        totalNodes: nodes.length
       }
     })
 
@@ -521,19 +463,47 @@ export default function OXKnowledgeAssessment({
         knownCount,
         unknownCount,
         skippedCount: skippedNodes.size,
-        completionRate: `${((Object.keys(finalAssessments).length / displayNodes.length) * 100).toFixed(2)}%`
+        completionRate: `${((Object.keys(finalAssessments).length / nodes.length) * 100).toFixed(2)}%`
       }
     })
 
     try {
-      const statusData = Object.entries(finalAssessments).map(([nodeId, status]) => ({
-        user_id: FIXED_USER_ID,
-        node_id: nodeId,
-        understanding_level: status === 'known' ? 80 : 20,
-        last_reviewed: new Date().toISOString(),
-        review_count: 1,
-        assessment_method: 'quiz' as const
-      }))
+      // 먼저 기존 understanding_level과 review_count를 조회
+      const nodeIds = Object.keys(finalAssessments)
+      const { data: existingStatus } = await supabase
+        .from('user_knowledge_status')
+        .select('node_id, understanding_level, review_count')
+        .eq('user_id', FIXED_USER_ID)
+        .in('node_id', nodeIds)
+      
+      // 기존 상태를 맵으로 변환
+      const existingMap = new Map(
+        existingStatus?.map(s => [s.node_id, { 
+          understanding_level: s.understanding_level || 50,
+          review_count: s.review_count || 0
+        }]) || []
+      )
+
+      // 점진적으로 understanding_level 업데이트
+      const statusData = Object.entries(finalAssessments).map(([nodeId, status]) => {
+        const existing = existingMap.get(nodeId)
+        const currentLevel = existing?.understanding_level ?? 50  // 기본값 50
+        const currentCount = existing?.review_count ?? 0
+        
+        // 맞으면 +20, 틀리면 -20 (0~100 범위)
+        const newLevel = status === 'known' 
+          ? Math.min(100, currentLevel + 20)
+          : Math.max(0, currentLevel - 20)
+        
+        return {
+          user_id: FIXED_USER_ID,
+          node_id: nodeId,
+          understanding_level: newLevel,
+          last_reviewed: new Date().toISOString(),
+          review_count: currentCount + 1,
+          assessment_method: 'quiz' as const
+        }
+      })
 
       let successCount = 0
       let failCount = 0
@@ -696,34 +666,44 @@ export default function OXKnowledgeAssessment({
         )
         
       case 'matching':
-        // 간단한 매칭 UI - 실제로는 더 복잡한 UI가 필요할 수 있음
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <h4 className="font-medium mb-2">항목</h4>
                 {currentQuestion.left_items?.map((item, index) => (
-                  <div key={index} className="mb-2 p-2 bg-gray-100 rounded">
-                    {index + 1}. {item}
+                  <div key={index} className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="font-medium">{index + 1}.</span> {item}
                   </div>
                 ))}
               </div>
               <div>
-                <h4 className="font-medium mb-2">짝</h4>
-                {currentQuestion.right_items?.map((item, index) => (
-                  <div key={index} className="mb-2 p-2 bg-gray-100 rounded">
-                    {String.fromCharCode(65 + index)}. {item}
+                <h4 className="font-medium mb-2">선택하세요</h4>
+                {currentQuestion.left_items?.map((_, leftIndex) => (
+                  <div key={leftIndex} className="mb-2">
+                    <select
+                      value={userAnswers[leftIndex] || ''}
+                      onChange={(e) => setUserAnswers({...userAnswers, [leftIndex]: e.target.value})}
+                      className="w-full p-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                      disabled={isSubmitting || isProcessingAnswer}
+                    >
+                      <option value="">선택...</option>
+                      {currentQuestion.right_items?.map((item, rightIndex) => (
+                        <option key={rightIndex} value={rightIndex}>
+                          {String.fromCharCode(65 + rightIndex)}. {item}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 ))}
               </div>
             </div>
-            <p className="text-sm text-gray-600">매칭 문제는 현재 간단한 형태로만 표시됩니다.</p>
             <button
               onClick={() => handleAnswer()}
-              disabled={isSubmitting || isProcessingAnswer}
+              disabled={isSubmitting || isProcessingAnswer || Object.keys(userAnswers).length < (currentQuestion.left_items?.length || 0)}
               className="w-full px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50"
             >
-              다음으로 (임시)
+              답변 제출
             </button>
           </div>
         )
@@ -766,7 +746,7 @@ export default function OXKnowledgeAssessment({
       <div className="mb-8">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>진행률</span>
-          <span>{totalAssessed} / {displayNodes.length}</span>
+          <span>{totalAssessed} / {nodes.length}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
@@ -848,7 +828,7 @@ export default function OXKnowledgeAssessment({
                   </p>
                   <ul className="space-y-1">
                     {previewSkipped.slice(0, 3).map(id => {
-                      const node = displayNodes.find(n => n.id === id)
+                      const node = nodes.find(n => n.id === id)
                       return node ? (
                         <li key={id} className="text-sm text-yellow-700 flex items-center gap-2">
                           <span className="text-yellow-500">•</span>

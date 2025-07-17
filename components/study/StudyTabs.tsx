@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { FileText, BookOpen, Sparkles, Loader2, RotateCcw } from 'lucide-react'
+import { FileText, BookOpen, Sparkles, Loader2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 
@@ -130,26 +130,9 @@ export default function StudyTabs({
       return
     }
 
-    if (!assessmentStatus) {
-      console.log('[StudyTabs] No assessment status, generating quiz...')
-      await handleRegenerateQuiz()
-      return
-    }
-
-    if (!assessmentStatus.hasAssessment) {
-      // First time - generate quiz
-      console.log('[StudyTabs] First assessment, generating quiz...')
-      await handleRegenerateQuiz()
-    } else {
-      // Already assessed - go to retry failed questions
-      if (assessmentStatus.hasFailedQuestions) {
-        console.log('[StudyTabs] Retrying failed questions:', assessmentStatus.failedQuestions)
-        router.push(`/subjects/${subjectId}/study/assessment?doc=${documentId}&retryFailed=true`)
-      } else {
-        console.log('[StudyTabs] All questions correct!')
-        toast.success('모든 문제를 맞추셨습니다! 완벽해요! 🎉')
-      }
-    }
+    // 항상 새로운 문제를 생성
+    console.log('[StudyTabs] Generating new quiz questions...')
+    await handleRegenerateQuiz()
   }
 
   const handleRegenerateQuiz = async () => {
@@ -226,22 +209,14 @@ export default function StudyTabs({
           disabled={isGenerating || isLoadingStatus}
           className="inline-flex items-center px-4 py-2 mr-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:bg-blue-400 disabled:cursor-not-allowed"
         >
-          {isLoadingStatus ? (
+          {isLoadingStatus || isGenerating ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : isGenerating ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : assessmentStatus?.hasAssessment && assessmentStatus?.hasFailedQuestions ? (
-            <RotateCcw className="h-4 w-4 mr-2" />
           ) : (
             <Sparkles className="h-4 w-4 mr-2" />
           )}
           {isLoadingStatus ? '로딩 중...' :
            isGenerating ? '퀴즈 생성 중...' : 
-           assessmentStatus?.hasAssessment ? 
-             assessmentStatus.hasFailedQuestions ? 
-               `틀린 문제 다시 풀기 (${assessmentStatus.failedQuestions}문제)` : 
-               '문제풀고 지식트리 완성하기!' :
-             '문제풀고 지식트리 완성하기!'
+           '문제풀고 지식트리 완성하기!'
           }
         </button>
       </div>
