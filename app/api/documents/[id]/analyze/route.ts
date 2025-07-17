@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { geminiKnowledgeTreeModel, geminiOXQuizModel } from '@/lib/gemini/client'
-import { KNOWLEDGE_TREE_PROMPT, OX_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
+import { KNOWLEDGE_TREE_PROMPT, OX_QUIZ_GENERATION_PROMPT, EXTENDED_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { KnowledgeTreeResponse, KnowledgeNode, OXQuizResponse } from '@/lib/gemini/schemas'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { analyzeLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
@@ -1075,13 +1075,209 @@ export async function POST(
         })
       }
 
+      // Generate extended quiz questions (다양한 문제 타입)
+      geminiLogger.info('Starting extended quiz generation', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          nodeCount: savedNodes.length,
+          endpoint: 'extended_quiz_generation'
+        }
+      })
+      
+      let extendedQuizCount = 0
+      try {
+        const extendedQuizPrompt = `${EXTENDED_QUIZ_GENERATION_PROMPT}
+
+## 대상 문서
+${document.title}
+
+## 지식 노드 정보
+${JSON.stringify(savedNodes.map((node, index) => ({
+  id: node.id,
+  name: node.name,
+  description: node.description,
+  level: node.level,
+  prerequisites: node.prerequisites
+})), null, 2)}
+
+**중요**: 각 문제에는 관련된 node_id를 반드시 포함하세요.
+다양한 문제 타입(multiple_choice, true_false, short_answer, fill_in_blank, matching)을 고르게 사용하세요.
+난이도는 easy, medium, hard를 적절히 분배하세요.`
+
+        const extendedQuizResult = await geminiKnowledgeTreeModel.generateContent({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'application/pdf',
+                    data: base64Data,
+                  },
+                },
+                {
+                  text: extendedQuizPrompt,
+                },
+              ],
+            },
+          ],
+        })
+        
+        const extendedQuizResponse = extendedQuizResult.text || ''
+        
+        if (extendedQuizResponse) {
+          try {
+            const extendedQuizData = parseGeminiResponse<any>(
+              extendedQuizResponse,
+              { correlationId, documentId: id, responseType: 'extended_quiz' }
+            )
+            
+            geminiLogger.info('Extended quiz response parsed successfully', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                questionCount: extendedQuizData.questions?.length || 0,
+                questionTypes: extendedQuizData.questions?.map((q: any) => q.type) || []
+              }
+            })
+            
+            // Save extended quiz questions
+            if (extendedQuizData.questions && Array.isArray(extendedQuizData.questions)) {
+              for (const question of extendedQuizData.questions) {
+                const nodeExists = savedNodes.find(n => n.id === question.node_id)
+                if (!nodeExists && question.node_id) {
+                  // Try to find by name if ID doesn't match
+                  const nodeByName = savedNodes.find(n => n.name === question.node_id)
+                  if (nodeByName) {
+                    question.node_id = nodeByName.id
+                  } else {
+                    question.node_id = savedNodes[0]?.id // Fallback to first node
+                  }
+                }
+                
+                const baseData = {
+                  document_id: id,
+                  node_id: question.node_id || savedNodes[0]?.id || null,
+                  question: question.question,
+                  question_type: question.type,
+                  explanation: question.explanation,
+                  source_quote: question.source_quote,
+                  difficulty: question.difficulty || 'medium',
+                  is_assessment: false,
+                }
+                
+                let additionalData: any = {}
+                
+                switch (question.type) {
+                  case 'multiple_choice':
+                    additionalData = {
+                      options: question.options,
+                      correct_answer: question.correct_answer,
+                    }
+                    break
+                  case 'true_false':
+                    additionalData = {
+                      correct_answer: question.correct_answer_bool ? 'O' : 'X',
+                    }
+                    break
+                  case 'short_answer':
+                    additionalData = {
+                      correct_answer: question.acceptable_answers?.[0] || '',
+                      acceptable_answers: question.acceptable_answers,
+                      hint: question.hint,
+                    }
+                    break
+                  case 'fill_in_blank':
+                    additionalData = {
+                      correct_answer: question.blanks?.[0]?.answer || '',
+                      template: question.template,
+                      blanks: question.blanks,
+                    }
+                    break
+                  case 'matching':
+                    additionalData = {
+                      correct_answer: 'matching',
+                      left_items: question.left_items,
+                      right_items: question.right_items,
+                      correct_pairs: question.correct_pairs,
+                    }
+                    break
+                }
+                
+                const { error: extendedQuizError } = await supabase
+                  .from('quiz_items')
+                  .insert({
+                    ...baseData,
+                    ...additionalData,
+                  })
+                
+                if (!extendedQuizError) {
+                  extendedQuizCount++
+                } else {
+                  supabaseLogger.error('Failed to save extended quiz item', {
+                    correlationId,
+                    documentId: id,
+                    metadata: {
+                      error: extendedQuizError,
+                      questionType: question.type,
+                      question: question.question
+                    }
+                  })
+                }
+              }
+            }
+            
+            geminiLogger.info('Extended quiz generation completed', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                totalQuestions: extendedQuizData.questions?.length || 0,
+                savedQuestions: extendedQuizCount
+              }
+            })
+          } catch (parseError: any) {
+            geminiLogger.error('Failed to parse extended quiz response', {
+              correlationId,
+              documentId: id,
+              error: parseError,
+              metadata: {
+                responseLength: extendedQuizResponse.length,
+                responseStart: extendedQuizResponse.substring(0, 200)
+              }
+            })
+          }
+        }
+      } catch (extendedQuizError: any) {
+        geminiLogger.error('Failed to generate extended quiz questions', {
+          correlationId,
+          documentId: id,
+          error: extendedQuizError,
+          metadata: {
+            errorType: extendedQuizError.name,
+            errorMessage: extendedQuizError.message
+          }
+        })
+        // Continue without failing the entire process
+      }
+
+      // Get total quiz count after all generation
+      const { data: totalQuizItems } = await supabase
+        .from('quiz_items')
+        .select('id, is_assessment')
+        .eq('document_id', id)
+      
+      const assessmentCount = totalQuizItems?.filter(q => q.is_assessment).length || 0
+      const practiceCount = totalQuizItems?.filter(q => !q.is_assessment).length || 0
+      
       // Update document status
       supabaseLogger.info('Updating document status to completed', {
         correlationId,
         documentId: id,
         metadata: {
           quizGenerationSuccess: quizValidationSuccess,
-          quizItemCount: savedQuizItems?.length || 0
+          assessmentQuizCount: assessmentCount,
+          practiceQuizCount: practiceCount,
+          totalQuizCount: totalQuizItems?.length || 0
         }
       })
       
@@ -1091,8 +1287,10 @@ export async function POST(
         .update({ 
           status: 'completed',
           quiz_generation_status: {
-            generated: (savedQuizItems?.length || 0) > 0,
-            count: savedQuizItems?.length || 0,
+            generated: (totalQuizItems?.length || 0) > 0,
+            count: totalQuizItems?.length || 0,
+            assessment_count: assessmentCount,
+            practice_count: practiceCount,
             last_attempt: new Date().toISOString()
           }
         })

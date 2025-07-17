@@ -122,6 +122,8 @@ ${index + 1}. **${node.name}**
       throw new Error('Empty response from Gemini API')
     }
     
+    console.log('Gemini response preview:', response.substring(0, 500))
+    
     const quizData = parseGeminiResponse<ExtendedQuizResponse>(
       response,
       { documentId, responseType: 'extended_quiz_generation' }
@@ -132,6 +134,11 @@ ${index + 1}. **${node.name}**
       ['questions'],
       { documentId, responseType: 'extended_quiz_generation' }
     )
+    
+    console.log('Quiz data question types:', quizData.questions?.map((q: any) => ({
+      type: q.type,
+      question: q.question.substring(0, 50) + '...'
+    })))
 
     // Process and save quiz items based on question type
     const quizItems = await Promise.all(
@@ -188,6 +195,7 @@ ${index + 1}. **${node.name}**
           .insert({
             ...baseData,
             ...additionalData,
+            is_assessment: false,
           })
           .select()
           .single()

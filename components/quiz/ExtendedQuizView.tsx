@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Brain, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { Brain, ChevronLeft, ChevronRight } from 'lucide-react'
 import MultipleChoiceQuestion from './MultipleChoiceQuestion'
 import TrueFalseQuestion from './TrueFalseQuestion'
 import ShortAnswerQuestion from './ShortAnswerQuestion'
@@ -42,7 +42,6 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
   const [showResult, setShowResult] = useState(false)
   const [score, setScore] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: boolean }>({})
   const router = useRouter()
   const supabase = createClient()
@@ -74,29 +73,6 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
     }
   }
 
-  const generateNewQuiz = async () => {
-    setGenerating(true)
-    try {
-      const response = await fetch('/api/quiz/generate-extended', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId, nodeIds }),
-      })
-
-      if (!response.ok) throw new Error('Failed to generate quiz')
-
-      const data = await response.json()
-      setQuestions(data.questions)
-      setCurrentIndex(0)
-      setShowResult(false)
-      setScore(0)
-      setUserAnswers({})
-    } catch (error) {
-      console.error('Error generating quiz:', error)
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   const handleAnswer = async (isCorrect: boolean) => {
     const currentQuestion = questions[currentIndex]
@@ -227,7 +203,7 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
     }
   }
 
-  if (loading || generating) {
+  if (loading) {
     return <QuizSkeleton />
   }
 
@@ -240,13 +216,6 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
           <p className="text-gray-600 mb-6">
             다양한 유형의 문제로 학습을 시작해보세요!
           </p>
-          <button
-            onClick={generateNewQuiz}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            새 퀴즈 생성
-          </button>
         </div>
       </div>
     )
@@ -266,18 +235,9 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
               {currentIndex + 1} / {questions.length}
             </span>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">
-              현재 점수: {score} / {currentIndex + (showResult ? 1 : 0)}
-            </span>
-            <button
-              onClick={generateNewQuiz}
-              className="inline-flex items-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <RefreshCw className="h-4 w-4 mr-1" />
-              새 퀴즈
-            </button>
-          </div>
+          <span className="text-sm text-gray-600">
+            현재 점수: {score} / {currentIndex + (showResult ? 1 : 0)}
+          </span>
         </div>
 
         {/* Progress bar */}
