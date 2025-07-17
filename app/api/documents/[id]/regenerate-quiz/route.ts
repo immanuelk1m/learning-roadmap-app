@@ -191,9 +191,11 @@ export async function POST(
                 is_assessment: true,
               }
 
-              const { error: quizError } = await supabase
+              const { data: insertedQuiz, error: quizError } = await supabase
                 .from('quiz_items')
                 .insert(quizItem)
+                .select()
+                .single()
 
               if (quizError) {
                 quizLogger.error(`Failed to save quiz for node ${item.node_id}`, {
@@ -217,6 +219,15 @@ export async function POST(
                   }
                 })
               } else {
+                quizLogger.info('Quiz item saved successfully', {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    quizItemId: insertedQuiz?.id,
+                    nodeId: actualNodeId,
+                    question: item.question.substring(0, 100) + '...'
+                  }
+                })
                 savedCount++
               }
             } else {
@@ -234,6 +245,26 @@ export async function POST(
         }
 
         console.log(`Successfully saved ${savedCount} quiz questions`)
+        
+        // Update document quiz generation status
+        const { error: updateError } = await supabase
+          .from('documents')
+          .update({
+            quiz_generation_status: {
+              generated: savedCount > 0,
+              count: savedCount,
+              last_attempt: new Date().toISOString()
+            }
+          })
+          .eq('id', id)
+          
+        if (updateError) {
+          quizLogger.error('Failed to update document quiz generation status', {
+            correlationId,
+            documentId: id,
+            error: updateError
+          })
+        }
         
         // Verify actual saved count in database
         const { data: verifyQuizItems, error: verifyError } = await supabase

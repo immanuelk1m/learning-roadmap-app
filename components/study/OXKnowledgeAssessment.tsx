@@ -49,7 +49,6 @@ export default function OXKnowledgeAssessment({
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [hasQuestions, setHasQuestions] = useState(false)
-  const [isRegenerating, setIsRegenerating] = useState(false)
   const [isProcessingAnswer, setIsProcessingAnswer] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -467,74 +466,6 @@ export default function OXKnowledgeAssessment({
   const knownCount = Object.values(assessments).filter(v => v === 'known').length
   const unknownCount = Object.values(assessments).filter(v => v === 'unknown').length
 
-  const handleRegenerateQuiz = async () => {
-    setIsRegenerating(true)
-    const regenTimer = quizLogger.startTimer()
-    
-    quizLogger.info('Regenerating O/X quiz', {
-      correlationId,
-      documentId,
-      metadata: {
-        endpoint: `/api/documents/${documentId}/regenerate-quiz`
-      }
-    })
-    
-    try {
-      const response = await fetch(`/api/documents/${documentId}/regenerate-quiz`, {
-        method: 'POST',
-        headers: {
-          'x-correlation-id': correlationId
-        }
-      })
-      
-      const regenDuration = regenTimer()
-      
-      if (response.ok) {
-        const result = await response.json()
-        quizLogger.info('Quiz regeneration successful', {
-          correlationId,
-          documentId,
-          duration: regenDuration,
-          metadata: {
-            status: response.status,
-            result,
-            willReload: true
-          }
-        })
-        toast.success('퀴즈를 성공적으로 다시 생성했습니다. 페이지를 새로고침합니다.')
-        // Reload the page to fetch new questions
-        window.location.reload()
-      } else {
-        const errorData = await response.json()
-        const errorMessage = errorData.error || '알 수 없는 오류가 발생했습니다.'
-        quizLogger.error('Quiz regeneration failed', {
-          correlationId,
-          documentId,
-          duration: regenDuration,
-          metadata: {
-            status: response.status,
-            errorResponse: errorData
-          }
-        })
-        toast.error(`퀴즈 생성 실패: ${errorMessage}`)
-      }
-    } catch (error: any) {
-      const duration = regenTimer()
-      quizLogger.error('Exception during quiz regeneration', {
-        correlationId,
-        documentId,
-        error,
-        duration,
-        metadata: {
-          errorType: error.name,
-          errorMessage: error.message
-        }
-      })
-      toast.error('퀴즈 생성 중 네트워크 오류가 발생했습니다.')
-    } finally {
-      setIsRegenerating(false)
-    }
-  }
 
   if (isLoading) {
     return <OXQuizSkeleton />
@@ -548,18 +479,9 @@ export default function OXKnowledgeAssessment({
             <p className="text-gray-600 mb-4">
               이 문서에 대한 O/X 퀴즈 문제가 없습니다.
             </p>
-            <p className="text-sm text-gray-500 mb-6">
-              이 문서는 O/X 퀴즈 기능이 추가되기 전에 처리되었습니다.
-              <br />
-              퀴즈를 생성하려면 아래 버튼을 클릭하세요.
+            <p className="text-sm text-gray-500">
+              문서 분석 시 O/X 퀴즈가 자동으로 생성됩니다.
             </p>
-            <button
-              onClick={handleRegenerateQuiz}
-              disabled={isRegenerating}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isRegenerating ? '퀴즈 생성 중...' : 'O/X 퀴즈 생성하기'}
-            </button>
           </div>
         </div>
       </div>

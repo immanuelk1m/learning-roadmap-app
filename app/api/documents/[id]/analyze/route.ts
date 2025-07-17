@@ -866,6 +866,9 @@ export async function POST(
           }
         })
         
+        let savedCount = 0
+        let failedCount = 0
+        
         if (quizResponse) {
           try {
             const quizData = parseGeminiResponse<OXQuizResponse>(
@@ -886,8 +889,6 @@ export async function POST(
             
             // Save quiz questions to database with direct node IDs
             if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
-              let savedCount = 0
-              let failedCount = 0
               const saveTimer = supabaseLogger.startTimer()
               
               for (const item of quizData.quiz_items) {
@@ -910,9 +911,11 @@ export async function POST(
                     is_assessment: true,
                   }
                   
-                  const { error: quizError } = await supabase
+                  const { data: insertedQuiz, error: quizError } = await supabase
                     .from('quiz_items')
                     .insert(quizItem)
+                    .select()
+                    .single()
                   
                   if (quizError) {
                     supabaseLogger.error('Failed to save quiz item', {
@@ -938,6 +941,16 @@ export async function POST(
                     })
                     failedCount++
                   } else {
+                    supabaseLogger.info('Quiz item saved successfully', {
+                      correlationId,
+                      documentId: id,
+                      metadata: {
+                        quizItemId: insertedQuiz?.id,
+                        nodeId: nodeId,
+                        nodeName: nodeExists.name,
+                        question: item.question.substring(0, 100) + '...'
+                      }
+                    })
                     savedCount++
                   }
                 } else {
@@ -1075,7 +1088,14 @@ export async function POST(
       const completionTimer = supabaseLogger.startTimer()
       const { data: completedDoc, error: completeError } = await supabase
         .from('documents')
-        .update({ status: 'completed' })
+        .update({ 
+          status: 'completed',
+          quiz_generation_status: {
+            generated: (savedQuizItems?.length || 0) > 0,
+            count: savedQuizItems?.length || 0,
+            last_attempt: new Date().toISOString()
+          }
+        })
         .eq('id', id)
         .select()
         .single()
