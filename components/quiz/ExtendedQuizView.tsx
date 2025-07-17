@@ -33,9 +33,10 @@ interface ExtendedQuizQuestion {
 interface ExtendedQuizViewProps {
   documentId: string
   nodeIds: string[]
+  subjectId?: string
 }
 
-export default function ExtendedQuizView({ documentId, nodeIds }: ExtendedQuizViewProps) {
+export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: ExtendedQuizViewProps) {
   const [questions, setQuestions] = useState<ExtendedQuizQuestion[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showResult, setShowResult] = useState(false)
@@ -354,10 +355,15 @@ export default function ExtendedQuizView({ documentId, nodeIds }: ExtendedQuizVi
             </button>
           ) : showResult && (
             <button
-              onClick={() => router.push(`/subjects/${documentId}/study`)}
+              onClick={() => {
+                const resultUrl = subjectId 
+                  ? `/subjects/${subjectId}/quiz/result?doc=${documentId}&score=${score}&total=${questions.length}`
+                  : `/subjects/${documentId}/study`
+                router.push(resultUrl)
+              }}
               className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
-              학습 완료
+              결과 확인하기
             </button>
           )}
         </div>

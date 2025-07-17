@@ -109,6 +109,7 @@ export default async function QuizPage({ params, searchParams }: QuizPageProps) 
           <ExtendedQuizView
             documentId={document.id}
             nodeIds={knowledgeNodes?.map(n => n.id) || []}
+            subjectId={id}
           />
         </div>
       )}
