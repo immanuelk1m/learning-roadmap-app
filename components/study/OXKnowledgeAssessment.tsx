@@ -40,12 +40,14 @@ interface OXKnowledgeAssessmentProps {
   nodes: KnowledgeNode[]
   subjectId: string
   documentId: string
+  retryFailed?: boolean
 }
 
 export default function OXKnowledgeAssessment({ 
   nodes, 
   subjectId, 
-  documentId 
+  documentId,
+  retryFailed = false 
 }: OXKnowledgeAssessmentProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [assessments, setAssessments] = useState<Record<string, 'known' | 'unknown'>>({})
@@ -60,8 +62,13 @@ export default function OXKnowledgeAssessment({
   const [isLoading, setIsLoading] = useState(true)
   const [hasQuestions, setHasQuestions] = useState(false)
   const [isProcessingAnswer, setIsProcessingAnswer] = useState(false)
+  const [failedQuestionIds, setFailedQuestionIds] = useState<string[]>([])
+  const [displayNodes, setDisplayNodes] = useState<KnowledgeNode[]>(nodes)
   const router = useRouter()
   const supabase = createClient()
+  
+  // Fixed user ID
+  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
   
   // Generate correlation ID for this assessment session
   const [correlationId] = useState(() => Logger.generateCorrelationId())
@@ -73,7 +80,7 @@ export default function OXKnowledgeAssessment({
       documentId,
       metadata: {
         subjectId,
-        totalNodes: nodes.length,
+        totalNodes: displayNodes.length,
         nodeNames: nodes.map(n => n.name)
       }
     })
@@ -92,18 +99,63 @@ export default function OXKnowledgeAssessment({
     }
   }, [])
 
-  const currentNode = nodes[currentIndex]
+  const currentNode = displayNodes[currentIndex]
   const currentQuestion = questions[currentNode?.id]
   
   const totalAssessed = Object.keys(assessments).length
   const totalSkipped = skippedNodes.size
-  const progress = Math.min((totalAssessed / nodes.length) * 100, 100)
+  const progress = Math.min((totalAssessed / displayNodes.length) * 100, 100)
   
-  const remainingAssessableNodes = nodes.filter((node, index) => 
+  const remainingAssessableNodes = displayNodes.filter((node, index) => 
     index > currentIndex && 
     !skippedNodes.has(node.id) && 
     !(node.id in assessments)
   ).length
+
+  // Load failed questions when retrying
+  useEffect(() => {
+    const loadFailedQuestions = async () => {
+      if (!retryFailed) return
+      
+      try {
+        // Get all quiz items for this document
+        const { data: quizItems } = await supabase
+          .from('quiz_items')
+          .select('id, node_id')
+          .eq('document_id', documentId)
+          .eq('is_assessment', true)
+        
+        if (!quizItems || quizItems.length === 0) return
+        
+        // Get failed attempts
+        const quizItemIds = quizItems.map(q => q.id)
+        const { data: attempts } = await supabase
+          .from('quiz_attempts')
+          .select('quiz_item_id')
+          .eq('user_id', FIXED_USER_ID)
+          .in('quiz_item_id', quizItemIds)
+          .eq('is_correct', false)
+        
+        if (attempts && attempts.length > 0) {
+          const failedIds = attempts.map(a => a.quiz_item_id)
+          setFailedQuestionIds(failedIds)
+          
+          // Filter nodes to only include those with failed questions
+          const failedNodeIds = quizItems
+            .filter(q => failedIds.includes(q.id))
+            .map(q => q.node_id)
+            .filter(Boolean) as string[]
+          
+          const filteredNodes = nodes.filter(n => failedNodeIds.includes(n.id))
+          setDisplayNodes(filteredNodes)
+        }
+      } catch (error) {
+        console.error('Error loading failed questions:', error)
+      }
+    }
+    
+    loadFailedQuestions()
+  }, [retryFailed, documentId])
 
   // Load quiz questions for all nodes
   useEffect(() => {
@@ -112,23 +164,32 @@ export default function OXKnowledgeAssessment({
       const loadTimer = quizLogger.startTimer()
       
       try {
-        const nodeIds = nodes.map(n => n.id)
+        const nodeIds = displayNodes.map(n => n.id)
         
         quizLogger.info('Loading assessment quiz questions', {
           correlationId,
           documentId,
           metadata: {
             nodeCount: nodeIds.length,
-            nodeIds: nodeIds.slice(0, 10) // Log first 10 for debugging
+            nodeIds: nodeIds.slice(0, 10), // Log first 10 for debugging
+            retryFailed,
+            failedQuestionIds: failedQuestionIds.length
           }
         })
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('quiz_items')
           .select('*')
           .in('node_id', nodeIds)
           .in('question_type', ['multiple_choice', 'true_false', 'short_answer', 'fill_in_blank', 'matching'])
           .eq('is_assessment', true)
+        
+        // If retrying failed, only get those specific questions
+        if (retryFailed && failedQuestionIds.length > 0) {
+          query = query.in('id', failedQuestionIds)
+        }
+        
+        const { data, error } = await query
 
         const loadDuration = loadTimer()
         
@@ -211,12 +272,12 @@ export default function OXKnowledgeAssessment({
     }
 
     loadQuestions()
-  }, [nodes, supabase, correlationId, documentId])
+  }, [displayNodes, failedQuestionIds, retryFailed, supabase, correlationId, documentId])
 
   const buildDependencyMap = () => {
     const dependencyMap = new Map<string, string[]>()
     
-    nodes.forEach(node => {
+    displayNodes.forEach(node => {
       node.prerequisites.forEach(prerequisiteName => {
         if (!dependencyMap.has(prerequisiteName)) {
           dependencyMap.set(prerequisiteName, [])
@@ -231,14 +292,14 @@ export default function OXKnowledgeAssessment({
   const dependencyMap = buildDependencyMap()
 
   const findDependentNodesToSkip = (nodeId: string): string[] => {
-    const node = nodes.find(n => n.id === nodeId)
+    const node = displayNodes.find(n => n.id === nodeId)
     if (!node) return []
     
     const nodesToSkip: string[] = []
     const processed = new Set<string>()
     
     const prerequisiteDependents = dependencyMap.get(node.name) || []
-    const childNodes = nodes
+    const childNodes = displayNodes
       .filter(n => n.parent_id === nodeId)
       .map(n => n.id)
     
@@ -254,10 +315,10 @@ export default function OXKnowledgeAssessment({
       if (!(currentId in assessments)) {
         nodesToSkip.push(currentId)
         
-        const currentNode = nodes.find(n => n.id === currentId)
+        const currentNode = displayNodes.find(n => n.id === currentId)
         if (currentNode) {
           const morePrerequisiteDependents = dependencyMap.get(currentNode.name) || []
-          const moreChildNodes = nodes
+          const moreChildNodes = displayNodes
             .filter(n => n.parent_id === currentId)
             .map(n => n.id)
           
@@ -270,8 +331,8 @@ export default function OXKnowledgeAssessment({
   }
 
   const findNextAssessableNode = (startIndex: number = currentIndex + 1): number => {
-    for (let i = startIndex; i < nodes.length; i++) {
-      const nodeId = nodes[i].id
+    for (let i = startIndex; i < displayNodes.length; i++) {
+      const nodeId = displayNodes[i].id
       if (!skippedNodes.has(nodeId) && !(nodeId in assessments)) {
         return i
       }
@@ -355,12 +416,11 @@ export default function OXKnowledgeAssessment({
         correctAnswer: currentQuestion?.correct_answer,
         isCorrect: isAnswerCorrect,
         currentIndex,
-        totalNodes: nodes.length
+        totalNodes: displayNodes.length
       }
     })
 
     // Save quiz attempt
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
     if (currentQuestion) {
       try {
         const { error } = await supabase
@@ -447,7 +507,6 @@ export default function OXKnowledgeAssessment({
   const saveAssessments = async (finalAssessments: Record<string, 'known' | 'unknown'>) => {
     setIsSubmitting(true)
     const saveTimer = assessmentLogger.startTimer()
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
     
     const sessionDuration = Date.now() - sessionStartTime
     const knownCount = Object.values(finalAssessments).filter(v => v === 'known').length
@@ -462,7 +521,7 @@ export default function OXKnowledgeAssessment({
         knownCount,
         unknownCount,
         skippedCount: skippedNodes.size,
-        completionRate: `${((Object.keys(finalAssessments).length / nodes.length) * 100).toFixed(2)}%`
+        completionRate: `${((Object.keys(finalAssessments).length / displayNodes.length) * 100).toFixed(2)}%`
       }
     })
 
@@ -707,7 +766,7 @@ export default function OXKnowledgeAssessment({
       <div className="mb-8">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>진행률</span>
-          <span>{totalAssessed} / {nodes.length}</span>
+          <span>{totalAssessed} / {displayNodes.length}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
@@ -789,7 +848,7 @@ export default function OXKnowledgeAssessment({
                   </p>
                   <ul className="space-y-1">
                     {previewSkipped.slice(0, 3).map(id => {
-                      const node = nodes.find(n => n.id === id)
+                      const node = displayNodes.find(n => n.id === id)
                       return node ? (
                         <li key={id} className="text-sm text-yellow-700 flex items-center gap-2">
                           <span className="text-yellow-500">•</span>

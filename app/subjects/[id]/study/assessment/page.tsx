@@ -12,6 +12,7 @@ interface AssessmentPageProps {
   }>
   searchParams: Promise<{
     doc: string
+    retryFailed?: string
   }>
 }
 
@@ -21,7 +22,7 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
   const timer = assessmentLogger.startTimer()
   
   const { id } = await params
-  const { doc: documentId } = await searchParams
+  const { doc: documentId, retryFailed } = await searchParams
   const supabase = createServiceClient()
   
   assessmentLogger.info('Assessment page loading', {
@@ -223,38 +224,40 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
     }
   })
 
-  // Check if user already has assessments
-  supabaseLogger.info('Checking existing assessment status', {
-    correlationId,
-    documentId,
-    metadata: {
-      nodeIds: knowledgeNodes.map(n => n.id),
-      operation: 'select',
-      table: 'user_knowledge_status'
-    }
-  })
-  
-  const statusTimer = supabaseLogger.startTimer()
-  const { data: existingStatus } = await supabase
-    .from('user_knowledge_status')
-    .select('*')
-    .eq('user_id', FIXED_USER_ID)
-    .in('node_id', knowledgeNodes.map(n => n.id))
-  
-  const statusDuration = statusTimer()
-  
-  // If already assessed, go to study page
-  if (existingStatus && existingStatus.length > 0) {
-    assessmentLogger.info('User already assessed, redirecting to study', {
+  // Check if user already has assessments (only if not retrying failed questions)
+  if (!retryFailed) {
+    supabaseLogger.info('Checking existing assessment status', {
       correlationId,
       documentId,
-      duration: statusDuration,
       metadata: {
-        existingAssessments: existingStatus.length,
-        redirectTo: `/subjects/${id}/study?doc=${documentId}`
+        nodeIds: knowledgeNodes.map(n => n.id),
+        operation: 'select',
+        table: 'user_knowledge_status'
       }
     })
-    redirect(`/subjects/${id}/study?doc=${documentId}`)
+    
+    const statusTimer = supabaseLogger.startTimer()
+    const { data: existingStatus } = await supabase
+      .from('user_knowledge_status')
+      .select('*')
+      .eq('user_id', FIXED_USER_ID)
+      .in('node_id', knowledgeNodes.map(n => n.id))
+    
+    const statusDuration = statusTimer()
+    
+    // If already assessed and not retrying, go to study page
+    if (existingStatus && existingStatus.length > 0) {
+      assessmentLogger.info('User already assessed, redirecting to study', {
+        correlationId,
+        documentId,
+        duration: statusDuration,
+        metadata: {
+          existingAssessments: existingStatus.length,
+          redirectTo: `/subjects/${id}/study?doc=${documentId}`
+        }
+      })
+      redirect(`/subjects/${id}/study?doc=${documentId}`)
+    }
   }
   
   const totalDuration = timer()
@@ -309,6 +312,7 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
           nodes={knowledgeNodes}
           subjectId={id}
           documentId={documentId}
+          retryFailed={retryFailed === 'true'}
         />
       </div>
     </div>
