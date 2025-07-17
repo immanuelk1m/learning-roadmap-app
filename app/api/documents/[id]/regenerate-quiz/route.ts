@@ -184,10 +184,10 @@ export async function POST(
                 node_id: actualNodeId,
                 question: item.question,
                 question_type: 'true_false' as const,
-                options: JSON.stringify(['O', 'X']), // JSONB expects JSON string
+                options: ['O', 'X'], // Direct array for JSONB
                 correct_answer: item.correct_answer,
                 explanation: item.explanation || null,
-                difficulty: 1,
+                difficulty: 'easy' as const, // Use valid difficulty value
                 is_assessment: true,
               }
 
@@ -202,7 +202,18 @@ export async function POST(
                   error: quizError,
                   metadata: {
                     nodeId: actualNodeId,
-                    quizItem: item
+                    errorCode: quizError.code,
+                    errorDetails: quizError.details,
+                    errorMessage: quizError.message,
+                    errorHint: quizError.hint,
+                    quizItem: quizItem,
+                    failedInsert: {
+                      document_id: quizItem.document_id,
+                      node_id: quizItem.node_id,
+                      question_type: quizItem.question_type,
+                      options: quizItem.options,
+                      difficulty: quizItem.difficulty
+                    }
                   }
                 })
               } else {
@@ -223,10 +234,49 @@ export async function POST(
         }
 
         console.log(`Successfully saved ${savedCount} quiz questions`)
+        
+        // Verify actual saved count in database
+        const { data: verifyQuizItems, error: verifyError } = await supabase
+          .from('quiz_items')
+          .select('id')
+          .eq('document_id', id)
+          .eq('is_assessment', true)
+        
+        const actualSavedCount = verifyQuizItems?.length || 0
+        
+        quizLogger.info('Quiz regeneration completed', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            generatedCount: quizData.quiz_items?.length || 0,
+            reportedSavedCount: savedCount,
+            actualSavedCount,
+            discrepancy: savedCount !== actualSavedCount
+          }
+        })
+        
+        if (actualSavedCount === 0 && quizData.quiz_items?.length > 0) {
+          quizLogger.error('CRITICAL: Database verification shows no quiz items saved', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              attemptedItems: quizData.quiz_items.length,
+              reportedSaved: savedCount,
+              actualSaved: actualSavedCount
+            }
+          })
+          
+          return NextResponse.json({ 
+            success: false, 
+            message: 'Failed to save quiz questions to database',
+            error: 'No quiz items were saved despite generation attempts'
+          }, { status: 500 })
+        }
+        
         return NextResponse.json({ 
           success: true, 
-          message: `Generated and saved ${savedCount} O/X quiz questions`,
-          count: savedCount
+          message: `Generated and saved ${actualSavedCount} O/X quiz questions`,
+          count: actualSavedCount
         })
       } else {
         throw new Error('Empty response from Gemini')

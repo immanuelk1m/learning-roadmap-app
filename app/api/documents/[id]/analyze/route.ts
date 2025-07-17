@@ -906,7 +906,7 @@ export async function POST(
                     options: ['O', 'X'], // Pass array directly to Supabase client for JSONB
                     correct_answer: item.correct_answer,
                     explanation: item.explanation,
-                    difficulty: 1, // Default difficulty for assessment
+                    difficulty: 'easy' as const, // Use valid difficulty value
                     is_assessment: true,
                   }
                   
@@ -923,7 +923,17 @@ export async function POST(
                         nodeName: nodeExists.name,
                         errorCode: quizError.code,
                         errorDetails: quizError.details,
-                        quizQuestion: item.question
+                        errorMessage: quizError.message,
+                        errorHint: quizError.hint,
+                        quizQuestion: item.question,
+                        quizItem: quizItem,
+                        failedInsert: {
+                          document_id: quizItem.document_id,
+                          node_id: quizItem.node_id,
+                          question_type: quizItem.question_type,
+                          options: quizItem.options,
+                          difficulty: quizItem.difficulty
+                        }
                       }
                     })
                     failedCount++
@@ -967,6 +977,37 @@ export async function POST(
                     attemptedItems: quizData.quiz_items.length,
                     nodeIdMapping: Object.entries(nodeIdMapping).slice(0, 5),
                     sampleQuizItems: quizData.quiz_items.slice(0, 3)
+                  }
+                })
+              }
+              
+              // Verify actual saved count in database
+              const { data: savedQuizItems, error: countError } = await supabase
+                .from('quiz_items')
+                .select('id')
+                .eq('document_id', id)
+                .eq('is_assessment', true)
+              
+              const actualSavedCount = savedQuizItems?.length || 0
+              
+              supabaseLogger.info('Quiz items verification', {
+                correlationId,
+                documentId: id,
+                metadata: {
+                  reportedSavedCount: savedCount,
+                  actualSavedCount,
+                  discrepancy: savedCount !== actualSavedCount
+                }
+              })
+              
+              if (actualSavedCount === 0 && quizData.quiz_items.length > 0) {
+                analyzeLogger.error('CRITICAL: Database verification shows no quiz items saved', {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    attemptedItems: quizData.quiz_items.length,
+                    reportedSaved: savedCount,
+                    actualSaved: actualSavedCount
                   }
                 })
               }
