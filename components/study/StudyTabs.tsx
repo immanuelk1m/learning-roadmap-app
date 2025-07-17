@@ -37,7 +37,7 @@ export default function StudyTabs({
       }
 
       toast.success('새로운 퀴즈가 생성되었습니다! 평가 페이지로 이동합니다.')
-      router.push(`/subjects/${subjectId}/study/assessment`)
+      router.push(`/subjects/${subjectId}/study/assessment?doc=${documentId}`)
     } catch (error) {
       console.error(error)
       toast.error(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.')
