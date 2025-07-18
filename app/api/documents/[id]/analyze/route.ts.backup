@@ -1075,9 +1075,220 @@ export async function POST(
         })
       }
 
-      // Extended quiz generation will be done on-demand by the user
-      // This allows users to control when to generate practice questions
-      const extendedQuizCount = 0
+      // Generate extended quiz questions (다양한 문제 타입)
+      geminiLogger.info('Starting extended quiz generation', {
+        correlationId,
+        documentId: id,
+        metadata: {
+          nodeCount: savedNodes.length,
+          endpoint: 'extended_quiz_generation'
+        }
+      })
+      
+      let extendedQuizCount = 0
+      try {
+        const extendedQuizPrompt = `${EXTENDED_QUIZ_GENERATION_PROMPT}
+
+## 대상 문서
+${document.title}
+
+## 지식 노드 정보
+다음 지식 노드들에 대해 다양한 유형의 평가 문제를 8개 생성하세요:
+${savedNodes.map((node, index) => `
+${index + 1}. ${node.name} (node_id: "${node.id}")
+   - 설명: ${node.description}
+   - 난이도 레벨: ${node.level}
+   - 선수지식: ${node.prerequisites.join(', ') || '없음'}
+`).join('\n')}
+
+## 필수 요구사항
+1. 총 8개의 문제를 생성하세요
+2. 각 문제의 node_id 필드에는 위에 제공된 node_id 값을 그대로 사용하세요
+3. 문제 유형을 다양하게 사용하세요:
+   - multiple_choice: 2-3개
+   - true_false: 1-2개  
+   - short_answer: 1-2개
+   - fill_in_blank: 1-2개
+   - matching: 1-2개
+4. 난이도 분포: easy(2-3개), medium(3-4개), hard(1-2개)
+5. JSON 형식을 정확히 따르세요`
+
+        const extendedQuizResult = await geminiKnowledgeTreeModel.generateContent({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'application/pdf',
+                    data: base64Data,
+                  },
+                },
+                {
+                  text: extendedQuizPrompt,
+                },
+              ],
+            },
+          ],
+        })
+        
+        const extendedQuizResponse = extendedQuizResult.text || ''
+        
+        if (extendedQuizResponse) {
+          try {
+            const extendedQuizData = parseGeminiResponse<any>(
+              extendedQuizResponse,
+              { correlationId, documentId: id, responseType: 'extended_quiz' }
+            )
+            
+            geminiLogger.info('Extended quiz response parsed successfully', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                questionCount: extendedQuizData.questions?.length || 0,
+                questionTypes: extendedQuizData.questions?.map((q: any) => q.type) || []
+              }
+            })
+            
+            // Check if we got any questions
+            if (!extendedQuizData.questions || extendedQuizData.questions.length === 0) {
+              geminiLogger.warn('Extended quiz generation returned empty questions', {
+                correlationId,
+                documentId: id,
+                metadata: {
+                  responseLength: extendedQuizResponse.length,
+                  parsedData: JSON.stringify(extendedQuizData).substring(0, 200)
+                }
+              })
+            }
+            
+            // Save extended quiz questions
+            if (extendedQuizData.questions && Array.isArray(extendedQuizData.questions) && extendedQuizData.questions.length > 0) {
+              for (const question of extendedQuizData.questions) {
+                const nodeExists = savedNodes.find(n => n.id === question.node_id)
+                if (!nodeExists && question.node_id) {
+                  // Try to find by name if ID doesn't match
+                  const nodeByName = savedNodes.find(n => n.name === question.node_id)
+                  if (nodeByName) {
+                    question.node_id = nodeByName.id
+                  } else {
+                    question.node_id = savedNodes[0]?.id // Fallback to first node
+                  }
+                }
+                
+                const baseData = {
+                  document_id: id,
+                  node_id: question.node_id || savedNodes[0]?.id || null,
+                  question: question.question,
+                  question_type: question.type,
+                  explanation: question.explanation,
+                  source_quote: question.source_quote,
+                  difficulty: question.difficulty || 'medium',
+                  is_assessment: false,
+                }
+                
+                let additionalData: any = {}
+                
+                switch (question.type) {
+                  case 'multiple_choice':
+                    additionalData = {
+                      options: question.options,
+                      correct_answer: question.correct_answer,
+                    }
+                    break
+                  case 'true_false':
+                    additionalData = {
+                      correct_answer: question.correct_answer_bool ? 'O' : 'X',
+                    }
+                    break
+                  case 'short_answer':
+                    additionalData = {
+                      correct_answer: question.acceptable_answers?.[0] || '',
+                      acceptable_answers: question.acceptable_answers,
+                      hint: question.hint,
+                    }
+                    break
+                  case 'fill_in_blank':
+                    additionalData = {
+                      correct_answer: question.blanks?.[0]?.answer || '',
+                      template: question.template,
+                      blanks: question.blanks,
+                    }
+                    break
+                  case 'matching':
+                    additionalData = {
+                      correct_answer: 'matching',
+                      left_items: question.left_items,
+                      right_items: question.right_items,
+                      correct_pairs: question.correct_pairs,
+                    }
+                    break
+                }
+                
+                const { error: extendedQuizError } = await supabase
+                  .from('quiz_items')
+                  .insert({
+                    ...baseData,
+                    ...additionalData,
+                  })
+                
+                if (!extendedQuizError) {
+                  extendedQuizCount++
+                } else {
+                  supabaseLogger.error('Failed to save extended quiz item', {
+                    correlationId,
+                    documentId: id,
+                    metadata: {
+                      error: extendedQuizError,
+                      questionType: question.type,
+                      question: question.question
+                    }
+                  })
+                }
+              }
+            }
+            
+            geminiLogger.info('Extended quiz generation completed', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                totalQuestions: extendedQuizData.questions?.length || 0,
+                savedQuestions: extendedQuizCount,
+                success: extendedQuizCount > 0
+              }
+            })
+          } catch (parseError: any) {
+            geminiLogger.error('Failed to parse extended quiz response', {
+              correlationId,
+              documentId: id,
+              error: parseError,
+              metadata: {
+                responseLength: extendedQuizResponse.length,
+                responseStart: extendedQuizResponse.substring(0, 200)
+              }
+            })
+          }
+        } else {
+          geminiLogger.error('Extended quiz generation returned empty response', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              promptLength: extendedQuizPrompt.length,
+              nodeCount: savedNodes.length
+            }
+          })
+        }
+      } catch (extendedQuizError: any) {
+        geminiLogger.error('Failed to generate extended quiz questions', {
+          correlationId,
+          documentId: id,
+          error: extendedQuizError,
+          metadata: {
+            errorType: extendedQuizError.name,
+            errorMessage: extendedQuizError.message
+          }
+        })
+        // Continue without failing the entire process
+      }
 
       // Get total quiz count after all generation
       const { data: totalQuizItems } = await supabase

@@ -61,6 +61,7 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
     improved: string[]
     declined: string[]
   }>({ improved: [], declined: [] })
+  const [generating, setGenerating] = useState(false)
   
   const router = useRouter()
   const supabase = createClient()
@@ -103,6 +104,48 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
       toast.error('문제를 불러오는 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const generateQuestions = async () => {
+    if (generating) return
+    
+    setGenerating(true)
+    toast('문제를 생성 중입니다...')
+    
+    try {
+      // Get all node IDs for this document
+      const nodeIds = nodes.map(node => node.id)
+      
+      const response = await fetch('/api/quiz/generate-extended', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId,
+          nodeIds
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('문제 생성에 실패했습니다.')
+      }
+
+      const result = await response.json()
+      
+      if (result.questions && result.questions.length > 0) {
+        toast.success(`${result.questions.length}개의 문제가 생성되었습니다!`)
+        // Reload questions to show the newly generated ones
+        await loadQuestions()
+      } else {
+        toast.error('문제 생성에 실패했습니다. 다시 시도해주세요.')
+      }
+    } catch (error) {
+      console.error('Error generating questions:', error)
+      toast.error('문제 생성 중 오류가 발생했습니다.')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -256,12 +299,29 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
       <div className="text-center py-16">
         <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
         <p className="text-gray-500 mb-4">아직 연습 문제가 없습니다.</p>
-        <button
-          onClick={() => router.push(`/subjects/${subjectId}/study?doc=${documentId}`)}
-          className="text-blue-600 hover:text-blue-800"
-        >
-          학습으로 돌아가기
-        </button>
+        <p className="text-sm text-gray-400 mb-6">다양한 유형의 문제를 생성하여 학습해보세요!</p>
+        <div className="space-x-4">
+          <button
+            onClick={generateQuestions}
+            disabled={generating || nodes.length === 0}
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {generating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                문제 생성 중...
+              </>
+            ) : (
+              '문제 생성하기'
+            )}
+          </button>
+          <button
+            onClick={() => router.push(`/subjects/${subjectId}/study?doc=${documentId}`)}
+            className="text-gray-600 hover:text-gray-800"
+          >
+            학습으로 돌아가기
+          </button>
+        </div>
       </div>
     )
   }
