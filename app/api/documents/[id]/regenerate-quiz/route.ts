@@ -112,14 +112,31 @@ export async function POST(
                 },
               },
               {
-                text: `${EXTENDED_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 다양한 유형의 평가 문제를 생성하세요. 각 노드당 1-2개의 문제를 만들어주세요:\n${JSON.stringify(knowledgeNodes.map((node, index) => ({
-                  id: node.id,  // Use actual database ID
-                  name: node.name,
-                  description: node.description,
-                  level: node.level,
-                  prerequisites: node.prerequisites,
-                  node_id: node.id  // For matching with quiz questions
-                })), null, 2)}`,
+                text: `${EXTENDED_QUIZ_GENERATION_PROMPT}
+
+## 문서 제목
+${document.title}
+
+## 지식 노드 정보
+다음 지식 노드들에 대해 다양한 유형의 평가 문제를 총 ${Math.min(knowledgeNodes.length * 2, 20)}개 생성하세요:
+${knowledgeNodes.map((node, index) => `
+${index + 1}. ${node.name} (node_id: "${node.id}")
+   - 설명: ${node.description}
+   - 난이도 레벨: ${node.level}
+   - 선수지식: ${node.prerequisites?.join(', ') || '없음'}
+`).join('\n')}
+
+## 필수 요구사항
+1. 총 ${Math.min(knowledgeNodes.length * 2, 20)}개의 문제를 생성하세요 (각 노드당 1-2개)
+2. 각 문제의 node_id 필드에는 위에 제공된 node_id 값을 그대로 사용하세요
+3. 문제 유형을 다양하게 사용하세요:
+   - multiple_choice: 30-40%
+   - true_false: 20-30%
+   - short_answer: 15-20%
+   - fill_in_blank: 10-15%
+   - matching: 10-15%
+4. 난이도 분포: easy(30%), medium(50%), hard(20%)
+5. JSON 형식을 정확히 따르세요`,
               },
             ],
           },

@@ -1093,17 +1093,25 @@ export async function POST(
 ${document.title}
 
 ## 지식 노드 정보
-${JSON.stringify(savedNodes.map((node, index) => ({
-  id: node.id,
-  name: node.name,
-  description: node.description,
-  level: node.level,
-  prerequisites: node.prerequisites
-})), null, 2)}
+다음 지식 노드들에 대해 다양한 유형의 평가 문제를 8개 생성하세요:
+${savedNodes.map((node, index) => `
+${index + 1}. ${node.name} (node_id: "${node.id}")
+   - 설명: ${node.description}
+   - 난이도 레벨: ${node.level}
+   - 선수지식: ${node.prerequisites.join(', ') || '없음'}
+`).join('\n')}
 
-**중요**: 각 문제에는 관련된 node_id를 반드시 포함하세요.
-다양한 문제 타입(multiple_choice, true_false, short_answer, fill_in_blank, matching)을 고르게 사용하세요.
-난이도는 easy, medium, hard를 적절히 분배하세요.`
+## 필수 요구사항
+1. 총 8개의 문제를 생성하세요
+2. 각 문제의 node_id 필드에는 위에 제공된 node_id 값을 그대로 사용하세요
+3. 문제 유형을 다양하게 사용하세요:
+   - multiple_choice: 2-3개
+   - true_false: 1-2개  
+   - short_answer: 1-2개
+   - fill_in_blank: 1-2개
+   - matching: 1-2개
+4. 난이도 분포: easy(2-3개), medium(3-4개), hard(1-2개)
+5. JSON 형식을 정확히 따르세요`
 
         const extendedQuizResult = await geminiKnowledgeTreeModel.generateContent({
           contents: [
@@ -1141,8 +1149,20 @@ ${JSON.stringify(savedNodes.map((node, index) => ({
               }
             })
             
+            // Check if we got any questions
+            if (!extendedQuizData.questions || extendedQuizData.questions.length === 0) {
+              geminiLogger.warn('Extended quiz generation returned empty questions', {
+                correlationId,
+                documentId: id,
+                metadata: {
+                  responseLength: extendedQuizResponse.length,
+                  parsedData: JSON.stringify(extendedQuizData).substring(0, 200)
+                }
+              })
+            }
+            
             // Save extended quiz questions
-            if (extendedQuizData.questions && Array.isArray(extendedQuizData.questions)) {
+            if (extendedQuizData.questions && Array.isArray(extendedQuizData.questions) && extendedQuizData.questions.length > 0) {
               for (const question of extendedQuizData.questions) {
                 const nodeExists = savedNodes.find(n => n.id === question.node_id)
                 if (!nodeExists && question.node_id) {
@@ -1163,7 +1183,7 @@ ${JSON.stringify(savedNodes.map((node, index) => ({
                   explanation: question.explanation,
                   source_quote: question.source_quote,
                   difficulty: question.difficulty || 'medium',
-                  is_assessment: false,
+                  is_assessment: true,
                 }
                 
                 let additionalData: any = {}
@@ -1232,7 +1252,8 @@ ${JSON.stringify(savedNodes.map((node, index) => ({
               documentId: id,
               metadata: {
                 totalQuestions: extendedQuizData.questions?.length || 0,
-                savedQuestions: extendedQuizCount
+                savedQuestions: extendedQuizCount,
+                success: extendedQuizCount > 0
               }
             })
           } catch (parseError: any) {
@@ -1246,6 +1267,15 @@ ${JSON.stringify(savedNodes.map((node, index) => ({
               }
             })
           }
+        } else {
+          geminiLogger.error('Extended quiz generation returned empty response', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              promptLength: extendedQuizPrompt.length,
+              nodeCount: savedNodes.length
+            }
+          })
         }
       } catch (extendedQuizError: any) {
         geminiLogger.error('Failed to generate extended quiz questions', {
