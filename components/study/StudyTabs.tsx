@@ -30,6 +30,7 @@ export default function StudyTabs({
     hasFailedQuestions: boolean
     totalQuestions: number
     failedQuestions: number
+    hasCompletedOXAssessment: boolean
   } | null>(null)
   const router = useRouter()
   const supabase = createClient()
@@ -71,33 +72,59 @@ export default function StudyTabs({
 
       console.log('[StudyTabs] User assessments:', assessments?.length || 0)
 
-      // Get quiz attempts to check for failed questions
-      const { data: quizItems } = await supabase
+      // Get O/X quiz items (is_assessment = true)
+      const { data: oxQuizItems } = await supabase
+        .from('quiz_items')
+        .select('id')
+        .eq('document_id', documentId)
+        .eq('is_assessment', true)
+        .eq('question_type', 'true_false')
+
+      console.log('[StudyTabs] O/X Quiz items:', oxQuizItems?.length || 0)
+
+      // Check if user has attempted O/X assessment
+      let hasCompletedOX = false
+      if (oxQuizItems && oxQuizItems.length > 0) {
+        const oxQuizItemIds = oxQuizItems.map(q => q.id)
+        
+        const { data: oxAttempts } = await supabase
+          .from('quiz_attempts')
+          .select('*')
+          .eq('user_id', FIXED_USER_ID)
+          .in('quiz_item_id', oxQuizItemIds)
+
+        // Consider O/X assessment completed if user has attempted at least 80% of questions
+        hasCompletedOX = oxAttempts && oxAttempts.length >= Math.floor(oxQuizItems.length * 0.8)
+        
+        console.log('[StudyTabs] O/X attempts:', oxAttempts?.length || 0, 'Completed:', hasCompletedOX)
+      }
+
+      // Get all assessment quiz attempts for failed questions tracking
+      const { data: allQuizItems } = await supabase
         .from('quiz_items')
         .select('id')
         .eq('document_id', documentId)
         .eq('is_assessment', true)
 
-      console.log('[StudyTabs] Quiz items:', quizItems?.length || 0)
-
-      if (quizItems && quizItems.length > 0) {
-        const quizItemIds = quizItems.map(q => q.id)
+      if (allQuizItems && allQuizItems.length > 0) {
+        const allQuizItemIds = allQuizItems.map(q => q.id)
         
         const { data: attempts } = await supabase
           .from('quiz_attempts')
           .select('*')
           .eq('user_id', FIXED_USER_ID)
-          .in('quiz_item_id', quizItemIds)
+          .in('quiz_item_id', allQuizItemIds)
 
         const failedAttempts = attempts?.filter(a => !a.is_correct) || []
         
-        console.log('[StudyTabs] Quiz attempts:', attempts?.length || 0, 'Failed:', failedAttempts.length)
+        console.log('[StudyTabs] All quiz attempts:', attempts?.length || 0, 'Failed:', failedAttempts.length)
         
         setAssessmentStatus({
           hasAssessment: assessments !== null && assessments.length > 0,
           hasFailedQuestions: failedAttempts.length > 0,
-          totalQuestions: quizItems.length,
-          failedQuestions: failedAttempts.length
+          totalQuestions: allQuizItems.length,
+          failedQuestions: failedAttempts.length,
+          hasCompletedOXAssessment: hasCompletedOX
         })
       } else {
         // No quiz items yet
@@ -105,7 +132,8 @@ export default function StudyTabs({
           hasAssessment: false,
           hasFailedQuestions: false,
           totalQuestions: 0,
-          failedQuestions: 0
+          failedQuestions: 0,
+          hasCompletedOXAssessment: false
         })
       }
     } catch (error) {
@@ -130,39 +158,18 @@ export default function StudyTabs({
       return
     }
 
-    // 항상 새로운 문제를 생성
-    console.log('[StudyTabs] Generating new quiz questions...')
-    await handleRegenerateQuiz()
-  }
-
-  const handleRegenerateQuiz = async () => {
-    console.log('[StudyTabs] Starting quiz generation...')
-    setIsGenerating(true)
-    try {
-      const response = await fetch(`/api/documents/${documentId}/regenerate-quiz`, {
-        method: 'POST',
-      })
-
-      console.log('[StudyTabs] Quiz generation response:', response.status)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        console.error('[StudyTabs] Quiz generation failed:', errorData)
-        throw new Error(errorData?.error || '퀴즈 재생성에 실패했습니다.')
-      }
-
-      const result = await response.json()
-      console.log('[StudyTabs] Quiz generation success:', result)
-
-      toast.success('새로운 퀴즈가 생성되었습니다! 평가 페이지로 이동합니다.')
+    // O/X 평가를 완료하지 않았으면 평가 페이지로
+    if (!assessmentStatus?.hasCompletedOXAssessment) {
+      console.log('[StudyTabs] O/X assessment not completed, redirecting to assessment page')
       router.push(`/subjects/${subjectId}/study/assessment?doc=${documentId}`)
-    } catch (error) {
-      console.error('[StudyTabs] Quiz generation error:', error)
-      toast.error(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.')
-    } finally {
-      setIsGenerating(false)
+      return
     }
+
+    // O/X 평가를 완료했으면 바로 quiz 페이지로 이동
+    console.log('[StudyTabs] O/X assessment completed, redirecting to quiz page')
+    router.push(`/subjects/${subjectId}/quiz?doc=${documentId}`)
   }
+
 
   const tabs = [
     {
@@ -216,6 +223,7 @@ export default function StudyTabs({
           )}
           {isLoadingStatus ? '로딩 중...' :
            isGenerating ? '퀴즈 생성 중...' : 
+           !assessmentStatus?.hasCompletedOXAssessment ? '학습 전 지식 평가하기' :
            '문제풀고 지식트리 완성하기!'
           }
         </button>

@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import ExtendedQuizView from '@/components/quiz/ExtendedQuizView'
+import AllQuestionsView from '@/components/quiz/AllQuestionsView'
 
 interface QuizPageProps {
   params: Promise<{
@@ -86,7 +86,7 @@ export default async function QuizPage({ params, searchParams }: QuizPageProps) 
               <div className="border-l border-gray-300 pl-4">
                 <h1 className="text-lg font-semibold text-gray-900">{subject.name}</h1>
                 {document && (
-                  <p className="text-sm text-gray-600">{document.title}</p>
+                  <p className="text-sm text-gray-600">연습문제 - {document.title}</p>
                 )}
               </div>
             </div>
@@ -106,9 +106,8 @@ export default async function QuizPage({ params, searchParams }: QuizPageProps) 
         </div>
       ) : (
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <ExtendedQuizView
+          <AllQuestionsView
             documentId={document.id}
-            nodeIds={knowledgeNodes?.map(n => n.id) || []}
             subjectId={id}
           />
         </div>

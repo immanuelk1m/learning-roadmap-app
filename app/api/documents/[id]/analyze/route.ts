@@ -1183,7 +1183,7 @@ ${index + 1}. ${node.name} (node_id: "${node.id}")
                   explanation: question.explanation,
                   source_quote: question.source_quote,
                   difficulty: question.difficulty || 'medium',
-                  is_assessment: true,
+                  is_assessment: false,
                 }
                 
                 let additionalData: any = {}

@@ -69,13 +69,13 @@ export async function POST(
 
     console.log(`Found ${knowledgeNodes.length} knowledge nodes`)
 
-    // Delete existing quiz questions for this document
-    console.log('Deleting existing quiz questions...')
+    // Delete existing quiz questions for this document (only practice questions, not O/X assessment)
+    console.log('Deleting existing practice quiz questions...')
     const { error: deleteError } = await supabase
       .from('quiz_items')
       .delete()
       .eq('document_id', id)
-      .eq('is_assessment', true)
+      .eq('is_assessment', false)
 
     if (deleteError) {
       console.error('Error deleting existing quiz questions:', deleteError)
@@ -211,7 +211,7 @@ ${index + 1}. ${node.name} (node_id: "${node.id}")
                 explanation: question.explanation || null,
                 source_quote: question.source_quote || null,
                 difficulty: question.difficulty || 'medium',
-                is_assessment: true,
+                is_assessment: false,
               }
               
               // Add type-specific fields
@@ -330,7 +330,7 @@ ${index + 1}. ${node.name} (node_id: "${node.id}")
           .from('quiz_items')
           .select('id')
           .eq('document_id', id)
-          .eq('is_assessment', true)
+          .eq('is_assessment', false)
         
         const actualSavedCount = verifyQuizItems?.length || 0
         

@@ -91,6 +91,31 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
         .single()
     : { data: null }
 
+  // Check if O/X assessment is completed
+  if (selectedDocumentId) {
+    // Get O/X quiz items
+    const { data: oxQuizItems } = await supabase
+      .from('quiz_items')
+      .select('id')
+      .eq('document_id', selectedDocumentId)
+      .eq('is_assessment', true)
+      .eq('question_type', 'true_false')
+
+    if (oxQuizItems && oxQuizItems.length > 0) {
+      // Check if user has attempted all O/X questions
+      const { data: attempts } = await supabase
+        .from('quiz_attempts')
+        .select('quiz_item_id')
+        .eq('user_id', FIXED_USER_ID)
+        .in('quiz_item_id', oxQuizItems.map(q => q.id))
+
+      // If not all questions attempted, redirect to assessment
+      if (!attempts || attempts.length < oxQuizItems.length) {
+        redirect(`/subjects/${id}/study/assessment?doc=${selectedDocumentId}`)
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
