@@ -109,8 +109,9 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
         .eq('user_id', FIXED_USER_ID)
         .in('quiz_item_id', oxQuizItems.map(q => q.id))
 
-      // If not all questions attempted, redirect to assessment
-      if (!attempts || attempts.length < oxQuizItems.length) {
+      // If not enough questions attempted (less than 80%), redirect to assessment
+      const completionRate = attempts ? attempts.length / oxQuizItems.length : 0
+      if (completionRate < 0.8) {
         redirect(`/subjects/${id}/study/assessment?doc=${selectedDocumentId}`)
       }
     }

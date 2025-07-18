@@ -498,6 +498,9 @@ export default function OXKnowledgeAssessment({
         }
       })
 
+      // Add a small delay to ensure database writes are complete
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     } catch (error: any) {
       const saveDuration = saveTimer()
@@ -512,6 +515,9 @@ export default function OXKnowledgeAssessment({
           redirectTo: `/subjects/${subjectId}/study?doc=${documentId}`
         }
       })
+      // Add a small delay even on error to ensure any partial writes are complete
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     }
   }
