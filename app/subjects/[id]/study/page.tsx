@@ -92,12 +92,13 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
     : { data: null }
 
   // Check if O/X assessment is completed
-  if (selectedDocumentId) {
-    // Get O/X quiz items
+  if (selectedDocumentId && knowledgeNodes && knowledgeNodes.length > 0) {
+    // Get O/X quiz items using the same query pattern as OXKnowledgeAssessment
+    const nodeIds = knowledgeNodes.map(n => n.id)
     const { data: oxQuizItems } = await supabase
       .from('quiz_items')
       .select('id')
-      .eq('document_id', selectedDocumentId)
+      .in('node_id', nodeIds)
       .eq('is_assessment', true)
       .eq('question_type', 'true_false')
 
