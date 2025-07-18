@@ -93,8 +93,9 @@ export default function StudyTabs({
           .eq('user_id', FIXED_USER_ID)
           .in('quiz_item_id', oxQuizItemIds)
 
-        // Consider O/X assessment completed if user has attempted at least 80% of questions
-        hasCompletedOX = !!(oxAttempts && oxAttempts.length >= Math.floor(oxQuizItems.length * 0.8))
+        // Consider O/X assessment completed if user has attempted any questions
+        // O/X assessment is a one-time process after PDF upload
+        hasCompletedOX = !!(oxAttempts && oxAttempts.length > 0)
         
         console.log('[StudyTabs] O/X attempts:', oxAttempts?.length || 0, 'Completed:', hasCompletedOX)
       }
