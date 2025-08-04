@@ -6,7 +6,7 @@ import SubjectList from '@/components/subjects/SubjectList'
 import CreateSubjectButton from '@/components/subjects/CreateSubjectButton'
 import SubjectListSkeleton from '@/components/subjects/SubjectListSkeleton'
 
-export default function HomePage() {
+export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createBrowserClient()
