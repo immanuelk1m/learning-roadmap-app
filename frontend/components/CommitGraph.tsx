@@ -68,14 +68,14 @@ export default function CommitGraph() {
     return weeks
   }, [commitData])
 
-  // Get color based on commit count - GitHub dark theme style
+  // Get color based on commit count - Professional color scheme
   const getColor = (count: number) => {
-    if (count === 0) return 'bg-gray-800'
-    if (count === 1) return 'bg-green-900'
-    if (count === 2) return 'bg-green-700'
-    if (count === 3) return 'bg-green-500'
-    if (count === 4) return 'bg-green-400'
-    return 'bg-green-300'
+    if (count === 0) return 'var(--color-neutral-200)'
+    if (count === 1) return 'var(--color-primary-200)'
+    if (count === 2) return 'var(--color-primary-300)'
+    if (count === 3) return 'var(--color-primary-400)'
+    if (count === 4) return 'var(--color-primary-500)'
+    return 'var(--color-primary-600)'
   }
 
   // Get month labels
@@ -99,28 +99,52 @@ export default function CommitGraph() {
   const dayLabels = ['월', '화', '수', '목', '금', '토', '일']
 
   return (
-    <div className="w-full">
-      <div className="flex gap-1 sm:gap-2">
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
         {/* Day labels */}
-        <div className="flex flex-col gap-1 text-xs text-gray-400 pr-2">
-          <div className="h-4"></div> {/* Spacer for month labels */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '3px',
+          paddingRight: 'var(--spacing-2)'
+        }}>
+          <div style={{ height: 'var(--spacing-5)' }}></div> {/* Spacer for month labels */}
           {dayLabels.map((day, i) => (
-            <div key={i} className={`h-4 flex items-center ${i % 2 === 0 ? '' : 'invisible'}`}>
+            <div 
+              key={i} 
+              style={{ 
+                height: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--color-neutral-500)',
+                visibility: i % 2 === 0 ? 'visible' : 'hidden'
+              }}
+            >
               {day}
             </div>
           ))}
         </div>
 
         {/* Commit grid */}
-        <div className="flex-1 overflow-x-auto">
-          <div className="min-w-max">
+        <div style={{ flex: 1, overflowX: 'auto' }}>
+          <div style={{ minWidth: 'max-content' }}>
             {/* Month labels */}
-            <div className="flex h-3 sm:h-4 text-[10px] sm:text-xs text-gray-400 mb-1">
+            <div style={{ 
+              display: 'flex', 
+              height: 'var(--spacing-5)',
+              fontSize: 'var(--font-size-xs)',
+              color: 'var(--color-neutral-500)',
+              marginBottom: 'var(--spacing-1)',
+              position: 'relative'
+            }}>
               {monthLabels.map(({ month, position }) => (
                 <div
                   key={`${month}-${position}`}
-                  className="absolute"
-                  style={{ left: `${position * 16}px` }}
+                  style={{ 
+                    position: 'absolute',
+                    left: `${position * 15}px`
+                  }}
                 >
                   {month}
                 </div>
@@ -128,14 +152,31 @@ export default function CommitGraph() {
             </div>
 
             {/* Weeks grid */}
-            <div className="flex gap-1 relative">
+            <div style={{ display: 'flex', gap: '3px' }}>
               {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-1">
+                <div key={weekIndex} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   {week.map((day, dayIndex) => (
                     <div
                       key={`${weekIndex}-${dayIndex}`}
-                      className={`w-4 h-4 rounded-sm ${getColor(day.count)} hover:ring-1 hover:ring-gray-600 cursor-pointer transition-all`}
-                      title={`${day.date}: ${day.count}개 커밋`}
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: getColor(day.count),
+                        cursor: 'pointer',
+                        transition: 'all 150ms ease',
+                        position: 'relative'
+                      }}
+                      title={`${day.date}: ${day.count}개 학습 활동`}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.1)'
+                        e.currentTarget.style.outline = '2px solid var(--color-primary-500)'
+                        e.currentTarget.style.outlineOffset = '1px'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.outline = 'none'
+                      }}
                     />
                   ))}
                 </div>
@@ -146,17 +187,48 @@ export default function CommitGraph() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-1 sm:gap-2 mt-3 sm:mt-4 text-[10px] sm:text-xs text-gray-400">
-        <span>Less</span>
-        <div className="flex gap-1">
-          <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm bg-gray-800"></div>
-          <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm bg-green-900"></div>
-          <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm bg-green-700"></div>
-          <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm bg-green-500"></div>
-          <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm bg-green-400"></div>
-          <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm bg-green-300"></div>
+      <div style={{ 
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--spacing-3)',
+        marginTop: 'var(--spacing-6)',
+        fontSize: 'var(--font-size-xs)',
+        color: 'var(--color-neutral-500)'
+      }}>
+        <span>적음</span>
+        <div style={{ display: 'flex', gap: '3px' }}>
+          <div style={{ 
+            width: '12px',
+            height: '12px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--color-neutral-200)'
+          }}></div>
+          <div style={{ 
+            width: '12px',
+            height: '12px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--color-primary-200)'
+          }}></div>
+          <div style={{ 
+            width: '12px',
+            height: '12px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--color-primary-300)'
+          }}></div>
+          <div style={{ 
+            width: '12px',
+            height: '12px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--color-primary-400)'
+          }}></div>
+          <div style={{ 
+            width: '12px',
+            height: '12px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--color-primary-500)'
+          }}></div>
         </div>
-        <span>More</span>
+        <span>많음</span>
       </div>
     </div>
   )

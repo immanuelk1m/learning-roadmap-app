@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+
 export default function CreateSubjectButton() {
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
@@ -52,21 +52,55 @@ export default function CreateSubjectButton() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white bg-neutral-900 hover:bg-neutral-800 rounded-xl shadow-modern hover:shadow-modern-hover transition-all duration-300 transform hover:scale-105 btn-modern"
+        className="btn-base btn-primary"
+        style={{
+          padding: 'var(--spacing-2) var(--spacing-4)',
+          fontSize: 'var(--font-size-sm)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 'var(--spacing-2)'
+        }}
       >
-        <Plus className="h-5 w-5 mr-2" />
-        새 과목 추가
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+        새 과목
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl max-w-md w-full p-8 shadow-modern border border-white/20">
-            <h2 className="text-2xl font-bold mb-6 text-neutral-900">새 과목 추가</h2>
+        <div 
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 'var(--z-50)'
+          }}
+        >
+          <div 
+            className="surface-elevated"
+            style={{ 
+              maxWidth: '480px',
+              width: '100%',
+              padding: 'var(--spacing-8)'
+            }}
+          >
+            <h2 className="text-heading-3" style={{ 
+              color: 'var(--color-neutral-900)',
+              marginBottom: 'var(--spacing-6)'
+            }}>
+              새 과목 추가
+            </h2>
+            
             <form onSubmit={handleSubmit}>
-              <div className="mb-4">
+              <div style={{ marginBottom: 'var(--spacing-5)' }}>
                 <label
                   htmlFor="name"
-                  className="block text-sm font-semibold text-neutral-700 mb-2"
+                  className="text-body-sm"
+                  style={{ 
+                    display: 'block',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--color-neutral-700)',
+                    marginBottom: 'var(--spacing-2)'
+                  }}
                 >
                   과목명
                 </label>
@@ -76,15 +110,39 @@ export default function CreateSubjectButton() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white/50 backdrop-blur-sm transition-all duration-300"
+                  style={{
+                    width: '100%',
+                    padding: 'var(--spacing-3) var(--spacing-4)',
+                    fontSize: 'var(--font-size-base)',
+                    border: '1px solid var(--color-neutral-300)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-neutral-0)',
+                    color: 'var(--color-neutral-900)',
+                    transition: 'all 150ms ease',
+                    outline: 'none'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--color-primary-500)'
+                    e.target.style.boxShadow = '0 0 0 3px rgba(40, 114, 245, 0.1)'
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'var(--color-neutral-300)'
+                    e.target.style.boxShadow = 'none'
+                  }}
                   placeholder="예: 데이터구조"
                 />
               </div>
 
-              <div className="mb-4">
+              <div style={{ marginBottom: 'var(--spacing-6)' }}>
                 <label
                   htmlFor="description"
-                  className="block text-sm font-semibold text-neutral-700 mb-2"
+                  className="text-body-sm"
+                  style={{ 
+                    display: 'block',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--color-neutral-700)',
+                    marginBottom: 'var(--spacing-2)'
+                  }}
                 >
                   설명 (선택)
                 </label>
@@ -92,25 +150,58 @@ export default function CreateSubjectButton() {
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white/50 backdrop-blur-sm transition-all duration-300 resize-none"
+                  style={{
+                    width: '100%',
+                    padding: 'var(--spacing-3) var(--spacing-4)',
+                    fontSize: 'var(--font-size-base)',
+                    border: '1px solid var(--color-neutral-300)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-neutral-0)',
+                    color: 'var(--color-neutral-900)',
+                    transition: 'all 150ms ease',
+                    outline: 'none',
+                    resize: 'vertical',
+                    minHeight: '80px'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--color-primary-500)'
+                    e.target.style.boxShadow = '0 0 0 3px rgba(40, 114, 245, 0.1)'
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'var(--color-neutral-300)'
+                    e.target.style.boxShadow = 'none'
+                  }}
                   rows={3}
                   placeholder="과목에 대한 간단한 설명"
                 />
               </div>
 
-
-              <div className="flex gap-3 justify-end pt-4">
+              <div style={{ 
+                display: 'flex', 
+                gap: 'var(--spacing-3)', 
+                justifyContent: 'flex-end' 
+              }}>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-6 py-3 text-sm font-semibold text-neutral-700 bg-white/70 border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-all duration-300 transform hover:scale-105"
+                  className="btn-base btn-secondary"
+                  style={{
+                    padding: 'var(--spacing-2) var(--spacing-5)',
+                    fontSize: 'var(--font-size-sm)'
+                  }}
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-3 text-sm font-semibold text-white bg-neutral-900 rounded-xl hover:bg-neutral-800 disabled:opacity-50 transition-all duration-300 transform hover:scale-105 btn-modern shadow-modern"
+                  className="btn-base btn-primary"
+                  style={{
+                    padding: 'var(--spacing-2) var(--spacing-5)',
+                    fontSize: 'var(--font-size-sm)',
+                    opacity: loading ? 0.6 : 1,
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   {loading ? '추가 중...' : '추가'}
                 </button>

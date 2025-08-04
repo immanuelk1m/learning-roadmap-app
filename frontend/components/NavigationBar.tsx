@@ -7,28 +7,82 @@ export default function NavigationBar() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed top-8 right-8 z-50">
-      <div className="flex items-center space-x-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-2 shadow-lg">
-        <Link
-          href="/"
-          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
-            pathname === '/' 
-              ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white shadow-md' 
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          홈
-        </Link>
-        <Link
-          href="/subjects"
-          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
-            pathname === '/subjects' 
-              ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white shadow-md' 
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          과목 목록
-        </Link>
+    <nav 
+      className="fixed top-0 left-0 right-0" 
+      style={{ 
+        backgroundColor: 'var(--color-neutral-0)',
+        borderBottom: '1px solid var(--color-neutral-200)',
+        zIndex: 'var(--z-50)'
+      }}
+    >
+      <div className="container" style={{ 
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        height: '64px'
+      }}>
+        {/* Logo/Brand */}
+        <div style={{ 
+          fontSize: 'var(--font-size-xl)',
+          fontWeight: 'var(--font-weight-bold)',
+          color: 'var(--color-neutral-900)'
+        }}>
+          StudyHub
+        </div>
+
+        {/* Navigation Links */}
+        <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+          <Link
+            href="/"
+            style={{
+              padding: 'var(--spacing-2) var(--spacing-4)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 'var(--font-weight-medium)',
+              textDecoration: 'none',
+              transition: 'all 150ms ease',
+              backgroundColor: pathname === '/' ? 'var(--color-primary-500)' : 'transparent',
+              color: pathname === '/' ? 'var(--color-neutral-0)' : 'var(--color-neutral-700)',
+            }}
+            onMouseEnter={(e) => {
+              if (pathname !== '/') {
+                e.currentTarget.style.backgroundColor = 'var(--color-neutral-100)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (pathname !== '/') {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }
+            }}
+          >
+            홈
+          </Link>
+          <Link
+            href="/subjects"
+            style={{
+              padding: 'var(--spacing-2) var(--spacing-4)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 'var(--font-weight-medium)',
+              textDecoration: 'none',
+              transition: 'all 150ms ease',
+              backgroundColor: pathname === '/subjects' ? 'var(--color-primary-500)' : 'transparent',
+              color: pathname === '/subjects' ? 'var(--color-neutral-0)' : 'var(--color-neutral-700)',
+            }}
+            onMouseEnter={(e) => {
+              if (pathname !== '/subjects') {
+                e.currentTarget.style.backgroundColor = 'var(--color-neutral-100)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (pathname !== '/subjects') {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }
+            }}
+          >
+            과목 목록
+          </Link>
+        </div>
       </div>
     </nav>
   )
