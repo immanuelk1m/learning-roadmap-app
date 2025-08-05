@@ -12,45 +12,61 @@ export default function HomePage() {
       <NavigationBar />
 
       {/* Main Content */}
-      <div className="container" style={{ paddingTop: 'calc(64px + var(--spacing-16))', paddingBottom: 'var(--spacing-16)' }}>
+      <div className="container" style={{ paddingTop: 'calc(64px + var(--spacing-8))', paddingBottom: 'var(--spacing-16)' }}>
         <div className="grid-12">
-          {/* Welcome Section - Spans 12 columns */}
-          <div className="col-span-12" style={{ marginBottom: 'var(--spacing-10)' }}>
-            <div className="surface-primary" style={{ padding: 'var(--spacing-10)' }}>
-              <h1 className="text-heading-1" style={{ color: 'var(--color-neutral-900)', marginBottom: 'var(--spacing-3)' }}>
-                안녕하세요, Taehee님
-              </h1>
-              <p className="text-body-lg" style={{ color: 'var(--color-neutral-600)' }}>
-                오늘도 학습을 시작해볼까요?
-              </p>
+          {/* Priority Action - Learning Recommendation (Spans 12 columns) */}
+          <div className="col-span-12" style={{ marginBottom: 'var(--spacing-8)' }}>
+            <LearningRecommendation />
+          </div>
+
+          {/* Subject Progress Section (Spans 12 columns) */}
+          <div className="col-span-12" style={{ marginBottom: 'var(--spacing-8)' }}>
+            <div className="surface-primary" style={{ padding: 'var(--spacing-8)' }}>
+              <SubjectProgress />
             </div>
           </div>
 
-          {/* Left Section - Spans 7 columns */}
-          <div className="col-span-7" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-8)' }}>
-            {/* Commit Graph */}
-            <div className="surface-primary" style={{ padding: 'var(--spacing-8)', flex: '1' }}>
-              <h2 className="text-heading-3" style={{ color: 'var(--color-neutral-900)', marginBottom: 'var(--spacing-6)' }}>
-                학습 활동 기록
-              </h2>
-              <p className="text-body-sm" style={{ color: 'var(--color-neutral-600)', marginBottom: 'var(--spacing-2)' }}>
-                최근 1년간의 학습 활동을 한눈에 확인하세요
-              </p>
-              <div style={{ marginTop: 'var(--spacing-6)' }}>
+          {/* Learning Activity Record (Spans 12 columns) */}
+          <div className="col-span-12">
+            <div className="surface-primary" style={{ padding: '0', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+              {/* Header with padding */}
+              <div style={{ padding: 'var(--spacing-8) var(--spacing-8) var(--spacing-6) var(--spacing-8)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h2 className="text-heading-3" style={{ color: 'var(--color-neutral-900)', marginBottom: 'var(--spacing-2)' }}>
+                      학습 활동 기록
+                    </h2>
+                    <p className="text-body-sm" style={{ color: 'var(--color-neutral-600)' }}>
+                      최근 2년간의 학습 활동을 한눈에 확인하세요
+                    </p>
+                  </div>
+                  {/* Period Filter */}
+                  <div style={{ display: 'flex', gap: 'var(--spacing-2)', alignItems: 'center' }}>
+                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-neutral-600)' }}>기간:</span>
+                    <select 
+                      style={{
+                        padding: 'var(--spacing-1) var(--spacing-2)',
+                        border: '1px solid var(--color-neutral-300)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--font-size-sm)',
+                        backgroundColor: 'var(--color-neutral-0)',
+                        color: 'var(--color-neutral-700)'
+                      }}
+                      defaultValue="6months"
+                    >
+                      <option value="1month">1개월</option>
+                      <option value="3months">3개월</option>
+                      <option value="6months">6개월</option>
+                      <option value="1year">1년</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Commit Graph with no padding */}
+              <div style={{ flex: 1, paddingLeft: 'var(--spacing-8)', paddingRight: 'var(--spacing-8)', paddingBottom: 'var(--spacing-8)' }}>
                 <CommitGraph />
               </div>
-            </div>
-
-            {/* Learning Recommendation */}
-            <div className="surface-secondary" style={{ padding: 'var(--spacing-8)' }}>
-              <LearningRecommendation />
-            </div>
-          </div>
-
-          {/* Right Section - Spans 5 columns */}
-          <div className="col-span-5">
-            <div className="surface-primary" style={{ padding: 'var(--spacing-8)', height: '100%' }}>
-              <SubjectProgress />
             </div>
           </div>
         </div>
