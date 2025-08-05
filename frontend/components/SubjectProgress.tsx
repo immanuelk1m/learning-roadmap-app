@@ -116,12 +116,12 @@ export default function SubjectProgress() {
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-3)', alignItems: 'center' }}>
           <Link 
-            href="/subjects" 
+            href="/subjects"
+            className="btn-base btn-secondary"
             style={{ 
+              padding: 'var(--spacing-2) var(--spacing-4)',
               fontSize: 'var(--font-size-sm)',
-              color: 'var(--color-primary-500)',
-              textDecoration: 'none',
-              fontWeight: 'var(--font-weight-medium)'
+              textDecoration: 'none'
             }}
           >
             전체 과목 보기

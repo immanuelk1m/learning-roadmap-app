@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FolderOpen, BookOpen, Calendar, ArrowRight } from 'lucide-react'
+import { BookOpen, Calendar, ArrowRight, Folder, FileText } from 'lucide-react'
 import DeleteSubjectButton from './DeleteSubjectButton'
 
 interface Subject {
@@ -18,53 +18,101 @@ interface SubjectListProps {
 }
 
 export default function SubjectList({ subjects, onSubjectDeleted }: SubjectListProps) {
-  const getGrayLevel = (color: string) => {
-    // Convert color to different gray levels for visual distinction
-    const grayLevels = [
-      'neutral-700',
-      'neutral-600',
-      'neutral-800',
-      'neutral-500',
-      'neutral-900',
-      'neutral-400',
+  const getColorAccent = (color: string) => {
+    // Create a unique accent color based on the subject
+    const colors = [
+      { bg: 'var(--color-primary-100)', border: 'var(--color-primary-300)', icon: 'var(--color-primary-600)' },
+      { bg: 'var(--color-success)', border: 'var(--color-success)', icon: 'var(--color-neutral-0)' },
+      { bg: 'var(--color-warning)', border: 'var(--color-warning)', icon: 'var(--color-neutral-0)' },
+      { bg: 'var(--color-info)', border: 'var(--color-info)', icon: 'var(--color-neutral-0)' },
+      { bg: 'var(--color-neutral-200)', border: 'var(--color-neutral-400)', icon: 'var(--color-neutral-700)' },
+      { bg: 'var(--color-error)', border: 'var(--color-error)', icon: 'var(--color-neutral-0)' },
     ]
     
-    const index = Math.abs(color.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % grayLevels.length
-    return grayLevels[index]
+    const index = Math.abs(color.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length
+    return colors[index]
   }
 
   return (
-    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-      {subjects.map((subject, index) => (
-        <Link
-          key={subject.id}
-          href={`/subjects/${subject.id}`}
-          className="group block card-modern"
-        >
-          <div className="relative bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-card hover:shadow-card-hover border border-white/20 overflow-hidden">
-            {/* Subtle background element */}
-            <div className="absolute inset-0 bg-neutral-100 opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-            
-            {/* Content */}
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center mb-3">
-                    <div className={`w-4 h-4 rounded-full bg-${getGrayLevel(subject.color)} mr-3 shadow-sm`}></div>
-                    <h3 className="text-xl font-bold text-neutral-800 group-hover:text-neutral-900 transition-colors">
-                      {subject.name}
-                    </h3>
-                  </div>
-                  {subject.description && (
-                    <p className="text-sm text-neutral-600 line-clamp-3 leading-relaxed">
-                      {subject.description}
-                    </p>
-                  )}
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+      gap: 'var(--spacing-8)',
+      marginTop: 'var(--spacing-6)'
+    }}>
+      {subjects.map((subject, index) => {
+        const colorAccent = getColorAccent(subject.color)
+        return (
+          <Link
+            key={subject.id}
+            href={`/subjects/${subject.id}`}
+            style={{ textDecoration: 'none' }}
+          >
+            <div 
+              className="card-modern"
+              style={{
+                background: 'var(--color-neutral-0)',
+                borderRadius: 'var(--radius-xl)',
+                overflow: 'hidden',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04)',
+                transition: 'all 300ms ease',
+                border: '1px solid var(--color-neutral-200)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06)'
+                e.currentTarget.style.borderColor = 'var(--color-neutral-300)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04)'
+                e.currentTarget.style.borderColor = 'var(--color-neutral-200)'
+              }}
+            >
+              {/* Album Cover Style Top Section */}
+              <div style={{
+                height: '180px',
+                background: colorAccent.bg,
+                borderBottom: `3px solid ${colorAccent.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {/* Background Pattern */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  opacity: 0.1,
+                  backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, ${colorAccent.border} 10px, ${colorAccent.border} 20px)`
+                }} />
+                
+                {/* Subject Icon */}
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: 'var(--radius-2xl)',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
+                  position: 'relative',
+                  zIndex: 1
+                }}>
+                  <Folder style={{ width: '40px', height: '40px', color: colorAccent.icon }} />
                 </div>
-                <div className="ml-4 flex-shrink-0 flex items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center group-hover:from-neutral-200 group-hover:to-neutral-300 transition-colors">
-                    <BookOpen className="h-6 w-6 text-neutral-600" />
-                  </div>
+
+                {/* Delete Button - positioned absolutely */}
+                <div style={{
+                  position: 'absolute',
+                  top: 'var(--spacing-3)',
+                  right: 'var(--spacing-3)',
+                  zIndex: 2
+                }}>
                   <DeleteSubjectButton 
                     subjectId={subject.id} 
                     subjectName={subject.name}
@@ -73,22 +121,70 @@ export default function SubjectList({ subjects, onSubjectDeleted }: SubjectListP
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-4 border-t border-neutral-200/50">
-                <div className="flex items-center text-xs text-neutral-500">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  <span>{new Date(subject.created_at).toLocaleDateString('ko-KR')}</span>
-                </div>
-                <div className="flex items-center text-sm font-medium text-neutral-700 group-hover:text-neutral-900 transition-colors">
-                  <span className="mr-1">학습하기</span>
-                  <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
+              {/* Content Section */}
+              <div style={{
+                flex: 1,
+                padding: 'var(--spacing-6)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <h3 className="text-heading-4" style={{ 
+                  color: 'var(--color-neutral-900)',
+                  marginBottom: 'var(--spacing-3)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {subject.name}
+                </h3>
+                
+                {subject.description && (
+                  <p className="text-body-sm line-clamp-3" style={{ 
+                    color: 'var(--color-neutral-600)',
+                    marginBottom: 'var(--spacing-4)',
+                    flex: 1
+                  }}>
+                    {subject.description}
+                  </p>
+                )}
+
+                {/* Footer Info */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 'auto',
+                  paddingTop: 'var(--spacing-4)',
+                  borderTop: '1px solid var(--color-neutral-200)'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: 'var(--spacing-2)',
+                    color: 'var(--color-neutral-500)',
+                    fontSize: 'var(--font-size-sm)'
+                  }}>
+                    <Calendar style={{ width: '14px', height: '14px' }} />
+                    <span>{new Date(subject.created_at).toLocaleDateString('ko-KR')}</span>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-2)',
+                    color: 'var(--color-primary-500)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 'var(--font-weight-medium)'
+                  }}>
+                    <FileText style={{ width: '14px', height: '14px' }} />
+                    <span>학습 시작</span>
+                  </div>
                 </div>
               </div>
             </div>
-
-          </div>
-        </Link>
-      ))}
+          </Link>
+        )
+      })}
     </div>
   )
 }
