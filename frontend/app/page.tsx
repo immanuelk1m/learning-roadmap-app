@@ -1,11 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import CommitGraph from '@/components/CommitGraph'
 import SubjectProgress from '@/components/SubjectProgress'
 import LearningRecommendation from '@/components/LearningRecommendation'
 import NavigationBar from '@/components/NavigationBar'
 
 export default function HomePage() {
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleSubjectCreated = () => {
+    setRefreshKey(prev => prev + 1)
+  }
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-neutral-50)' }}>
       {/* Navigation Bar */}
@@ -22,7 +28,7 @@ export default function HomePage() {
           {/* Subject Progress Section (Spans 12 columns) */}
           <div className="col-span-12" style={{ marginBottom: 'var(--spacing-8)' }}>
             <div className="surface-primary" style={{ padding: 'var(--spacing-8)' }}>
-              <SubjectProgress />
+              <SubjectProgress refreshKey={refreshKey} onSubjectCreated={handleSubjectCreated} />
             </div>
           </div>
 

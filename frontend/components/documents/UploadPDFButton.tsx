@@ -292,39 +292,64 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-neutral-900 hover:bg-neutral-800 transition-colors shadow-sm"
+        className="group relative inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transform hover:scale-105 transition-all duration-300 ring-1 ring-white/20 overflow-hidden"
       >
-        <FilePlus className="h-5 w-5 mr-2" />
-        파일 선택
+        {/* Animated Background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-700 via-blue-700 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+        
+        {/* Content */}
+        <div className="relative flex items-center gap-3">
+          <div className="p-1.5 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors duration-300">
+            <FilePlus className="h-5 w-5" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-semibold">PDF 업로드</span>
+            <span className="text-xs text-blue-100 group-hover:text-white transition-colors duration-300">새 문서 추가</span>
+          </div>
+        </div>
+        
+        {/* Shimmer Effect */}
+        <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-10 group-hover:animate-shimmer" />
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-lg font-semibold">PDF 업로드</h2>
-              <button
-                onClick={() => {
-                  setIsOpen(false)
-                  setFile(null)
-                  setError(null)
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Upload className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">PDF 업로드</h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    setFile(null)
+                    setError(null)
+                  }}
+                  className="w-8 h-8 rounded-lg bg-white/50 hover:bg-white transition-colors flex items-center justify-center text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
+            <div className="p-6">
 
             {!file ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                className="border-2 border-dashed border-blue-200 rounded-xl p-12 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 group"
               >
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-sm text-gray-600">
+                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <FileText className="h-8 w-8 text-blue-600" />
+                </div>
+                <p className="text-base font-medium text-gray-900 mb-2">
                   클릭하여 PDF 파일을 선택하세요
                 </p>
-                <p className="text-xs text-gray-500 mt-2">최대 50MB</p>
+                <p className="text-sm text-gray-500">또는 파일을 여기에 드래그하세요</p>
+                <p className="text-xs text-gray-400 mt-2">최대 50MB까지 지원</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -334,53 +359,72 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                 />
               </div>
             ) : (
-              <div className="border border-gray-200 rounded-lg p-4">
+              <div className="border border-green-200 bg-green-50 rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <FileText className="h-8 w-8 text-neutral-600 mr-3" />
+                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-3">
+                      <FileText className="h-6 w-6 text-green-600" />
+                    </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-semibold text-gray-900">
                         {file.name}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {(file.size / (1024 * 1024)).toFixed(1)} MB
+                      <p className="text-xs text-green-600">
+                        {(file.size / (1024 * 1024)).toFixed(1)} MB • 업로드 준비 완료
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setFile(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="w-8 h-8 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             )}
 
             {error && (
-              <div className="mt-4 p-3 bg-neutral-100 text-neutral-700 text-sm rounded-md border border-neutral-200">
-                {error}
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
               </div>
             )}
 
-            <div className="mt-6 flex gap-3 justify-end">
+            <div className="mt-6 flex gap-3 justify-end border-t border-gray-100 pt-4">
               <button
                 onClick={() => {
                   setIsOpen(false)
                   setFile(null)
                   setError(null)
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 취소
               </button>
               <button
                 onClick={handleUpload}
                 disabled={!file || loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-neutral-900 rounded-md hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none"
               >
-                {loading ? '업로드 중...' : '업로드'}
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    업로드 중...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    업로드
+                  </div>
+                )}
               </button>
+            </div>
             </div>
           </div>
         </div>

@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import CreateSubjectButton from './subjects/CreateSubjectButton'
 
 interface Subject {
@@ -9,56 +11,93 @@ interface Subject {
   progress: number
   fileCount: number
   completedFiles: number
-  daysUntilExam: number
+  color?: string
 }
 
-// Mock data with completed files for clearer information
-const mockSubjects: Subject[] = [
-  {
-    id: '3',
-    name: 'SID Chapter',
-    progress: 25,
-    fileCount: 12,
-    completedFiles: 3,
-    daysUntilExam: 20,
-  },
-  {
-    id: '4',
-    name: 'Data Structure',
-    progress: 97,
-    fileCount: 58,
-    completedFiles: 56,
-    daysUntilExam: 15,
-  },
-  {
-    id: '1',
-    name: 'Design Research 1',
-    progress: 60,
-    fileCount: 44,
-    completedFiles: 26,
-    daysUntilExam: 30,
-  },
-  {
-    id: '2',
-    name: 'Design Research 2',
-    progress: 90,
-    fileCount: 32,
-    completedFiles: 29,
-    daysUntilExam: 45,
-  }
-]
+interface SubjectProgressProps {
+  refreshKey?: number
+  onSubjectCreated?: () => void
+}
 
-// Sort subjects by urgency (low progress + approaching deadline)
-const sortedSubjects = mockSubjects.sort((a, b) => {
-  const getUrgencyScore = (subject: Subject) => {
-    const progressWeight = (100 - subject.progress) * 0.7
-    const deadlineWeight = (60 - subject.daysUntilExam) * 0.3
-    return progressWeight + deadlineWeight
-  }
-  return getUrgencyScore(b) - getUrgencyScore(a)
-})
+export default function SubjectProgress({ refreshKey, onSubjectCreated }: SubjectProgressProps) {
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
+  
+  // Fixed user ID (same as in subject detail page)
+  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-export default function SubjectProgress() {
+  useEffect(() => {
+    const fetchSubjectsWithProgress = async () => {
+      try {
+        // Fetch subjects with document counts
+        const { data: subjectsData, error: subjectsError } = await supabase
+          .from('subjects')
+          .select(`
+            id,
+            name,
+            color,
+            exam_date
+          `)
+          .eq('user_id', FIXED_USER_ID)
+
+        if (subjectsError) {
+          console.error('Error fetching subjects:', subjectsError)
+          return
+        }
+
+        if (!subjectsData || subjectsData.length === 0) {
+          setSubjects([])
+          setLoading(false)
+          return
+        }
+
+        // Fetch document counts for each subject
+        const subjectsWithProgress = await Promise.all(
+          subjectsData.map(async (subject) => {
+            const { data: documents, error: docsError } = await supabase
+              .from('documents')
+              .select('status')
+              .eq('subject_id', subject.id)
+
+            if (docsError) {
+              console.error('Error fetching documents:', docsError)
+              return null
+            }
+
+            const fileCount = documents?.length || 0
+            const completedFiles = documents?.filter(doc => doc.status === 'completed').length || 0
+            const progress = fileCount > 0 ? Math.round((completedFiles / fileCount) * 100) : 0
+
+            return {
+              id: subject.id,
+              name: subject.name,
+              color: subject.color,
+              progress,
+              fileCount,
+              completedFiles
+            }
+          })
+        )
+
+        // Filter out any null results and sort by urgency
+        const validSubjects = subjectsWithProgress.filter(s => s !== null) as Subject[]
+        
+        // Sort subjects by progress (lower progress = higher urgency)
+        const sortedSubjects = validSubjects.sort((a, b) => {
+          return a.progress - b.progress
+        })
+
+        setSubjects(sortedSubjects)
+      } catch (error) {
+        console.error('Error in fetchSubjectsWithProgress:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSubjectsWithProgress()
+  }, [refreshKey])
   const getSubjectStatus = (subject: Subject) => {
     if (subject.progress >= 95) {
       return { 
@@ -68,7 +107,7 @@ export default function SubjectProgress() {
         icon: '✅',
         tag: '완료 임박'
       }
-    } else if (subject.daysUntilExam <= 20 && subject.progress < 50) {
+    } else if (subject.progress < 30) {
       return { 
         status: 'critical', 
         color: 'var(--color-error)', 
@@ -126,7 +165,7 @@ export default function SubjectProgress() {
           >
             전체 과목 보기
           </Link>
-          <CreateSubjectButton />
+          <CreateSubjectButton onSubjectCreated={onSubjectCreated} />
         </div>
       </div>
 
@@ -137,10 +176,30 @@ export default function SubjectProgress() {
         marginRight: '-8px',
         paddingRight: '8px'
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
-          {sortedSubjects.map((subject) => {
-            const status = getSubjectStatus(subject)
-            return (
+        {loading ? (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '200px',
+            color: 'var(--color-neutral-500)'
+          }}>
+            <span>로딩 중...</span>
+          </div>
+        ) : subjects.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: 'var(--spacing-8)',
+            color: 'var(--color-neutral-500)'
+          }}>
+            <p style={{ marginBottom: 'var(--spacing-4)' }}>아직 등록된 과목이 없습니다.</p>
+            <CreateSubjectButton onSubjectCreated={onSubjectCreated} />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
+            {subjects.map((subject) => {
+              const status = getSubjectStatus(subject)
+              return (
               <Link
                 key={subject.id}
                 href={`/subjects/${subject.id}`}
@@ -261,13 +320,6 @@ export default function SubjectProgress() {
                         </svg>
                         <span>총 {subject.fileCount}개 파일 중 {subject.completedFiles}개 완료</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-500)' }}>
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                          <polyline points="12,6 12,12 16,14" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                        <span>과제 마감까지 {subject.daysUntilExam}일</span>
-                      </div>
                     </div>
                   </div>
 
@@ -292,9 +344,10 @@ export default function SubjectProgress() {
                   </svg>
                 </div>
               </Link>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

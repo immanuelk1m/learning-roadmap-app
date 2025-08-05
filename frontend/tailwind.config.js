@@ -78,6 +78,7 @@ module.exports = {
         'float': 'float 3s ease-in-out infinite',
         'pulse-slow': 'pulse 3s ease-in-out infinite',
         'gradient': 'gradient 15s ease infinite',
+        'shimmer': 'shimmer 2s linear infinite',
       },
       keyframes: {
         float: {
@@ -93,6 +94,10 @@ module.exports = {
             'background-size': '200% 200%',
             'background-position': 'right center'
           },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
         },
       },
     },
