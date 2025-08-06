@@ -191,20 +191,15 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
       <div className="flex flex-col items-center justify-center h-full py-12">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 max-w-md w-full text-center">
           <div className="mx-auto h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-            <FileText className="h-10 w-10 text-blue-600" />
+            <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">PDF 해설집 생성</h3>
-          <p className="text-gray-600 mb-8">
-            개인 맞춤 해설집을 생성하여 효율적으로 학습하세요.
+          <h3 className="text-xl font-semibold text-gray-900 mb-3">해설집 생성 중</h3>
+          <p className="text-gray-600 mb-4">
+            학습 전 지식 평가 결과를 바탕으로 개인 맞춤 해설집을 자동 생성하고 있습니다.
           </p>
-          <button
-            onClick={generateStudyGuide}
-            disabled={generating}
-            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-          >
-            <FileText className="h-5 w-5" />
-            PDF 해설집 생성
-          </button>
+          <p className="text-sm text-gray-500">
+            잠시만 기다려주세요...
+          </p>
         </div>
       </div>
     )

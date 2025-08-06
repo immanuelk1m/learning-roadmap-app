@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -64,6 +64,11 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   const [assessmentCompleted, setAssessmentCompleted] = useState(false)
   const [generating, setGenerating] = useState(false)
   
+  // Session management state
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionLoading, setSessionLoading] = useState(false)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
   const router = useRouter()
   const supabase = createClient()
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
@@ -71,6 +76,109 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   useEffect(() => {
     loadQuestions()
   }, [documentId])
+
+  // Session management functions
+  const loadOrCreateSession = async () => {
+    setSessionLoading(true)
+    try {
+      // Try to get existing session
+      const sessionResponse = await fetch(`/api/quiz/sessions?documentId=${documentId}&userId=${FIXED_USER_ID}`)
+      
+      if (sessionResponse.ok) {
+        const { session } = await sessionResponse.json()
+        
+        if (session) {
+          // Restore session state
+          setSessionId(session.id)
+          setUserAnswers(session.user_answers || {})
+          setResults(session.question_results || {})
+          setShowResults(session.show_results || false)
+          
+          console.log('Loaded existing quiz session:', {
+            sessionId: session.id,
+            answersCount: Object.keys(session.user_answers || {}).length,
+            resultsCount: Object.keys(session.question_results || {}).length,
+            showResults: session.show_results
+          })
+          
+          return session.id
+        }
+      }
+      
+      // No existing session, create new one
+      const createResponse = await fetch('/api/quiz/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId, quizType: 'practice' })
+      })
+      
+      if (createResponse.ok) {
+        const { session } = await createResponse.json()
+        setSessionId(session.id)
+        console.log('Created new quiz session:', session.id)
+        return session.id
+      } else {
+        console.error('Failed to create session')
+        return null
+      }
+    } catch (error) {
+      console.error('Error loading/creating session:', error)
+      return null
+    } finally {
+      setSessionLoading(false)
+    }
+  }
+
+  const saveSessionState = useCallback(async (
+    answers: { [key: string]: any },
+    questionResults?: { [key: string]: boolean },
+    showResultsState?: boolean,
+    status?: 'in_progress' | 'completed'
+  ) => {
+    if (!sessionId) return
+
+    try {
+      const updateData: any = {
+        userAnswers: answers
+      }
+      
+      if (questionResults !== undefined) {
+        updateData.questionResults = questionResults
+      }
+      
+      if (showResultsState !== undefined) {
+        updateData.showResults = showResultsState
+      }
+      
+      if (status !== undefined) {
+        updateData.status = status
+      }
+
+      await fetch(`/api/quiz/sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      })
+    } catch (error) {
+      console.error('Error saving session state:', error)
+    }
+  }, [sessionId])
+
+  const debouncedSaveSession = useCallback((
+    answers: { [key: string]: any },
+    questionResults?: { [key: string]: boolean },
+    showResultsState?: boolean
+  ) => {
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    
+    // Set new timeout for debounced save
+    saveTimeoutRef.current = setTimeout(() => {
+      saveSessionState(answers, questionResults, showResultsState, 'in_progress')
+    }, 500) // 500ms debounce
+  }, [saveSessionState])
 
   const loadQuestions = async () => {
     try {
@@ -115,6 +223,11 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
 
       setQuestions(quizData || [])
       setNodes(nodeData || [])
+      
+      // Load or create session after questions are loaded
+      if (quizData && quizData.length > 0) {
+        await loadOrCreateSession()
+      }
     } catch (error) {
       console.error('Error:', error)
       toast.error('문제를 불러오는 중 오류가 발생했습니다.')
@@ -171,10 +284,15 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   }
 
   const handleAnswerChange = (questionId: string, answer: any) => {
-    setUserAnswers(prev => ({
-      ...prev,
+    const newAnswers = {
+      ...userAnswers,
       [questionId]: answer
-    }))
+    }
+    
+    setUserAnswers(newAnswers)
+    
+    // Auto-save to session with debounce
+    debouncedSaveSession(newAnswers, results, showResults)
   }
 
   const calculateResults = () => {
@@ -229,6 +347,9 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
     setResults(calculatedResults)
     setShowResults(true)
 
+    // Save session state with results
+    saveSessionState(userAnswers, calculatedResults, true, 'in_progress')
+
     // Save quiz attempts
     questions.forEach(async (question) => {
       const isCorrect = calculatedResults[question.id]
@@ -243,59 +364,56 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   }
 
   const updateKnowledgeStatus = async () => {
-    const nodeUpdates: { [nodeId: string]: { correct: number, total: number } } = {}
-    
-    // Calculate performance by node
-    questions.forEach(question => {
-      if (question.node_id) {
-        if (!nodeUpdates[question.node_id]) {
-          nodeUpdates[question.node_id] = { correct: 0, total: 0 }
-        }
-        nodeUpdates[question.node_id].total++
-        if (results[question.id]) {
-          nodeUpdates[question.node_id].correct++
-        }
-      }
-    })
-
     const improved: string[] = []
     const declined: string[] = []
-
-    // Update understanding levels
-    for (const [nodeId, performance] of Object.entries(nodeUpdates)) {
+    
+    // Process each question individually for immediate score updates
+    for (const question of questions) {
+      if (!question.node_id) continue // Skip if no node is connected
+      
+      const isCorrect = results[question.id]
+      
+      // Get current status for this node
       const { data: currentStatus } = await supabase
         .from('user_knowledge_status')
-        .select('understanding_level')
+        .select('understanding_level, review_count')
         .eq('user_id', FIXED_USER_ID)
-        .eq('node_id', nodeId)
+        .eq('node_id', question.node_id)
         .single()
 
-      const currentLevel = currentStatus?.understanding_level || 50
-      const performanceRate = performance.correct / performance.total
-      
+      const currentLevel = currentStatus?.understanding_level || 0
       let newLevel = currentLevel
-      if (performanceRate >= 0.8) {
+      
+      // Update score: +20 for correct, -10 for incorrect
+      if (isCorrect) {
         newLevel = Math.min(100, currentLevel + 20)
         if (newLevel > currentLevel) {
-          const node = nodes.find(n => n.id === nodeId)
-          if (node) improved.push(node.name)
+          const node = nodes.find(n => n.id === question.node_id)
+          if (node && !improved.includes(node.name)) {
+            improved.push(node.name)
+          }
         }
-      } else if (performanceRate < 0.5) {
-        newLevel = Math.max(0, currentLevel - 20)
+      } else {
+        // Optional: reduce score slightly for wrong answers
+        newLevel = Math.max(0, currentLevel - 10)
         if (newLevel < currentLevel) {
-          const node = nodes.find(n => n.id === nodeId)
-          if (node) declined.push(node.name)
+          const node = nodes.find(n => n.id === question.node_id)
+          if (node && !declined.includes(node.name)) {
+            declined.push(node.name)
+          }
         }
       }
 
+      // Update the node's understanding level
       await supabase
         .from('user_knowledge_status')
         .upsert({
           user_id: FIXED_USER_ID,
-          node_id: nodeId,
+          node_id: question.node_id,
           understanding_level: newLevel,
           assessment_method: 'quiz',
           last_reviewed: new Date().toISOString(),
+          review_count: (currentStatus?.review_count || 0) + 1
         })
     }
 
@@ -307,12 +425,28 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
     if (!showKnowledgeUpdate) {
       await updateKnowledgeStatus()
     } else {
+      // Mark session as completed when returning to study page
+      if (sessionId) {
+        await saveSessionState(userAnswers, results, showResults, 'completed')
+      }
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     }
   }
 
-  if (loading) {
-    return <QuizSkeleton />
+  if (loading || sessionLoading) {
+    return (
+      <div>
+        <QuizSkeleton />
+        {sessionLoading && (
+          <div className="text-center mt-4">
+            <div className="inline-flex items-center gap-2 text-sm text-gray-600">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+              퀴즈 세션을 불러오는 중...
+            </div>
+          </div>
+        )}
+      </div>
+    )
   }
 
   if (questions.length === 0) {
@@ -399,6 +533,34 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
                     {question.difficulty === 'easy' ? '쉬움' : 
                      question.difficulty === 'medium' ? '보통' : '어려움'}
                   </span>
+                  
+                  {/* Answer status indicators */}
+                  {userAnswers[question.id] !== undefined && (
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      답변됨
+                    </span>
+                  )}
+                  
+                  {showResults && (
+                    <span className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
+                      results[question.id] 
+                        ? 'bg-green-100 text-green-600' 
+                        : 'bg-red-100 text-red-600'
+                    }`}>
+                      {results[question.id] ? (
+                        <>
+                          <CheckCircle className="h-3 w-3" />
+                          정답
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-3 w-3" />
+                          오답
+                        </>
+                      )}
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-lg font-medium">{question.question}</h3>
               </div>

@@ -170,10 +170,16 @@ ${focusPrompt}
 2. 지정된 난이도 분포를 따라 문제를 구성하세요.
 3. 모든 문제는 PDF 내용에 직접 근거해야 합니다.
 4. 각 문제의 difficulty 필드를 정확히 설정하세요.
+5. **각 문제마다 관련된 지식 노드를 반드시 지정하세요 (node_id와 node_name 필드).**
 
 ${documentNodes.length > 0 ? `
-**이 문서의 주요 개념들**:
-${documentNodes.map((node, idx) => `${idx + 1}. ${node.name}: ${node.description}`).join('\n')}
+**이 문서의 지식 노드들 (문제와 연결해야 함)**:
+${documentNodes.map((node) => `- ID: ${node.id}
+  이름: ${node.name}
+  설명: ${node.description}
+  레벨: ${node.level}`).join('\n\n')}
+
+**각 문제에 가장 관련성 높은 노드의 ID와 이름을 node_id, node_name 필드에 포함하세요.**
 ` : ''}
 `
 
@@ -256,10 +262,40 @@ ${documentNodes.map((node, idx) => `${idx + 1}. ${node.name}: ${node.description
               correctAnswer = question.acceptable_answers[0]
             }
 
+            // Match node if provided by Gemini or find best match
+            let nodeId = question.node_id || null
+            
+            // If Gemini didn't provide a node_id but provided node_name, try to match
+            if (!nodeId && question.node_name && documentNodes.length > 0) {
+              const matchedNode = documentNodes.find(node => 
+                node.name.toLowerCase().includes(question.node_name.toLowerCase()) ||
+                question.node_name.toLowerCase().includes(node.name.toLowerCase())
+              )
+              if (matchedNode) {
+                nodeId = matchedNode.id
+              }
+            }
+            
+            // If still no node match, try to find best match based on question content
+            if (!nodeId && documentNodes.length > 0) {
+              const questionLower = question.question.toLowerCase()
+              const matchedNode = documentNodes.find(node => {
+                const nameLower = node.name.toLowerCase()
+                const descLower = (node.description || '').toLowerCase()
+                return questionLower.includes(nameLower) || 
+                       (descLower && questionLower.includes(descLower.substring(0, 20)))
+              })
+              if (matchedNode) {
+                nodeId = matchedNode.id
+                console.log(`[DEBUG] Auto-matched question to node: ${matchedNode.name}`)
+              }
+            }
+
               const { data, error } = await supabase
                 .from('quiz_items')
                 .insert({
                   document_id: document.id,
+                  node_id: nodeId, // Add the matched node ID
                   question: question.question,
                   question_type: questionType,
                   options: question.options || [],
@@ -296,7 +332,9 @@ ${documentNodes.map((node, idx) => `${idx + 1}. ${node.name}: ${node.description
               console.log(`[DEBUG] Successfully saved question ${index + 1}:`, {
                 id: data?.id,
                 questionType,
-                difficulty: question.difficulty
+                difficulty: question.difficulty,
+                nodeId: nodeId || 'no node matched',
+                nodeName: question.node_name || 'not provided'
               })
 
               return data

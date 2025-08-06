@@ -7,7 +7,8 @@
     "build": "next build",
     "build:prod": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:quiz-nodes": "tsx scripts/migrate-quiz-nodes.ts"
   },
   "dependencies": {
     "@google/genai": "^1.9.0",
@@ -43,6 +44,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.20.3",
     "typescript": "^5"
   }
 }

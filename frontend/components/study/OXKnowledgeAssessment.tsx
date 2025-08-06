@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, ArrowRight, CircleX, CircleCheck, HelpCircle } from 'lucide-react'
@@ -47,6 +47,9 @@ export default function OXKnowledgeAssessment({
   subjectId, 
   documentId
 }: OXKnowledgeAssessmentProps) {
+  // Only assess first 10 nodes - use useMemo to prevent infinite rerenders
+  const assessmentNodes = useMemo(() => nodes.slice(0, 10), [nodes])
+  
   const [currentIndex, setCurrentIndex] = useState(0)
   const [assessments, setAssessments] = useState<Record<string, 'known' | 'unknown'>>({})
   const [skippedNodes, setSkippedNodes] = useState<Set<string>>(new Set())
@@ -60,6 +63,7 @@ export default function OXKnowledgeAssessment({
   const [isLoading, setIsLoading] = useState(true)
   const [hasQuestions, setHasQuestions] = useState(false)
   const [isProcessingAnswer, setIsProcessingAnswer] = useState(false)
+  const [isGeneratingStudyGuide, setIsGeneratingStudyGuide] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   
@@ -77,7 +81,8 @@ export default function OXKnowledgeAssessment({
       metadata: {
         subjectId,
         totalNodes: nodes.length,
-        nodeNames: nodes.map(n => n.name)
+        assessmentNodes: assessmentNodes.length,
+        nodeNames: assessmentNodes.map(n => n.name)
       }
     })
     
@@ -95,34 +100,34 @@ export default function OXKnowledgeAssessment({
     }
   }, [])
 
-  const currentNode = nodes[currentIndex]
+  const currentNode = assessmentNodes[currentIndex]
   const currentQuestion = questions[currentNode?.id]
   
   const totalAssessed = Object.keys(assessments).length
   const totalSkipped = skippedNodes.size
-  const progress = Math.min((totalAssessed / nodes.length) * 100, 100)
+  const progress = Math.min((totalAssessed / assessmentNodes.length) * 100, 100)
   
-  const remainingAssessableNodes = nodes.filter((node, index) => 
+  const remainingAssessableNodes = assessmentNodes.filter((node, index) => 
     index > currentIndex && 
     !skippedNodes.has(node.id) && 
     !(node.id in assessments)
   ).length
 
-  // Load quiz questions for all nodes
+  // Load quiz questions for assessment nodes only
   useEffect(() => {
     const loadQuestions = async () => {
       setIsLoading(true)
       const loadTimer = quizLogger.startTimer()
       
       try {
-        const nodeIds = nodes.map(n => n.id)
+        const nodeIds = assessmentNodes.map(n => n.id)
         
         quizLogger.info('Loading assessment quiz questions', {
           correlationId,
           documentId,
           metadata: {
             nodeCount: nodeIds.length,
-            nodeIds: nodeIds.slice(0, 10) // Log first 10 for debugging
+            nodeIds: nodeIds // Log all assessment node IDs
           }
         })
         
@@ -219,7 +224,7 @@ export default function OXKnowledgeAssessment({
   const buildDependencyMap = () => {
     const dependencyMap = new Map<string, string[]>()
     
-    nodes.forEach(node => {
+    assessmentNodes.forEach(node => {
       node.prerequisites.forEach(prerequisiteName => {
         if (!dependencyMap.has(prerequisiteName)) {
           dependencyMap.set(prerequisiteName, [])
@@ -234,14 +239,14 @@ export default function OXKnowledgeAssessment({
   const dependencyMap = buildDependencyMap()
 
   const findDependentNodesToSkip = (nodeId: string): string[] => {
-    const node = nodes.find(n => n.id === nodeId)
+    const node = assessmentNodes.find(n => n.id === nodeId)
     if (!node) return []
     
     const nodesToSkip: string[] = []
     const processed = new Set<string>()
     
     const prerequisiteDependents = dependencyMap.get(node.name) || []
-    const childNodes = nodes
+    const childNodes = assessmentNodes
       .filter(n => n.parent_id === nodeId)
       .map(n => n.id)
     
@@ -257,10 +262,10 @@ export default function OXKnowledgeAssessment({
       if (!(currentId in assessments)) {
         nodesToSkip.push(currentId)
         
-        const currentNode = nodes.find(n => n.id === currentId)
+        const currentNode = assessmentNodes.find(n => n.id === currentId)
         if (currentNode) {
           const morePrerequisiteDependents = dependencyMap.get(currentNode.name) || []
-          const moreChildNodes = nodes
+          const moreChildNodes = assessmentNodes
             .filter(n => n.parent_id === currentId)
             .map(n => n.id)
           
@@ -273,8 +278,8 @@ export default function OXKnowledgeAssessment({
   }
 
   const findNextAssessableNode = (startIndex: number = currentIndex + 1): number => {
-    for (let i = startIndex; i < nodes.length; i++) {
-      const nodeId = nodes[i].id
+    for (let i = startIndex; i < assessmentNodes.length; i++) {
+      const nodeId = assessmentNodes[i].id
       if (!skippedNodes.has(nodeId) && !(nodeId in assessments)) {
         return i
       }
@@ -347,7 +352,7 @@ export default function OXKnowledgeAssessment({
         correctAnswer: currentQuestion?.correct_answer,
         isCorrect: isAnswerCorrect,
         currentIndex,
-        totalNodes: nodes.length
+        totalNodes: assessmentNodes.length
       }
     })
 
@@ -421,17 +426,28 @@ export default function OXKnowledgeAssessment({
   }
 
   const handleNext = async () => {
-    setShowFeedback(false)
-    setUserAnswer(null)
-    setUserAnswers({})
-    setIsCorrect(null)
-    
     const nextAssessableIndex = findNextAssessableNode()
     
     if (nextAssessableIndex !== -1) {
+      // Reset states before changing index to prevent flickering
+      setShowFeedback(false)
+      setUserAnswer(null)
+      setUserAnswers({})
+      setIsCorrect(null)
+      setPreviewSkipped([])
       setCurrentIndex(nextAssessableIndex)
     } else {
-      await saveAssessments(assessments)
+      // Assessment complete, mark remaining nodes as unknown
+      let finalAssessments = { ...assessments }
+      
+      // Mark all nodes that weren't assessed as unknown
+      nodes.forEach(node => {
+        if (!(node.id in finalAssessments)) {
+          finalAssessments[node.id] = 'unknown'
+        }
+      })
+      
+      await saveAssessments(finalAssessments)
     }
   }
 
@@ -551,6 +567,57 @@ export default function OXKnowledgeAssessment({
       // Add a small delay to ensure database writes are complete
       await new Promise(resolve => setTimeout(resolve, 500))
       
+      // Auto-generate study guide after assessment completion
+      setIsGeneratingStudyGuide(true)
+      
+      try {
+        assessmentLogger.info('Auto-generating study guide after assessment', {
+          correlationId,
+          documentId,
+          metadata: {
+            knownCount,
+            unknownCount
+          }
+        })
+        
+        const studyGuideResponse = await fetch('/api/study-guide/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            documentId,
+            userId: FIXED_USER_ID
+          })
+        })
+
+        if (studyGuideResponse.ok) {
+          assessmentLogger.info('Study guide generated successfully', {
+            correlationId,
+            documentId
+          })
+        } else {
+          const errorData = await studyGuideResponse.json()
+          assessmentLogger.warn('Study guide generation failed', {
+            correlationId,
+            documentId,
+            error: errorData
+          })
+        }
+      } catch (studyGuideError: any) {
+        assessmentLogger.error('Study guide generation error', {
+          correlationId,
+          documentId,
+          error: studyGuideError,
+          metadata: {
+            errorType: studyGuideError.name,
+            errorMessage: studyGuideError.message
+          }
+        })
+      } finally {
+        setIsGeneratingStudyGuide(false)
+      }
+      
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     } catch (error: any) {
       const saveDuration = saveTimer()
@@ -580,6 +647,47 @@ export default function OXKnowledgeAssessment({
       
       // Add a small delay even on error to ensure any partial writes are complete
       await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Try to auto-generate study guide even on error (if assessments were partially saved)
+      setIsGeneratingStudyGuide(true)
+      
+      try {
+        assessmentLogger.info('Attempting study guide generation after error', {
+          correlationId,
+          documentId
+        })
+        
+        const studyGuideResponse = await fetch('/api/study-guide/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            documentId,
+            userId: FIXED_USER_ID
+          })
+        })
+
+        if (studyGuideResponse.ok) {
+          assessmentLogger.info('Study guide generated successfully after error recovery', {
+            correlationId,
+            documentId
+          })
+        } else {
+          assessmentLogger.warn('Study guide generation failed after error recovery', {
+            correlationId,
+            documentId
+          })
+        }
+      } catch (studyGuideError: any) {
+        assessmentLogger.error('Study guide generation error after assessment error', {
+          correlationId,
+          documentId,
+          error: studyGuideError
+        })
+      } finally {
+        setIsGeneratingStudyGuide(false)
+      }
       
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     }
@@ -645,8 +753,8 @@ export default function OXKnowledgeAssessment({
     )
   }
 
-  if (!currentNode || !currentQuestion) {
-    // This shouldn't happen if hasQuestions is true, but just in case
+  // Only show skeleton when actually processing an answer or when essential data is missing
+  if (!currentNode || !currentQuestion || (isProcessingAnswer && !showFeedback)) {
     return <OXQuizSkeleton />
   }
 
@@ -656,7 +764,7 @@ export default function OXKnowledgeAssessment({
       <div className="mb-8">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>진행률</span>
-          <span>{totalAssessed} / {nodes.length}</span>
+          <span>{totalAssessed} / {assessmentNodes.length}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
@@ -699,9 +807,7 @@ export default function OXKnowledgeAssessment({
           </div>
 
           {/* Answer Buttons or Feedback */}
-          {isProcessingAnswer ? (
-            <OXQuizFeedbackSkeleton />
-          ) : !showFeedback ? (
+          {!showFeedback ? (
             renderQuestionInput()
           ) : (
             <div className="space-y-4">
@@ -749,7 +855,7 @@ export default function OXKnowledgeAssessment({
                   </p>
                   <ul className="space-y-1">
                     {previewSkipped.slice(0, 3).map(id => {
-                      const node = nodes.find(n => n.id === id)
+                      const node = assessmentNodes.find(n => n.id === id)
                       return node ? (
                         <li key={id} className="text-sm text-yellow-700 flex items-center gap-2">
                           <span className="text-yellow-500">•</span>
@@ -801,16 +907,27 @@ export default function OXKnowledgeAssessment({
         </div>
       </div>
 
-      {isSubmitting && (
+      {(isSubmitting || isGeneratingStudyGuide) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4">
+          <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
             <div className="space-y-4">
-              <div className="h-8 w-3/4 bg-gray-200 rounded mx-auto animate-pulse"></div>
-              <div className="space-y-2">
-                <div className="h-4 w-full bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 w-5/6 bg-gray-200 rounded mx-auto animate-pulse"></div>
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
-              <div className="h-10 w-full bg-gray-200 rounded animate-pulse"></div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {isGeneratingStudyGuide ? '해설집 생성 중...' : '평가 결과 저장 중...'}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {isGeneratingStudyGuide 
+                    ? '학습 전 지식 평가 결과를 바탕으로 개인 맞춤 해설집을 생성하고 있습니다.'
+                    : '평가 결과를 저장하고 있습니다.'
+                  }
+                </p>
+                <p className="text-xs text-gray-500">
+                  잠시만 기다려주세요...
+                </p>
+              </div>
             </div>
           </div>
         </div>

@@ -301,30 +301,49 @@ export const oxQuizSchema = {
   required: ["quiz_items"]
 }
 
-// Schema for study guide generation
+// Schema for study guide generation - simplified for better JSON parsing
 export const studyGuideSchema = {
   type: Type.OBJECT,
   properties: {
-    title: { type: Type.STRING },
+    title: { 
+      type: Type.STRING,
+      description: "Study guide title in Korean"
+    },
     sections: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
-          heading: { type: Type.STRING },
-          content: { type: Type.STRING },
+          heading: { 
+            type: Type.STRING,
+            description: "Section heading in Korean"
+          },
+          content: { 
+            type: Type.STRING,
+            description: "Section content in Korean, maximum 1000 characters"
+          },
           key_points: {
             type: Type.ARRAY,
-            items: { type: Type.STRING }
+            items: { type: Type.STRING },
+            maxItems: 5,
+            description: "Maximum 5 key points in Korean"
           }
         },
         required: ["heading", "content", "key_points"]
-      }
+      },
+      maxItems: 8,
+      description: "Maximum 8 sections"
     },
-    summary: { type: Type.STRING },
+    summary: { 
+      type: Type.STRING,
+      description: "Study guide summary in Korean, maximum 500 characters"
+    },
     references: {
       type: Type.ARRAY,
-      items: { type: Type.STRING }
+      items: { type: Type.STRING },
+      maxItems: 5,
+      nullable: true,
+      description: "Optional references, maximum 5 items"
     }
   },
   required: ["title", "sections", "summary"]

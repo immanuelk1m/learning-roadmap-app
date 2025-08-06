@@ -31,6 +31,9 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
   const [documents, setDocuments] = useState<Document[]>(initialDocuments)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const prevDocumentsRef = useRef<Document[]>(initialDocuments)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const realtimeChannelRef = useRef<any>(null)
+  const [isPollingActive, setIsPollingActive] = useState(false)
   const supabase = createClient()
   const { showToast } = useToast()
 
@@ -45,61 +48,96 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
     }
   }, [refreshTrigger])
 
-  useEffect(() => {
-    // Function to fetch latest documents
-    const fetchDocuments = async () => {
-      console.log('[DocumentList] Fetching documents for subject:', subjectId)
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*, assessment_completed')
-        .eq('subject_id', subjectId)
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error('[DocumentList] Error fetching documents:', error)
-        return
-      }
-      
-      if (data) {
-        console.log('[DocumentList] Fetched documents:', data.length, 'items')
-        // Check for status changes and show toasts (only if not initial load)
-        if (!isInitialLoading) {
-          data.forEach(newDoc => {
-            const prevDoc = prevDocumentsRef.current.find(d => d.id === newDoc.id)
-            if (prevDoc) {
-              console.log(`[DocumentList] Status comparison for "${newDoc.title}": ${prevDoc.status} -> ${newDoc.status}`)
-              if ((prevDoc.status === 'processing' || prevDoc.status === 'pending') && prevDoc.status !== newDoc.status) {
-                if (newDoc.status === 'completed') {
-                  showToast({
-                    type: 'success',
-                    title: 'PDF 분석 완료',
-                    message: `"${newDoc.title}"의 분석이 완료되었습니다. 이제 학습을 시작할 수 있습니다!`,
-                    duration: 5000
-                  })
-                } else if (newDoc.status === 'failed') {
-                  showToast({
-                    type: 'error',
-                    title: 'PDF 분석 실패',
-                    message: `"${newDoc.title}"의 분석에 실패했습니다. 다시 시도해주세요.`,
-                    duration: 5000
-                  })
-                }
-              }
-            }
-          })
-        }
-        
-        prevDocumentsRef.current = data
-        setDocuments(data)
-        setIsInitialLoading(false)
-      }
+  // Function to fetch latest documents
+  const fetchDocuments = async (isPolling = false) => {
+    console.log(`[DocumentList] ${isPolling ? 'Polling' : 'Fetching'} documents for subject:`, subjectId)
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*, assessment_completed')
+      .eq('subject_id', subjectId)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('[DocumentList] Error fetching documents:', error)
+      return
     }
     
+    if (data) {
+      console.log(`[DocumentList] ${isPolling ? 'Polled' : 'Fetched'} documents:`, data.length, 'items')
+      
+      // Check for status changes and show toasts (only if not initial load)
+      if (!isInitialLoading) {
+        data.forEach(newDoc => {
+          const prevDoc = prevDocumentsRef.current.find(d => d.id === newDoc.id)
+          if (prevDoc) {
+            console.log(`[DocumentList] Status comparison for "${newDoc.title}": ${prevDoc.status} -> ${newDoc.status}`)
+            if ((prevDoc.status === 'processing' || prevDoc.status === 'pending') && prevDoc.status !== newDoc.status) {
+              if (newDoc.status === 'completed') {
+                showToast({
+                  type: 'success',
+                  title: 'PDF 분석 완료',
+                  message: `"${newDoc.title}"의 분석이 완료되었습니다. 이제 학습을 시작할 수 있습니다!`,
+                  duration: 5000
+                })
+              } else if (newDoc.status === 'failed') {
+                showToast({
+                  type: 'error',
+                  title: 'PDF 분석 실패',
+                  message: `"${newDoc.title}"의 분석에 실패했습니다. 다시 시도해주세요.`,
+                  duration: 5000
+                })
+              }
+            }
+          }
+        })
+      }
+      
+      prevDocumentsRef.current = data
+      setDocuments(data)
+      setIsInitialLoading(false)
+      
+      // Check if we need to start or stop polling
+      const hasProcessingDocs = data.some(doc => doc.status === 'processing' || doc.status === 'pending')
+      if (hasProcessingDocs && !isPollingActive) {
+        startPolling()
+      } else if (!hasProcessingDocs && isPollingActive) {
+        stopPolling()
+      }
+    }
+  }
+
+  // Start polling for processing documents
+  const startPolling = () => {
+    console.log('[DocumentList] Starting polling for processing documents')
+    setIsPollingActive(true)
+    
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+    }
+    
+    pollingIntervalRef.current = setInterval(() => {
+      console.log('[DocumentList] Polling documents...')
+      fetchDocuments(true)
+    }, 5000) // Poll every 5 seconds
+  }
+
+  // Stop polling
+  const stopPolling = () => {
+    console.log('[DocumentList] Stopping polling')
+    setIsPollingActive(false)
+    
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+  }
+
+  useEffect(() => {
     // Fetch initial data
     fetchDocuments()
 
-    // Subscribe to document changes
-    console.log('[DocumentList] Setting up realtime subscription for subject:', subjectId)
+    // Subscribe to document changes with enhanced error handling
+    console.log('[DocumentList] Setting up enhanced realtime subscription for subject:', subjectId)
     const channel = supabase
       .channel(`documents-${subjectId}`)
       .on(
@@ -128,22 +166,51 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
             fetchDocuments()
           } else {
             // For other events, refetch documents
+            console.log('[DocumentList] Refetching documents due to realtime event')
             fetchDocuments()
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[DocumentList] Realtime subscription status:', status)
+      .subscribe((status, err) => {
+        console.log('[DocumentList] Realtime subscription status:', status, err)
         if (status === 'SUBSCRIBED') {
           console.log('[DocumentList] Successfully subscribed to realtime updates')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[DocumentList] Realtime subscription error:', err)
+          // Fallback to polling if realtime fails
+          console.log('[DocumentList] Falling back to polling due to realtime error')
+          const hasProcessingDocs = documents.some(doc => doc.status === 'processing' || doc.status === 'pending')
+          if (hasProcessingDocs) {
+            startPolling()
+          }
+        } else if (status === 'TIMED_OUT') {
+          console.warn('[DocumentList] Realtime subscription timed out')
+          // Retry subscription or fallback to polling
+          const hasProcessingDocs = documents.some(doc => doc.status === 'processing' || doc.status === 'pending')
+          if (hasProcessingDocs) {
+            startPolling()
+          }
         }
       })
 
+    realtimeChannelRef.current = channel
+
+    // Cleanup function
     return () => {
-      console.log('[DocumentList] Cleaning up realtime subscription')
-      supabase.removeChannel(channel)
+      console.log('[DocumentList] Cleaning up realtime subscription and polling')
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current)
+      }
+      stopPolling()
     }
   }, [subjectId, supabase, showToast])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling()
+    }
+  }, [])
 
   // Show loading skeleton on initial load
   if (isInitialLoading) {
@@ -211,6 +278,12 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
               {documents.filter(doc => doc.status === 'completed').length > 0 && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
                   {documents.filter(doc => doc.status === 'completed').length}개 완료
+                </span>
+              )}
+              {isPollingActive && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
+                  실시간 업데이트 중
                 </span>
               )}
             </div>
