@@ -234,7 +234,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
       
       {/* Enhanced Grid */}
       <div className="p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {documents.map((doc) => {
         console.log(`[DocumentList] Rendering document: ${doc.title}, status: ${doc.status}`)
         const statusColors = {
@@ -251,7 +251,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
             className="group relative bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full flex flex-col hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-slate-300/30 hover:border-slate-300/80 hover:bg-white ring-1 ring-white/20"
           >
             {/* Modern Preview Area */}
-            <div className="relative h-56 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 flex items-center justify-center overflow-hidden">
+            <div className="relative h-48 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 flex items-center justify-center overflow-hidden">
               {/* Animated Background */}
               <div className="absolute inset-0 opacity-30">
                 <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(59,130,246,0.1),transparent_50%)]" />
@@ -263,8 +263,8 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
-                  <div className="relative w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                    <FileText className="w-10 h-10 text-white" />
+                  <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                    <FileText className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
@@ -305,10 +305,10 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
             </div>
             
             {/* Enhanced Content Area */}
-            <div className="p-6 flex-1 flex flex-col">
+            <div className="p-5 flex-1 flex flex-col">
               {/* Title with Tooltip */}
-              <div className="mb-4">
-                <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors duration-300 line-clamp-2 leading-tight">
+              <div className="mb-3">
+                <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors duration-300 line-clamp-2 leading-tight">
                   {doc.title}
                 </h3>
                 
@@ -338,7 +338,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
               </div>
               
               {/* Enhanced Metadata Pills */}
-              <div className="flex flex-wrap gap-2 mb-6">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {doc.page_count && (
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100/80 rounded-lg text-xs font-medium text-slate-600">
                     <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
@@ -352,16 +352,14 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                 {doc.status === 'completed' ? (
                   <Link
                     href={doc.assessment_completed ? `/subjects/${subjectId}/study?doc=${doc.id}` : `/subjects/${subjectId}/study/assessment?doc=${doc.id}`}
-                    className="group/btn relative flex items-center justify-center gap-3 w-full p-4 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/30 hover:scale-105 overflow-hidden"
+                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/30 hover:scale-105 overflow-hidden text-sm"
                   >
                     {/* Button Background Animation */}
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-700 via-blue-700 to-indigo-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
                     
                     {/* Button Content */}
-                    <div className="relative flex items-center gap-3">
-                      <div className="p-1 bg-white/20 rounded-lg group-hover/btn:bg-white/30 transition-colors duration-300">
-                        <Brain className="w-4 h-4" />
-                      </div>
+                    <div className="relative flex items-center gap-2">
+                      <Brain className="w-4 h-4" />
                       <span>{doc.assessment_completed ? '학습 시작하기' : '학습 전 지식 평가'}</span>
                     </div>
                     
@@ -369,13 +367,13 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                     <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover/btn:opacity-10" />
                   </Link>
                 ) : (
-                  <div className="relative flex items-center justify-center gap-3 w-full p-4 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 font-medium rounded-xl border border-slate-200">
+                  <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
                     {/* Animated Processing Indicator */}
                     {doc.status === 'processing' && (
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 to-indigo-100/50 animate-pulse rounded-xl" />
                     )}
                     
-                    <div className="relative flex items-center gap-3">
+                    <div className="relative flex items-center gap-2">
                       {doc.status === 'processing' ? (
                         <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
                       ) : (

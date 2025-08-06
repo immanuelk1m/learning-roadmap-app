@@ -18,7 +18,7 @@ interface Document {
   file_path: string
   file_size: number | null
   page_count: number | null
-  assessment_completed?: boolean
+  assessment_completed: boolean | null
   quiz_generation_status?: {
     generated: boolean
     count: number

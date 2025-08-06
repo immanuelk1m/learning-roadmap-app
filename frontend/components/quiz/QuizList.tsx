@@ -15,7 +15,7 @@ interface Document {
   file_path: string
   file_size: number | null
   page_count: number | null
-  assessment_completed?: boolean
+  assessment_completed: boolean | null
   quiz_generation_status?: {
     generated: boolean
     count: number
@@ -195,7 +195,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
 
       {/* Quiz Grid */}
       <div className="p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {quizDocuments.map((doc) => {
             const questionCount = doc.quiz_generation_status?.count || 0
             const isAssessmentCompleted = doc.assessment_completed || false
@@ -203,98 +203,105 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
             return (
               <div
                 key={doc.id}
-                className={`group relative bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 ${
+                className={`group relative bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full flex flex-col ${
                   isAssessmentCompleted 
-                    ? 'hover:shadow-lg hover:border-orange-200' 
+                    ? 'hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-orange-300/30 hover:border-orange-300/80 hover:bg-white' 
                     : 'opacity-75 hover:opacity-90'
-                }`}
+                } ring-1 ring-white/20`}
               >
-                {/* Delete Button */}
-                <DeleteQuizButton
-                  documentId={doc.id}
-                  documentTitle={doc.title}
-                  onDeleteSuccess={handleQuizDeleted}
-                />
-                {/* Card Header */}
-                <div className="p-6 pb-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
-                      <FileText className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-slate-900 mb-1 line-clamp-2">
-                        {doc.title}
-                      </h3>
-                      <div className="flex items-center gap-3 text-sm text-slate-500">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>
-                            {new Date(doc.created_at).toLocaleDateString('ko-KR', {
-                              month: 'short',
-                              day: 'numeric'
-                            })}
-                          </span>
-                        </div>
-                        <span>•</span>
-                        <span>{questionCount}개 문제</span>
+                {/* Preview Area - Similar to DocumentList */}
+                <div className="relative h-48 bg-gradient-to-br from-orange-50 via-amber-50/30 to-yellow-50/50 flex items-center justify-center overflow-hidden">
+                  {/* Animated Background */}
+                  <div className="absolute inset-0 opacity-30">
+                    <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(251,146,60,0.1),transparent_50%)]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(at_70%_70%,rgba(245,158,11,0.08),transparent_50%)]" />
+                  </div>
+                  
+                  {/* Floating Icon */}
+                  <div className="relative z-10">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
+                      <div className="relative w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                        <Brain className="w-8 h-8 text-white" />
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Delete Button */}
+                  <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <DeleteQuizButton
+                      documentId={doc.id}
+                      documentTitle={doc.title}
+                      onDeleteSuccess={handleQuizDeleted}
+                    />
+                  </div>
+                  
+                  {/* Question Count Badge */}
+                  <div className="absolute top-4 right-4 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-xl text-xs font-bold shadow-lg ring-1 ring-white/30 group-hover:scale-105 transition-transform duration-300">
+                    <span className="text-orange-600">{questionCount}개 문제</span>
+                  </div>
                 </div>
 
-                {/* Quiz Info */}
-                <div className="px-6 pb-4">
-                  <div className="flex flex-wrap gap-2">
+                {/* Content Area */}
+                <div className="p-5 flex-1 flex flex-col">
+                  <div className="mb-3">
+                    <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-orange-600 transition-colors duration-300 line-clamp-2 leading-tight">
+                      {doc.title}
+                    </h3>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <Calendar className="w-4 h-4" />
+                        <span className="font-medium">
+                          {new Date(doc.created_at).toLocaleDateString('ko-KR', {
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quiz Type Badges */}
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {isAssessmentCompleted && (
-                      <div className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 rounded-lg text-xs font-semibold border border-orange-200">
-                        <Check className="w-3.5 h-3.5 mr-1.5" />
-                        평가 기반 맞춤 문제
+                      <div className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 rounded-lg text-xs font-semibold border border-orange-200">
+                        <Check className="w-3 h-3 mr-1" />
+                        평가 기반
                       </div>
                     )}
-                    <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
+                    <div className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5"></div>
                       객관식
                     </div>
-                    <div className="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium">
-                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2"></div>
-                      주관식
-                    </div>
-                    <div className="inline-flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
-                      <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mr-2"></div>
-                      O/X
-                    </div>
                   </div>
-                </div>
 
-                {/* Action Button */}
-                <div className="p-6 pt-4 border-t border-slate-100">
-                  {isAssessmentCompleted ? (
-                    <Link
-                      href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
-                      className="group/btn flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl hover:shadow-md hover:scale-105 transition-all duration-300"
-                    >
-                      <Brain className="w-4 h-4" />
-                      <span>문제 풀기</span>
-                      <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                    </Link>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      <button
-                        disabled
-                        className="flex items-center justify-center gap-2 w-full py-3 bg-gray-300 text-gray-500 font-medium rounded-xl cursor-not-allowed"
+                  {/* Action Button */}
+                  <div className="mt-auto">
+                    {isAssessmentCompleted ? (
+                      <Link
+                        href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
+                        className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-orange-600 via-orange-600 to-amber-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm"
                       >
-                        <Brain className="w-4 h-4" />
-                        <span>문제 풀기</span>
-                      </button>
-                      <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <div className="text-sm text-amber-700">
-                          <p className="font-medium mb-1">학습 전 지식 평가 필요</p>
-                          <p className="text-xs">학습 페이지에서 지식 평가를 먼저 완료해주세요.</p>
+                        {/* Button Background Animation */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-orange-700 via-orange-700 to-amber-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                        
+                        {/* Button Content */}
+                        <div className="relative flex items-center gap-2">
+                          <Brain className="w-4 h-4" />
+                          <span>문제 풀기</span>
                         </div>
+                        
+                        {/* Shimmer Effect */}
+                        <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover/btn:opacity-10" />
+                      </Link>
+                    ) : (
+                      <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
+                        <Brain className="w-4 h-4 opacity-50" />
+                        <span>평가 필요</span>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             )

@@ -115,18 +115,6 @@ export default function LearningRecommendation() {
                 진행률 {mostUrgentSubject.progress}%
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-500)' }}>
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                <polyline points="12,6 12,12 16,14" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              <span style={{ 
-                fontSize: 'var(--font-size-sm)',
-                color: 'var(--color-neutral-600)'
-              }}>
-                마감까지 {mostUrgentSubject.daysUntilExam}일
-              </span>
-            </div>
           </div>
 
           {/* Call to Action */}
