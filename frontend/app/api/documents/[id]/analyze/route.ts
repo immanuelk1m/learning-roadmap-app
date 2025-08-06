@@ -1139,6 +1139,16 @@ export async function POST(
             completedDocument: completedDoc
           }
         })
+        
+        // Practice quiz will be generated after user completes O/X assessment
+        analyzeLogger.info('O/X assessment quiz generated. Practice quiz will be created after assessment completion.', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            nodeCount: knowledgeTree.nodes.length,
+            assessmentQuizCount: assessmentCount
+          }
+        })
       }
 
       // Log final memory usage

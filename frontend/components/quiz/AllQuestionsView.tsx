@@ -61,6 +61,7 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
     improved: string[]
     declined: string[]
   }>({ improved: [], declined: [] })
+  const [assessmentCompleted, setAssessmentCompleted] = useState(false)
   const [generating, setGenerating] = useState(false)
   
   const router = useRouter()
@@ -73,12 +74,25 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
 
   const loadQuestions = async () => {
     try {
-      // Load quiz questions (not assessment ones)
+      // Check if assessment is completed
+      const { data: documentData, error: docError } = await supabase
+        .from('documents')
+        .select('assessment_completed')
+        .eq('id', documentId)
+        .single()
+
+      if (docError) {
+        console.error('Error checking assessment status:', docError)
+      } else {
+        setAssessmentCompleted(documentData?.assessment_completed || false)
+      }
+
+      // Load quiz questions (not assessment ones) - handle both false and null values
       const { data: quizData, error: quizError } = await supabase
         .from('quiz_items')
         .select('*')
         .eq('document_id', documentId)
-        .eq('is_assessment', false)
+        .or('is_assessment.eq.false,is_assessment.is.null')
         .order('created_at', { ascending: true })
 
       if (quizError) {
@@ -86,6 +100,8 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
         toast.error('문제를 불러오는 중 오류가 발생했습니다.')
         return
       }
+
+      console.log(`Loaded ${quizData?.length || 0} quiz questions for document ${documentId}`)
 
       // Load knowledge nodes
       const { data: nodeData, error: nodeError } = await supabase
@@ -107,43 +123,48 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
     }
   }
 
-  const generateQuestions = async () => {
+  const generateFallbackQuestions = async () => {
     if (generating) return
     
     setGenerating(true)
-    toast('문제를 생성 중입니다...')
     
     try {
-      // Get all node IDs for this document
-      const nodeIds = nodes.map(node => node.id)
+      console.log('Generating fallback quiz for completed assessment...')
       
-      const response = await fetch('/api/quiz/generate-extended', {
+      const response = await fetch('/api/quiz/batch-generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          documentId,
-          nodeIds
+          documentIds: [documentId],
+          difficulty: 'normal',
+          questionCount: 10,
+          questionTypes: {
+            multipleChoice: true,
+            shortAnswer: false,
+            trueFalse: false
+          }
         })
       })
 
       if (!response.ok) {
-        throw new Error('문제 생성에 실패했습니다.')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to generate quiz')
       }
 
       const result = await response.json()
       
-      if (result.questions && result.questions.length > 0) {
-        toast.success(`${result.questions.length}개의 문제가 생성되었습니다!`)
+      if (result.questionsGenerated && result.questionsGenerated > 0) {
+        console.log(`Generated ${result.questionsGenerated} fallback questions`)
         // Reload questions to show the newly generated ones
         await loadQuestions()
       } else {
-        toast.error('문제 생성에 실패했습니다. 다시 시도해주세요.')
+        throw new Error('No questions were generated')
       }
-    } catch (error) {
-      console.error('Error generating questions:', error)
-      toast.error('문제 생성 중 오류가 발생했습니다.')
+    } catch (error: any) {
+      console.error('Error generating fallback questions:', error)
+      alert('문제 생성에 실패했습니다. 새로고침 후 다시 시도해주세요.')
     } finally {
       setGenerating(false)
     }
@@ -295,16 +316,40 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   }
 
   if (questions.length === 0) {
+    if (!assessmentCompleted) {
+      return (
+        <div className="text-center py-16">
+          <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 mb-4">O/X 평가를 먼저 완료해주세요.</p>
+          <p className="text-sm text-gray-400 mb-6">평가 완료 후 맞춤형 연습 문제가 자동으로 생성됩니다.</p>
+          <div className="space-x-4">
+            <button
+              onClick={() => router.push(`/subjects/${subjectId}/study/assessment?doc=${documentId}`)}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              O/X 평가 시작하기
+            </button>
+            <button
+              onClick={() => router.push(`/subjects/${subjectId}/study?doc=${documentId}`)}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              학습으로 돌아가기
+            </button>
+          </div>
+        </div>
+      )
+    }
+    
     return (
       <div className="text-center py-16">
         <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 mb-4">아직 연습 문제가 없습니다.</p>
-        <p className="text-sm text-gray-400 mb-6">다양한 유형의 문제를 생성하여 학습해보세요!</p>
+        <p className="text-gray-500 mb-4">연습 문제 생성에 문제가 발생했습니다.</p>
+        <p className="text-sm text-gray-400 mb-6">O/X 평가는 완료되었지만 연습 문제가 자동 생성되지 않았습니다.</p>
         <div className="space-x-4">
           <button
-            onClick={generateQuestions}
-            disabled={generating || nodes.length === 0}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            onClick={generateFallbackQuestions}
+            disabled={generating}
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generating ? (
               <>
@@ -312,14 +357,15 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
                 문제 생성 중...
               </>
             ) : (
-              '문제 생성하기'
+              '연습 문제 생성하기'
             )}
           </button>
           <button
-            onClick={() => router.push(`/subjects/${subjectId}/study?doc=${documentId}`)}
-            className="text-gray-600 hover:text-gray-800"
+            onClick={loadQuestions}
+            disabled={generating}
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            학습으로 돌아가기
+            새로고침
           </button>
         </div>
       </div>

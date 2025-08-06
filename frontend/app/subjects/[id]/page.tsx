@@ -18,7 +18,14 @@ interface Document {
   file_path: string
   file_size: number | null
   page_count: number | null
-  quiz_data?: any
+  assessment_completed?: boolean
+  quiz_generation_status?: {
+    generated: boolean
+    count: number
+    last_attempt?: string
+    practice_count?: number
+    assessment_count?: number
+  }
 }
 
 interface SubjectDetailPageProps {
@@ -45,7 +52,7 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
     console.log('[SubjectDetailPage] Refreshing documents...')
     const { data, error } = await supabase
       .from('documents')
-      .select('*')
+      .select('*, assessment_completed')
       .eq('subject_id', id)
       .order('created_at', { ascending: false })
     

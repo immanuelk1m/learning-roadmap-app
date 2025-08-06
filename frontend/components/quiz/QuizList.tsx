@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import DeleteQuizButton from './DeleteQuizButton'
 
 interface Document {
   id: string
@@ -14,7 +15,14 @@ interface Document {
   file_path: string
   file_size: number | null
   page_count: number | null
-  quiz_data?: any
+  assessment_completed?: boolean
+  quiz_generation_status?: {
+    generated: boolean
+    count: number
+    last_attempt?: string
+    practice_count?: number
+    assessment_count?: number
+  }
 }
 
 interface QuizListProps {
@@ -40,8 +48,8 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
   const supabase = createClient()
 
   useEffect(() => {
-    // Filter documents that have quiz_data
-    const docsWithQuiz = documents.filter(doc => doc.quiz_data && doc.status === 'completed')
+    // Filter documents that have quiz_generation_status
+    const docsWithQuiz = documents.filter(doc => doc.quiz_generation_status?.generated && doc.status === 'completed')
     setQuizDocuments(docsWithQuiz)
     setLoading(false)
   }, [documents])
@@ -99,6 +107,11 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
     normal: '보통',
     hard: '어려움',
     very_hard: '매우 어려움'
+  }
+
+  const handleQuizDeleted = () => {
+    // Refresh the page to update the quiz list
+    window.location.reload()
   }
 
   if (loading) {
@@ -184,14 +197,24 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
       <div className="p-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {quizDocuments.map((doc) => {
-            const quizData = doc.quiz_data
-            const questionCount = quizData?.quiz?.questions?.length || 0
+            const questionCount = doc.quiz_generation_status?.count || 0
+            const isAssessmentCompleted = doc.assessment_completed || false
             
             return (
               <div
                 key={doc.id}
-                className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-orange-200"
+                className={`group relative bg-white border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 ${
+                  isAssessmentCompleted 
+                    ? 'hover:shadow-lg hover:border-orange-200' 
+                    : 'opacity-75 hover:opacity-90'
+                }`}
               >
+                {/* Delete Button */}
+                <DeleteQuizButton
+                  documentId={doc.id}
+                  documentTitle={doc.title}
+                  onDeleteSuccess={handleQuizDeleted}
+                />
                 {/* Card Header */}
                 <div className="p-6 pb-4">
                   <div className="flex items-start gap-4">
@@ -222,6 +245,12 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                 {/* Quiz Info */}
                 <div className="px-6 pb-4">
                   <div className="flex flex-wrap gap-2">
+                    {isAssessmentCompleted && (
+                      <div className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 rounded-lg text-xs font-semibold border border-orange-200">
+                        <Check className="w-3.5 h-3.5 mr-1.5" />
+                        평가 기반 맞춤 문제
+                      </div>
+                    )}
                     <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
                       <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
                       객관식
@@ -239,14 +268,33 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
 
                 {/* Action Button */}
                 <div className="p-6 pt-4 border-t border-slate-100">
-                  <Link
-                    href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
-                    className="group/btn flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl hover:shadow-md hover:scale-105 transition-all duration-300"
-                  >
-                    <Brain className="w-4 h-4" />
-                    <span>문제 풀기</span>
-                    <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                  </Link>
+                  {isAssessmentCompleted ? (
+                    <Link
+                      href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
+                      className="group/btn flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl hover:shadow-md hover:scale-105 transition-all duration-300"
+                    >
+                      <Brain className="w-4 h-4" />
+                      <span>문제 풀기</span>
+                      <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                    </Link>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <button
+                        disabled
+                        className="flex items-center justify-center gap-2 w-full py-3 bg-gray-300 text-gray-500 font-medium rounded-xl cursor-not-allowed"
+                      >
+                        <Brain className="w-4 h-4" />
+                        <span>문제 풀기</span>
+                      </button>
+                      <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <div className="text-sm text-amber-700">
+                          <p className="font-medium mb-1">학습 전 지식 평가 필요</p>
+                          <p className="text-xs">학습 페이지에서 지식 평가를 먼저 완료해주세요.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )

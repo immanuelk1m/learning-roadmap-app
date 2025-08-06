@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, BookOpen, CheckCircle, XCircle, AlertCircle, FileText, Download } from 'lucide-react'
+import { Loader2, BookOpen, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react'
 import StudyGuideSkeleton from './StudyGuideSkeleton'
 import { parseMarkdownToReact } from '@/lib/markdown-parser-web'
 
@@ -31,7 +31,6 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ErrorState | null>(null)
   const [generating, setGenerating] = useState(false)
-  const [downloading, setDownloading] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -114,41 +113,6 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
       })
     } finally {
       setGenerating(false)
-    }
-  }
-
-  const downloadPDF = async () => {
-    try {
-      setDownloading(true)
-      const response = await fetch('/api/study-guide/pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentId,
-          userId
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to download PDF')
-      }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `study-guide-${documentId}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Error downloading PDF:', err)
-      alert('PDF 다운로드 중 오류가 발생했습니다.')
-    } finally {
-      setDownloading(false)
     }
   }
 
@@ -254,23 +218,9 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-gray-900">개인 맞춤 해설집</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">
-                {new Date(studyGuide.updated_at).toLocaleDateString('ko-KR')} 생성
-              </span>
-              <button
-                onClick={downloadPDF}
-                disabled={downloading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
-              >
-                {downloading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                PDF 다운로드
-              </button>
-            </div>
+            <span className="text-sm text-gray-500">
+              {new Date(studyGuide.updated_at).toLocaleDateString('ko-KR')} 생성
+            </span>
           </div>
           
           {/* Study Status Summary */}
@@ -291,24 +241,6 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             {formatContent(studyGuide.content)}
           </div>
-        </div>
-
-        {/* Regenerate Button */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={generateStudyGuide}
-            disabled={generating}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                재생성 중...
-              </>
-            ) : (
-              '해설집 재생성하기'
-            )}
-          </button>
         </div>
       </div>
     </div>

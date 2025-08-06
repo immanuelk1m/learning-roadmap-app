@@ -81,6 +81,29 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Get O/X quiz attempts for detailed feedback
+    const { data: quizAttempts, error: attemptsError } = await supabase
+      .from('quiz_attempts')
+      .select(`
+        *,
+        quiz_items!inner(
+          id,
+          question,
+          correct_answer,
+          explanation,
+          node_id
+        )
+      `)
+      .eq('user_id', userId)
+      .in('quiz_item_id', 
+        await supabase
+          .from('quiz_items')
+          .select('id')
+          .eq('document_id', documentId)
+          .eq('is_assessment', true)
+          .then(res => res.data?.map(item => item.id) || [])
+      )
+
     // Categorize concepts based on 50 threshold (matching the UI display logic)
     const levelMap = new Map(userStatus?.map(s => [s.node_id, s.understanding_level]) || [])
     const knownConcepts = knowledgeNodes.filter(node => {
@@ -116,6 +139,37 @@ export async function POST(request: NextRequest) {
     )
     console.log(`PDF converted to base64, size: ${(base64Data.length / 1024 / 1024).toFixed(2)} MB`)
 
+    // Prepare O/X quiz results for Gemini
+    const incorrectQuizzes = quizAttempts?.filter(attempt => !attempt.is_correct) || []
+    const correctQuizzes = quizAttempts?.filter(attempt => attempt.is_correct) || []
+    
+    const oxQuizContext = incorrectQuizzes.length > 0 ? `
+
+## O/X 평가 결과 분석
+
+**총 ${quizAttempts?.length || 0}문제 중 ${correctQuizzes.length}개 정답, ${incorrectQuizzes.length}개 오답**
+
+### 오답 문제 상세 (특별 주의 필요)
+${incorrectQuizzes.map(attempt => {
+  const nodeInfo = knowledgeNodes.find(n => n.id === attempt.quiz_items?.node_id)
+  return `
+**문제**: ${attempt.quiz_items?.question}
+- 관련 개념: ${nodeInfo?.name || '알 수 없음'}
+- 사용자 답: ${attempt.user_answer}
+- 정답: ${attempt.quiz_items?.correct_answer}
+- 해설: ${attempt.quiz_items?.explanation || ''}
+`
+}).join('\n')}
+
+### 정답 문제 (간단 복습)
+${correctQuizzes.slice(0, 5).map(attempt => 
+  `- ${attempt.quiz_items?.question} (정답: ${attempt.quiz_items?.correct_answer})`
+).join('\n')}
+
+**중요**: 각 페이지 해설 시, 오답 문제와 관련된 내용이 나오면 특별히 강조하고, 
+왜 틀렸는지 상세히 설명하며, 올바른 이해를 위한 추가 예시를 제공하세요.
+` : ''
+
     // Generate study guide using Gemini
     const studyGuideContext = unknownConcepts.length > 0 ? `
 ## 학습자 프로필 분석
@@ -142,7 +196,7 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
 이제 더 깊이 있는 이해와 실제 활용을 위한 심화 학습 가이드를 제공합니다.
 `
 
-    const prompt = `${STUDY_GUIDE_PROMPT}\n${studyGuideContext}`
+    const prompt = `${STUDY_GUIDE_PROMPT}\n${studyGuideContext}${oxQuizContext}`
 
     const result = await geminiStudyGuideModel.generateContent({
       contents: [

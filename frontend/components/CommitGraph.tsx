@@ -33,7 +33,7 @@ function generateCommitData(dateStr: string) {
 
   // Generate mock subjects studied
   const subjects = ['SID Chapter', 'Design Research 1', 'Data Structure', 'Design Research 2']
-  const studiedSubjects = []
+  const studiedSubjects: string[] = []
   
   if (learningTime > 0) {
     const numSubjects = learningTime > 60 ? 2 : 1

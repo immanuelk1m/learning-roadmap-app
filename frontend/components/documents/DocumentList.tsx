@@ -18,6 +18,7 @@ interface Document {
   file_path: string
   file_size: number | null
   page_count: number | null
+  assessment_completed: boolean | null
 }
 
 interface DocumentListProps {
@@ -50,7 +51,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
       console.log('[DocumentList] Fetching documents for subject:', subjectId)
       const { data, error } = await supabase
         .from('documents')
-        .select('*')
+        .select('*, assessment_completed')
         .eq('subject_id', subjectId)
         .order('created_at', { ascending: false })
       
@@ -350,7 +351,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
               <div className="mt-auto">
                 {doc.status === 'completed' ? (
                   <Link
-                    href={`/subjects/${subjectId}/study/assessment?doc=${doc.id}`}
+                    href={doc.assessment_completed ? `/subjects/${subjectId}/study?doc=${doc.id}` : `/subjects/${subjectId}/study/assessment?doc=${doc.id}`}
                     className="group/btn relative flex items-center justify-center gap-3 w-full p-4 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/30 hover:scale-105 overflow-hidden"
                   >
                     {/* Button Background Animation */}
@@ -361,7 +362,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                       <div className="p-1 bg-white/20 rounded-lg group-hover/btn:bg-white/30 transition-colors duration-300">
                         <Brain className="w-4 h-4" />
                       </div>
-                      <span>학습 시작하기</span>
+                      <span>{doc.assessment_completed ? '학습 시작하기' : '학습 전 지식 평가'}</span>
                     </div>
                     
                     {/* Shimmer Effect */}

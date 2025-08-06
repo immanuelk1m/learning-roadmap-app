@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { CheckCircle, XCircle, ArrowRight, CircleX, CircleCheck } from 'lucide-react'
+import { CheckCircle, XCircle, ArrowRight, CircleX, CircleCheck, HelpCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { assessmentLogger, supabaseLogger, quizLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
@@ -293,10 +293,47 @@ export default function OXKnowledgeAssessment({
     let submittedAnswer = answer || userAnswer || ''
     setUserAnswer(submittedAnswer)
     
-    // For O/X questions, simply check if the answer matches
-    let isAnswerCorrect = currentQuestion?.correct_answer === submittedAnswer
+    // For O/X questions, check if the answer matches (treat "모르겠음" as incorrect)
+    let isAnswerCorrect = submittedAnswer !== '모르겠음' && currentQuestion?.correct_answer === submittedAnswer
     
     setIsCorrect(isAnswerCorrect)
+    
+    // Save quiz attempt to database for later use in study guide generation
+    if (currentQuestion && submittedAnswer) {
+      try {
+        const { error } = await supabase
+          .from('quiz_attempts')
+          .insert({
+            user_id: FIXED_USER_ID,
+            quiz_item_id: currentQuestion.id,
+            user_answer: submittedAnswer,
+            is_correct: isAnswerCorrect,
+            time_spent: null // We're not tracking time for O/X assessment
+          })
+        
+        if (error) {
+          assessmentLogger.warn('Failed to save quiz attempt', {
+            correlationId,
+            documentId,
+            error,
+            metadata: {
+              quizItemId: currentQuestion.id,
+              nodeId: currentNode?.id
+            }
+          })
+        }
+      } catch (error) {
+        assessmentLogger.warn('Exception saving quiz attempt', {
+          correlationId,
+          documentId,
+          error,
+          metadata: {
+            quizItemId: currentQuestion?.id,
+            nodeId: currentNode?.id
+          }
+        })
+      }
+    }
     setShowFeedback(true)
     
     assessmentLogger.info('Quiz answer submitted', {
@@ -498,6 +535,19 @@ export default function OXKnowledgeAssessment({
         }
       })
 
+      // Mark assessment as completed
+      try {
+        const response = await fetch(`/api/documents/${documentId}/complete-assessment`, {
+          method: 'POST'
+        })
+        
+        if (!response.ok) {
+          console.warn('Failed to mark assessment as completed:', await response.text())
+        }
+      } catch (error) {
+        console.warn('Error marking assessment as completed:', error)
+      }
+      
       // Add a small delay to ensure database writes are complete
       await new Promise(resolve => setTimeout(resolve, 500))
       
@@ -515,6 +565,19 @@ export default function OXKnowledgeAssessment({
           redirectTo: `/subjects/${subjectId}/study?doc=${documentId}`
         }
       })
+      // Mark assessment as completed even on error
+      try {
+        const response = await fetch(`/api/documents/${documentId}/complete-assessment`, {
+          method: 'POST'
+        })
+        
+        if (!response.ok) {
+          console.warn('Failed to mark assessment as completed:', await response.text())
+        }
+      } catch (error) {
+        console.warn('Error marking assessment as completed:', error)
+      }
+      
       // Add a small delay even on error to ensure any partial writes are complete
       await new Promise(resolve => setTimeout(resolve, 500))
       
@@ -529,24 +592,32 @@ export default function OXKnowledgeAssessment({
   const renderQuestionInput = () => {
     if (!currentQuestion) return null
     
-    // O/X questions only
+    // O/X questions with "Don't Know" option
     return (
-      <div className="flex gap-4">
+      <div className="flex gap-3">
         <button
           onClick={() => handleAnswer('O')}
           disabled={isSubmitting || isProcessingAnswer}
-          className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
         >
-          <CircleCheck className="h-6 w-6" />
-          <span className="text-lg font-medium">O (맞음)</span>
+          <CircleCheck className="h-5 w-5" />
+          <span className="text-base font-medium">O (맞음)</span>
+        </button>
+        <button
+          onClick={() => handleAnswer('모르겠음')}
+          disabled={isSubmitting || isProcessingAnswer}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+        >
+          <HelpCircle className="h-5 w-5" />
+          <span className="text-base font-medium">모르겠음</span>
         </button>
         <button
           onClick={() => handleAnswer('X')}
           disabled={isSubmitting || isProcessingAnswer}
-          className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
         >
-          <CircleX className="h-6 w-6" />
-          <span className="text-lg font-medium">X (틀림)</span>
+          <CircleX className="h-5 w-5" />
+          <span className="text-base font-medium">X (틀림)</span>
         </button>
       </div>
     )
@@ -635,12 +706,23 @@ export default function OXKnowledgeAssessment({
           ) : (
             <div className="space-y-4">
               {/* Feedback */}
-              <div className={`p-4 rounded-lg ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              <div className={`p-4 rounded-lg ${
+                isCorrect 
+                  ? 'bg-green-50 border border-green-200' 
+                  : userAnswer === '모르겠음' 
+                    ? 'bg-gray-50 border border-gray-200' 
+                    : 'bg-red-50 border border-red-200'
+              }`}>
                 <div className="flex items-center gap-2 mb-2">
                   {isCorrect ? (
                     <>
                       <CheckCircle className="h-5 w-5 text-green-600" />
                       <span className="font-medium text-green-800">정답입니다!</span>
+                    </>
+                  ) : userAnswer === '모르겠음' ? (
+                    <>
+                      <HelpCircle className="h-5 w-5 text-gray-600" />
+                      <span className="font-medium text-gray-800">모르겠다고 하셨네요</span>
                     </>
                   ) : (
                     <>
