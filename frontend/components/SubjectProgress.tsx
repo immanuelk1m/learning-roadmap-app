@@ -8,10 +8,10 @@ import CreateSubjectButton from './subjects/CreateSubjectButton'
 interface Subject {
   id: string
   name: string
-  progress: number
-  fileCount: number
-  completedFiles: number
+  description?: string
   color?: string
+  created_at: string
+  fileCount: number
 }
 
 interface SubjectProgressProps {
@@ -28,18 +28,20 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   useEffect(() => {
-    const fetchSubjectsWithProgress = async () => {
+    const fetchSubjects = async () => {
       try {
-        // Fetch subjects with document counts
+        // Fetch subjects
         const { data: subjectsData, error: subjectsError } = await supabase
           .from('subjects')
           .select(`
             id,
             name,
+            description,
             color,
-            exam_date
+            created_at
           `)
           .eq('user_id', FIXED_USER_ID)
+          .order('created_at', { ascending: false })
 
         if (subjectsError) {
           console.error('Error fetching subjects:', subjectsError)
@@ -53,11 +55,11 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
         }
 
         // Fetch document counts for each subject
-        const subjectsWithProgress = await Promise.all(
+        const subjectsWithCounts = await Promise.all(
           subjectsData.map(async (subject) => {
             const { data: documents, error: docsError } = await supabase
               .from('documents')
-              .select('status')
+              .select('id')
               .eq('subject_id', subject.id)
 
             if (docsError) {
@@ -66,72 +68,31 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
             }
 
             const fileCount = documents?.length || 0
-            const completedFiles = documents?.filter(doc => doc.status === 'completed').length || 0
-            const progress = fileCount > 0 ? Math.round((completedFiles / fileCount) * 100) : 0
 
             return {
               id: subject.id,
               name: subject.name,
+              description: subject.description,
               color: subject.color,
-              progress,
-              fileCount,
-              completedFiles
+              created_at: subject.created_at,
+              fileCount
             }
           })
         )
 
-        // Filter out any null results and sort by urgency
-        const validSubjects = subjectsWithProgress.filter(s => s !== null) as Subject[]
+        // Filter out any null results
+        const validSubjects = subjectsWithCounts.filter(s => s !== null) as Subject[]
         
-        // Sort subjects by progress (lower progress = higher urgency)
-        const sortedSubjects = validSubjects.sort((a, b) => {
-          return a.progress - b.progress
-        })
-
-        setSubjects(sortedSubjects)
+        setSubjects(validSubjects)
       } catch (error) {
-        console.error('Error in fetchSubjectsWithProgress:', error)
+        console.error('Error in fetchSubjects:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchSubjectsWithProgress()
+    fetchSubjects()
   }, [refreshKey])
-  const getSubjectStatus = (subject: Subject) => {
-    if (subject.progress >= 95) {
-      return { 
-        status: 'completed', 
-        color: 'var(--color-success)', 
-        bgColor: 'rgba(16, 185, 129, 0.1)',
-        icon: '✅',
-        tag: '완료 임박'
-      }
-    } else if (subject.progress < 30) {
-      return { 
-        status: 'critical', 
-        color: 'var(--color-error)', 
-        bgColor: 'rgba(239, 68, 68, 0.1)',
-        icon: '🔥',
-        tag: '긴급'
-      }
-    } else if (subject.progress < 50) {
-      return { 
-        status: 'attention', 
-        color: 'var(--color-warning)', 
-        bgColor: 'rgba(245, 158, 11, 0.1)',
-        icon: '⚠️',
-        tag: '집중 필요'
-      }
-    }
-    return { 
-      status: 'normal', 
-      color: 'var(--color-primary-500)', 
-      bgColor: 'rgba(40, 114, 245, 0.1)',
-      icon: '📚',
-      tag: '진행 중'
-    }
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -147,10 +108,10 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
             color: 'var(--color-neutral-900)',
             marginBottom: 'var(--spacing-1)'
           }}>
-            과목별 진행률
+            과목 목록
           </h2>
           <p className="text-body-sm" style={{ color: 'var(--color-neutral-600)' }}>
-            시급도 순으로 정렬되어 있습니다
+            등록된 과목을 확인하세요
           </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-3)', alignItems: 'center' }}>
@@ -197,9 +158,7 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
-            {subjects.map((subject) => {
-              const status = getSubjectStatus(subject)
-              return (
+            {subjects.map((subject) => (
               <Link
                 key={subject.id}
                 href={`/subjects/${subject.id}`}
@@ -213,85 +172,30 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
                     display: 'flex',
                     alignItems: 'center',
                     gap: 'var(--spacing-4)',
-                    background: status.status === 'critical' || status.status === 'attention' 
-                      ? `linear-gradient(135deg, ${status.bgColor}, var(--color-neutral-0))` 
-                      : 'var(--color-neutral-0)',
-                    border: status.status === 'critical' || status.status === 'attention'
-                      ? `1px solid ${status.color}30`
-                      : '1px solid var(--color-neutral-200)'
+                    background: 'var(--color-neutral-0)',
+                    border: '1px solid var(--color-neutral-200)',
+                    transition: 'all 200ms ease'
                   }}
                 >
-                  {/* Status Tag */}
+                  {/* Color Indicator */}
                   <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: 'var(--radius-lg)',
+                    background: subject.color || 'var(--color-primary-500)',
+                    flexShrink: 0,
+                    display: 'flex',
                     alignItems: 'center',
-                    gap: 'var(--spacing-1)',
-                    minWidth: '60px'
+                    justifyContent: 'center'
                   }}>
-                    <span style={{ fontSize: '24px' }}>{status.icon}</span>
-                    <span style={{
-                      fontSize: 'var(--font-size-xs)',
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: status.color,
-                      textAlign: 'center'
-                    }}>
-                      {status.tag}
-                    </span>
-                  </div>
-
-                  {/* Progress Circle */}
-                  <div style={{ 
-                    position: 'relative',
-                    width: '64px',
-                    height: '64px',
-                    flexShrink: 0
-                  }}>
-                    <svg 
-                      style={{ 
-                        width: '100%', 
-                        height: '100%',
-                        transform: 'rotate(-90deg)'
-                      }}
-                    >
-                      {/* Background Circle */}
-                      <circle
-                        cx="50%"
-                        cy="50%"
-                        r="28"
-                        stroke="var(--color-neutral-200)"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      {/* Progress Circle */}
-                      <circle
-                        cx="50%"
-                        cy="50%"
-                        r="28"
-                        stroke={status.color}
-                        strokeWidth="4"
-                        fill="none"
-                        strokeDasharray={`${2 * Math.PI * 28}`}
-                        strokeDashoffset={`${2 * Math.PI * 28 * (1 - subject.progress / 100)}`}
-                        strokeLinecap="round"
-                        style={{ transition: 'all 700ms ease' }}
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-0)' }}>
+                      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
                       />
                     </svg>
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <span style={{ 
-                        fontSize: 'var(--font-size-base)',
-                        fontWeight: 'var(--font-weight-bold)',
-                        color: 'var(--color-neutral-900)'
-                      }}>
-                        {subject.progress}%
-                      </span>
-                    </div>
                   </div>
 
                   {/* Subject Info */}
@@ -300,25 +204,49 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
                       fontSize: 'var(--font-size-lg)',
                       fontWeight: 'var(--font-weight-semibold)',
                       color: 'var(--color-neutral-900)',
-                      marginBottom: 'var(--spacing-2)'
+                      marginBottom: 'var(--spacing-1)'
                     }}>
                       {subject.name}
                     </h3>
                     
-                    {/* Detailed Progress Info */}
+                    {subject.description && (
+                      <p style={{
+                        fontSize: 'var(--font-size-sm)',
+                        color: 'var(--color-neutral-600)',
+                        marginBottom: 'var(--spacing-2)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {subject.description}
+                      </p>
+                    )}
+                    
+                    {/* Meta Info */}
                     <div style={{ 
                       display: 'flex', 
-                      flexDirection: 'column',
-                      gap: 'var(--spacing-1)',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-4)',
                       fontSize: 'var(--font-size-sm)',
-                      color: 'var(--color-neutral-600)'
+                      color: 'var(--color-neutral-500)'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-500)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-400)' }}>
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
                           <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
                         </svg>
-                        <span>총 {subject.fileCount}개 파일 중 {subject.completedFiles}개 완료</span>
+                        <span>{subject.fileCount}개 문서</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-400)' }}>
+                          <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span>{new Date(subject.created_at).toLocaleDateString('ko-KR')}</span>
                       </div>
                     </div>
                   </div>
@@ -344,8 +272,7 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
                   </svg>
                 </div>
               </Link>
-              )
-            })}
+            ))}
           </div>
         )}
       </div>
