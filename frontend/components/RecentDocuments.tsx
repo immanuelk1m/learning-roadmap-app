@@ -149,7 +149,8 @@ export default function RecentDocuments() {
       padding: 'var(--spacing-6)',
       height: '100%',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      width: '100%'
     }}>
       {/* Header */}
       <div style={{ marginBottom: 'var(--spacing-4)' }}>

@@ -20,21 +20,22 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="container" style={{ paddingTop: 'calc(64px + var(--spacing-8))', paddingBottom: 'var(--spacing-16)' }}>
-        <div className="grid-12">
+        {/* Top Section - Learning Recommendation (Full Width) */}
+        <div style={{ marginBottom: 'var(--spacing-8)' }}>
+          <LearningRecommendation />
+        </div>
+
+        {/* Bottom Section - Two Columns */}
+        <div className="grid-12" style={{ alignItems: 'stretch' }}>
           {/* Left Column - Recent Documents (4 columns) */}
-          <div className="col-span-12 lg:col-span-4" style={{ marginBottom: 'var(--spacing-8)' }}>
-            <div style={{ height: '100%', minHeight: '600px' }}>
+          <div className="col-span-12 lg:col-span-4" style={{ display: 'flex' }}>
+            <div style={{ width: '100%', display: 'flex' }}>
               <RecentDocuments />
             </div>
           </div>
 
-          {/* Right Column - Main Content (8 columns) */}
-          <div className="col-span-12 lg:col-span-8">
-            {/* Priority Action - Learning Recommendation */}
-            <div style={{ marginBottom: 'var(--spacing-8)' }}>
-              <LearningRecommendation />
-            </div>
-
+          {/* Right Column - Subject List + Activity Record (8 columns) */}
+          <div className="col-span-12 lg:col-span-8" style={{ display: 'flex', flexDirection: 'column' }}>
             {/* Subject List Section */}
             <div style={{ marginBottom: 'var(--spacing-8)' }}>
               <div className="surface-primary" style={{ padding: 'var(--spacing-8)' }}>
@@ -43,8 +44,8 @@ export default function HomePage() {
             </div>
 
             {/* Learning Activity Record */}
-            <div>
-              <div className="surface-primary" style={{ padding: '0', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1 }}>
+              <div className="surface-primary" style={{ padding: '0', height: '100%', display: 'flex', flexDirection: 'column' }}>
                 {/* Header with padding */}
                 <div style={{ padding: 'var(--spacing-8) var(--spacing-8) var(--spacing-6) var(--spacing-8)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
