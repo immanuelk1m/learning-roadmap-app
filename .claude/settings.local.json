@@ -46,7 +46,8 @@
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_resize",
       "mcp__playwright__browser_console_messages",
-      "mcp__supabase__list_extensions"
+      "mcp__supabase__list_extensions",
+      "mcp__playwright__browser_close"
     ],
     "deny": []
   }

@@ -115,6 +115,26 @@ export interface StudyGuideResponse {
   references?: string[]
 }
 
+// Page-by-page study guide interfaces
+export interface StudyGuidePage {
+  page_number: number
+  page_title: string
+  page_content: string
+  key_concepts: string[]
+  difficulty_level: 'easy' | 'medium' | 'hard'
+  prerequisites: string[]
+  learning_objectives: string[]
+  original_content?: string
+}
+
+export interface StudyGuidePageResponse {
+  document_title: string
+  total_pages: number
+  pages: StudyGuidePage[]
+  overall_summary: string
+  learning_path?: string[]  // Suggested order of pages to study
+}
+
 // Schema for knowledge tree using the new Type enum
 // Simplified flat structure to avoid recursive schema issues
 export const knowledgeTreeSchema = {
@@ -347,4 +367,80 @@ export const studyGuideSchema = {
     }
   },
   required: ["title", "sections", "summary"]
+}
+
+// Schema for page-by-page study guide generation
+export const studyGuidePageSchema = {
+  type: Type.OBJECT,
+  properties: {
+    document_title: { 
+      type: Type.STRING,
+      description: "Document title in Korean"
+    },
+    total_pages: {
+      type: Type.INTEGER,
+      description: "Total number of pages analyzed"
+    },
+    pages: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          page_number: {
+            type: Type.INTEGER,
+            description: "Page number (1-indexed)"
+          },
+          page_title: {
+            type: Type.STRING,
+            description: "Title or main topic of this page in Korean"
+          },
+          page_content: {
+            type: Type.STRING,
+            description: "Customized explanation for this page based on user's knowledge level, in Korean, max 2000 characters"
+          },
+          key_concepts: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            maxItems: 10,
+            description: "Key concepts covered in this page"
+          },
+          difficulty_level: {
+            type: Type.STRING,
+            enum: ["easy", "medium", "hard"],
+            description: "Difficulty level of the page content"
+          },
+          prerequisites: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            maxItems: 5,
+            description: "Concepts that should be understood before this page"
+          },
+          learning_objectives: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            maxItems: 5,
+            description: "What the student should learn from this page"
+          },
+          original_content: {
+            type: Type.STRING,
+            nullable: true,
+            description: "Original PDF page text for reference (optional)"
+          }
+        },
+        required: ["page_number", "page_title", "page_content", "key_concepts", "difficulty_level", "prerequisites", "learning_objectives"]
+      },
+      description: "Array of page descriptions"
+    },
+    overall_summary: {
+      type: Type.STRING,
+      description: "Overall summary of the document in Korean, max 1000 characters"
+    },
+    learning_path: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      nullable: true,
+      description: "Suggested order of pages to study (optional)"
+    }
+  },
+  required: ["document_title", "total_pages", "pages", "overall_summary"]
 }

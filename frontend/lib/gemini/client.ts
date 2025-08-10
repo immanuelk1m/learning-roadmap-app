@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema } from './schemas'
+import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema, studyGuidePageSchema } from './schemas'
 
 if (!process.env.GEMINI_API_KEY) {
   console.error('=== GEMINI API KEY ERROR ===')
@@ -177,6 +177,50 @@ export const geminiExtendedQuizModel = {
         systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
       },
     })
+  }
+}
+
+// Page-based Study Guide Generation Model configuration
+export const geminiStudyGuidePageModel = {
+  generateContent: async (input: any) => {
+    console.log('=== Gemini Study Guide Page API Call ===')
+    console.log('Model: gemini-2.5-flash')
+    console.log('Temperature: 0.7')
+    console.log('Max output tokens: 32768')
+    console.log('Response type: JSON with page-by-page schema')
+    
+    try {
+      console.log('Sending page-based study guide request to Gemini API...')
+      const startTime = Date.now()
+      
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: input.contents,
+        config: {
+          temperature: 0.7,
+          maxOutputTokens: 32768,
+          responseMimeType: "application/json",
+          responseSchema: studyGuidePageSchema,
+          systemInstruction: "You are an expert educational content creator for Korean university students. Analyze PDF documents page by page and create detailed, customized explanations for each page based on the student's knowledge level. Always write in Korean. Focus on clarity and educational value.",
+        },
+      })
+      
+      const endTime = Date.now()
+      console.log(`Gemini Page Study Guide API call completed in ${endTime - startTime}ms`)
+      
+      if (!result) {
+        console.error('Gemini Page Study Guide API returned null result')
+        throw new Error('Gemini Page Study Guide API returned null result')
+      }
+      
+      return result
+    } catch (error: any) {
+      console.error('=== Gemini Page Study Guide API Error ===')
+      console.error('Error type:', error.constructor.name)
+      console.error('Error message:', error.message)
+      console.error('Error details:', error)
+      throw error
+    }
   }
 }
 

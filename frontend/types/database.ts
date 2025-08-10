@@ -332,6 +332,94 @@ export interface Database {
           created_at?: string
         }
       }
+      study_guides: {
+        Row: {
+          id: string
+          user_id: string
+          document_id: string
+          content: string | null
+          document_title: string | null
+          total_pages: number | null
+          overall_summary: string | null
+          generation_method: string | null
+          known_concepts: string[]
+          unknown_concepts: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          document_id: string
+          content?: string | null
+          document_title?: string | null
+          total_pages?: number | null
+          overall_summary?: string | null
+          generation_method?: string | null
+          known_concepts?: string[]
+          unknown_concepts?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          document_id?: string
+          content?: string | null
+          document_title?: string | null
+          total_pages?: number | null
+          overall_summary?: string | null
+          generation_method?: string | null
+          known_concepts?: string[]
+          unknown_concepts?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      study_guide_pages: {
+        Row: {
+          id: string
+          study_guide_id: string
+          page_number: number
+          page_title: string | null
+          page_content: string
+          key_concepts: string[] | null
+          difficulty_level: string | null
+          prerequisites: string[] | null
+          learning_objectives: string[] | null
+          original_content: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          study_guide_id: string
+          page_number: number
+          page_title?: string | null
+          page_content: string
+          key_concepts?: string[] | null
+          difficulty_level?: string | null
+          prerequisites?: string[] | null
+          learning_objectives?: string[] | null
+          original_content?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          study_guide_id?: string
+          page_number?: number
+          page_title?: string | null
+          page_content?: string
+          key_concepts?: string[] | null
+          difficulty_level?: string | null
+          prerequisites?: string[] | null
+          learning_objectives?: string[] | null
+          original_content?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }

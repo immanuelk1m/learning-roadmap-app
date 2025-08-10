@@ -62,6 +62,7 @@ PDF 문서 정보를 저장하는 테이블임.
 |--------|------------|-----------|--------|------|
 | id | uuid | ❌ | uuid_generate_v4() | 기본 키 |
 | document_id | uuid | ❌ | - | 문서 ID (documents 참조) |
+| subject_id | uuid | ❌ | - | 과목 ID (subjects 참조) |
 | user_id | uuid | ❌ | - | 사용자 ID |
 | parent_id | uuid | ✅ | - | 부모 노드 ID (자기 참조) |
 | name | text | ❌ | - | 노드명 |
@@ -79,15 +80,18 @@ PDF 문서 정보를 저장하는 테이블임.
 **인덱스:**
 - `knowledge_nodes_pkey`: id (PRIMARY KEY)
 - `idx_knowledge_nodes_document_id`: document_id
+- `idx_knowledge_nodes_subject_id`: subject_id
 - `idx_knowledge_nodes_parent_id`: parent_id
 - `idx_knowledge_nodes_user_id`: user_id
 - `idx_knowledge_nodes_user_document`: user_id, document_id
+- `idx_knowledge_nodes_user_subject`: user_id, subject_id
 - `knowledge_nodes_unique_user_doc_name_parent`: user_id, document_id, name, COALESCE(parent_id) (UNIQUE)
 - `idx_knowledge_nodes_understanding`: user_id, understanding_level
 - `idx_knowledge_nodes_last_reviewed`: user_id, last_reviewed
 
 **외래 키:**
 - `document_id` → documents(id)
+- `subject_id` → subjects(id)
 - `parent_id` → knowledge_nodes(id) (자기 참조)
 
 ### 4. quiz_items (퀴즈 문항)
@@ -201,14 +205,18 @@ PDF 문서 정보를 저장하는 테이블임.
 
 
 ### 8. study_guides (학습 가이드)
-사용자별 문서 학습 가이드를 저장하는 테이블임.
+사용자별 문서 학습 가이드 메타데이터를 저장하는 테이블임.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 기본값 | 설명 |
 |--------|------------|-----------|--------|------|
 | id | uuid | ❌ | uuid_generate_v4() | 기본 키 |
 | user_id | uuid | ❌ | - | 사용자 ID |
 | document_id | uuid | ❌ | - | 문서 ID (documents 참조) |
-| content | text | ❌ | - | 가이드 내용 |
+| content | text | ❌ | - | 가이드 내용 (legacy 방식에서 사용) |
+| document_title | text | ✅ | - | 문서 제목 |
+| total_pages | integer | ✅ | - | 전체 페이지 수 |
+| overall_summary | text | ✅ | - | 전체 요약 |
+| generation_method | text | ✅ | 'legacy' | 생성 방식 (legacy/pages) |
 | known_concepts | uuid[] | ✅ | {} | 이해한 개념 ID 목록 |
 | unknown_concepts | uuid[] | ✅ | {} | 모르는 개념 ID 목록 |
 | created_at | timestamptz | ❌ | timezone('utc', now()) | 생성 시간 |
@@ -221,7 +229,34 @@ PDF 문서 정보를 저장하는 테이블임.
 **외래 키:**
 - `document_id` → documents(id)
 
-### 9. knowledge_assessment_quizzes (지식 평가 퀴즈)
+### 9. study_guide_pages (학습 가이드 페이지)
+학습 가이드의 페이지별 상세 설명을 저장하는 테이블임.
+
+| 컬럼명 | 데이터 타입 | NULL 허용 | 기본값 | 설명 |
+|--------|------------|-----------|--------|------|
+| id | uuid | ❌ | uuid_generate_v4() | 기본 키 |
+| study_guide_id | uuid | ❌ | - | 학습 가이드 ID (study_guides 참조) |
+| page_number | integer | ❌ | - | 페이지 번호 |
+| page_title | text | ✅ | - | 페이지 제목 |
+| page_content | text | ❌ | - | 페이지별 맞춤 설명 |
+| key_concepts | text[] | ✅ | - | 핵심 개념 목록 |
+| difficulty_level | text | ✅ | - | 난이도 (easy/medium/hard) |
+| prerequisites | text[] | ✅ | - | 선수 지식 목록 |
+| learning_objectives | text[] | ✅ | - | 학습 목표 |
+| original_content | text | ✅ | - | 원본 PDF 페이지 내용 |
+| created_at | timestamptz | ✅ | timezone('utc', now()) | 생성 시간 |
+| updated_at | timestamptz | ✅ | timezone('utc', now()) | 수정 시간 |
+
+**인덱스:**
+- `study_guide_pages_pkey`: id (PRIMARY KEY)
+- `idx_study_guide_pages_study_guide_id`: study_guide_id
+- `idx_study_guide_pages_page_number`: study_guide_id, page_number
+- `study_guide_pages_study_guide_id_page_number_key`: study_guide_id, page_number (UNIQUE)
+
+**외래 키:**
+- `study_guide_id` → study_guides(id) ON DELETE CASCADE
+
+### 10. knowledge_assessment_quizzes (지식 평가 퀴즈)
 지식 노드 평가용 퀴즈를 저장하는 테이블임.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 기본값 | 설명 |
@@ -240,7 +275,7 @@ PDF 문서 정보를 저장하는 테이블임.
 **외래 키:**
 - `node_id` → knowledge_nodes(id)
 
-### 10. ai_analysis_cache (AI 분석 캐시)
+### 11. ai_analysis_cache (AI 분석 캐시)
 AI 분석 결과를 캐싱하는 테이블임.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 기본값 | 설명 |
@@ -257,7 +292,7 @@ AI 분석 결과를 캐싱하는 테이블임.
 **외래 키:**
 - `document_id` → documents(id)
 
-### 11. profiles (프로필)
+### 12. profiles (프로필)
 사용자 프로필 정보를 저장하는 테이블임.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 기본값 | 설명 |
@@ -348,12 +383,14 @@ profiles (독립적)
 
 ### 테이블 통합
 - **user_knowledge_status 테이블 삭제**: knowledge_nodes 테이블로 통합
-- **knowledge_nodes 테이블 확장**: 사용자별 학습 상태 관리 기능 추가
-  - user_id, understanding_level, last_reviewed, review_count, assessment_method, updated_at 컬럼 추가
+- **knowledge_nodes 테이블 확장**: 
+  - 사용자별 학습 상태 관리 기능 추가: user_id, understanding_level, last_reviewed, review_count, assessment_method, updated_at 컬럼 추가
+  - subject_id 컬럼 추가로 subjects 테이블과 직접 연결
   - 지식 구조와 학습 상태를 하나의 테이블에서 통합 관리
 
 ### 인덱스 최적화
 - 사용자별 조회 성능 향상을 위한 인덱스 추가
+- 과목별 조회를 위한 subject_id 인덱스 추가
 - 유니크 제약조건으로 데이터 무결성 강화
 
 ## 권장 개선 사항
