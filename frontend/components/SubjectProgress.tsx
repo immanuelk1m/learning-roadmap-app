@@ -12,6 +12,9 @@ interface Subject {
   color?: string
   created_at: string
   fileCount: number
+  totalNodes: number
+  completedNodes: number
+  progress: number
 }
 
 interface SubjectProgressProps {
@@ -54,9 +57,10 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
           return
         }
 
-        // Fetch document counts for each subject
+        // Fetch document counts and knowledge node progress for each subject
         const subjectsWithCounts = await Promise.all(
           subjectsData.map(async (subject) => {
+            // Fetch documents count
             const { data: documents, error: docsError } = await supabase
               .from('documents')
               .select('id')
@@ -67,7 +71,25 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
               return null
             }
 
+            // Fetch knowledge nodes progress
+            const { data: knowledgeNodes, error: nodesError } = await supabase
+              .from('knowledge_nodes')
+              .select('id, understanding_level')
+              .eq('subject_id', subject.id)
+              .eq('user_id', FIXED_USER_ID)
+
+            if (nodesError) {
+              console.error('Error fetching knowledge nodes:', nodesError)
+            }
+
             const fileCount = documents?.length || 0
+            const totalNodes = knowledgeNodes?.length || 0
+            const completedNodes = knowledgeNodes?.filter(node => 
+              node.understanding_level === 100
+            ).length || 0
+            const progress = totalNodes > 0 
+              ? Math.round((completedNodes / totalNodes) * 100) 
+              : 0
 
             return {
               id: subject.id,
@@ -75,7 +97,10 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
               description: subject.description,
               color: subject.color,
               created_at: subject.created_at,
-              fileCount
+              fileCount,
+              totalNodes,
+              completedNodes,
+              progress
             }
           })
         )
@@ -222,6 +247,58 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
                       </p>
                     )}
                     
+                    {/* Progress Bar */}
+                    {subject.totalNodes > 0 && (
+                      <div style={{ marginBottom: 'var(--spacing-3)' }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 'var(--spacing-1)',
+                          fontSize: 'var(--font-size-sm)'
+                        }}>
+                          <span style={{ 
+                            color: 'var(--color-neutral-700)',
+                            fontWeight: 'var(--font-weight-medium)'
+                          }}>
+                            학습 진행률
+                          </span>
+                          <span style={{ 
+                            color: subject.progress === 100 
+                              ? 'var(--color-success)' 
+                              : subject.progress >= 70 
+                                ? 'var(--color-primary-500)'
+                                : subject.progress >= 30
+                                  ? 'var(--color-warning)'
+                                  : 'var(--color-error)',
+                            fontWeight: 'var(--font-weight-semibold)'
+                          }}>
+                            {subject.completedNodes}/{subject.totalNodes} ({subject.progress}%)
+                          </span>
+                        </div>
+                        <div style={{ 
+                          width: '100%',
+                          height: '6px',
+                          backgroundColor: 'var(--color-neutral-200)',
+                          borderRadius: 'var(--radius-full)',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            width: `${subject.progress}%`,
+                            height: '100%',
+                            backgroundColor: subject.progress === 100 
+                              ? 'var(--color-success)' 
+                              : subject.progress >= 70 
+                                ? 'var(--color-primary-500)'
+                                : subject.progress >= 30
+                                  ? 'var(--color-warning)'
+                                  : 'var(--color-error)',
+                            transition: 'width 300ms ease'
+                          }} />
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Meta Info */}
                     <div style={{ 
                       display: 'flex', 
@@ -237,17 +314,19 @@ export default function SubjectProgress({ refreshKey, onSubjectCreated }: Subjec
                         </svg>
                         <span>{subject.fileCount}개 문서</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-400)' }}>
-                          <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        <span>{new Date(subject.created_at).toLocaleDateString('ko-KR')}</span>
-                      </div>
+                      {subject.totalNodes > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--color-neutral-400)' }}>
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          <span>{subject.totalNodes}개 노드</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
