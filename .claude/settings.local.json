@@ -47,7 +47,13 @@
       "mcp__playwright__browser_resize",
       "mcp__playwright__browser_console_messages",
       "mcp__supabase__list_extensions",
-      "mcp__playwright__browser_close"
+      "mcp__playwright__browser_close",
+      "Bash(gh auth:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git rm:*)",
+      "Bash(git push:*)",
+      "Bash(git filter-branch:*)"
     ],
     "deny": []
   }
