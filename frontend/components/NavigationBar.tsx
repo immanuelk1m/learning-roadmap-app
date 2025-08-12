@@ -8,112 +8,54 @@ export default function NavigationBar() {
 
   return (
     <nav 
-      className="fixed top-0 left-0 right-0" 
-      style={{ 
-        backgroundColor: 'var(--color-neutral-0)',
-        borderBottom: '1px solid var(--color-neutral-200)',
-        zIndex: 'var(--z-50)',
-        width: '100vw'
-      }}
+      className="bg-white h-[65px] flex items-center justify-between px-[46px] border-b border-gray-200"
     >
-      <div className="container" style={{ 
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        height: '64px',
-        overflow: 'hidden'
-      }}>
-        {/* Logo/Brand with greeting */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 'var(--spacing-4)',
-          flexShrink: 1,
-          minWidth: 0
-        }}>
-          <div style={{ 
-            fontSize: 'var(--font-size-xl)',
-            fontWeight: 'var(--font-weight-bold)',
-            color: 'var(--color-neutral-900)'
-          }}>
-            Commit
-          </div>
-          <div style={{
-            fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-neutral-600)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-2)'
-          }}>
-            <span>|</span>
-            <span>환영합니다, Taehee님</span>
-          </div>
+      {/* Logo and Welcome */}
+      <div className="flex items-center gap-[13px]">
+        <div className="text-[#212529] text-[17.398px] font-semibold">
+          Commit
         </div>
+        <div className="w-0 h-[9.5px] border-l border-gray-300"></div>
+        <div className="text-[#94aac0] text-[12px] font-bold">
+          환영합니다, Taehee님
+        </div>
+      </div>
 
-        {/* Simplified Navigation */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 'var(--spacing-4)',
-          flexShrink: 0
-        }}>
-          {/* Breadcrumb */}
-          <div style={{
-            fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-neutral-500)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-2)'
-          }}>
-            <Link 
-              href="/" 
-              style={{ 
-                color: pathname === '/' ? 'var(--color-primary-500)' : 'var(--color-neutral-500)',
-                textDecoration: 'none',
-                fontWeight: pathname === '/' ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)'
-              }}
-            >
-              대시보드
-            </Link>
-            {pathname !== '/' && (
-              <>
-                <span>/</span>
-                <span style={{ color: 'var(--color-neutral-700)', fontWeight: 'var(--font-weight-medium)' }}>
-                  {pathname === '/subjects' ? '과목 목록' : '과목 상세'}
-                </span>
-              </>
-            )}
-          </div>
+      {/* Center Navigation */}
+      <div className="flex items-center gap-[60px]">
+        <Link 
+          href="/" 
+          className={`text-[17.398px] font-semibold ${pathname === '/' ? 'text-[#212529]' : 'text-[#94aac0]'} no-underline`}
+        >
+          Main
+        </Link>
+        <Link 
+          href="/my-course" 
+          className={`text-[17.398px] font-semibold ${pathname === '/my-course' ? 'text-[#212529]' : 'text-[#94aac0]'} no-underline`}
+        >
+          My Course
+        </Link>
+        <Link 
+          href="/progress" 
+          className={`text-[17.398px] font-semibold ${pathname === '/progress' ? 'text-[#212529]' : 'text-[#94aac0]'} no-underline`}
+        >
+          과목별 진행률
+        </Link>
+        <Link 
+          href="/commits" 
+          className={`text-[17.398px] font-semibold ${pathname === '/commits' ? 'text-[#212529]' : 'text-[#94aac0]'} no-underline`}
+        >
+          내커밋 한눈에 보기
+        </Link>
+      </div>
 
-          {/* Quick Actions */}
-          <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
-            {pathname !== '/subjects' && (
-              <Link
-                href="/subjects"
-                style={{
-                  padding: 'var(--spacing-2) var(--spacing-3)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  textDecoration: 'none',
-                  color: 'var(--color-neutral-600)',
-                  border: '1px solid var(--color-neutral-300)',
-                  backgroundColor: 'var(--color-neutral-0)',
-                  transition: 'all 150ms ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-neutral-50)'
-                  e.currentTarget.style.borderColor = 'var(--color-neutral-400)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-neutral-0)'
-                  e.currentTarget.style.borderColor = 'var(--color-neutral-300)'
-                }}
-              >
-                과목 관리
-              </Link>
-            )}
-          </div>
+      {/* Profile */}
+      <div className="w-[50px] h-[50px] rounded-[10px] border border-[#004d47] overflow-hidden">
+        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#004d47" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="12" cy="7" r="4" stroke="#004d47" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
       </div>
     </nav>
