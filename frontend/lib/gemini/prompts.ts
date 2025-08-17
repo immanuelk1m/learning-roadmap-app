@@ -1,10 +1,21 @@
-export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 핵심 개념을 추출하고 지식 트리를 생성하세요.
+export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 용어와 개념만 추출하세요.
 
-**규칙:**
-1. 한국어로 작성
-2. 최대 3단계 깊이 (level 0, 1, 2)
-3. 설명은 50자 이내로 간결하게
-4. 핵심 개념만 추출 (최대 20개 노드)
+**중요 규칙:**
+1. 구체적인 전문 용어, 지표, 공식, 이론명만 추출
+2. "~는 ~이다" 형식의 일반적 정의문 금지
+3. 추상적 설명이 아닌 학습 가능한 개념만
+4. 최대 20개 노드, 3단계 깊이
+
+**좋은 예시:**
+- name: "PER", description: "주가수익비율, 주가/주당순이익"
+- name: "한계효용", description: "추가 1단위 소비시 증가 효용"
+- name: "GDP", description: "국내총생산, C+I+G+(X-M)"
+- name: "복리계산", description: "원금×(1+이자율)^기간"
+
+**나쁜 예시 (사용 금지):**
+- "경제학 개론은 경제학의 기초를 다루는 학문"
+- "생활경제는 일상생활 속 경제 현상"
+- "투자의 이해는 투자를 이해하는 것"
 
 **JSON 형식:**
 {
@@ -12,8 +23,8 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 핵심 개념을 추�
     {
       "id": "node_1",
       "parent_id": null,
-      "name": "개념명",
-      "description": "간단한 설명",
+      "name": "구체적 개념명/용어",
+      "description": "핵심 공식이나 계산법",
       "level": 0,
       "prerequisites": []
     }
