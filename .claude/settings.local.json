@@ -53,7 +53,11 @@
       "Bash(git remote remove:*)",
       "Bash(git rm:*)",
       "Bash(git push:*)",
-      "Bash(git filter-branch:*)"
+      "Bash(git filter-branch:*)",
+      "mcp__figma-dev-mode-mcp-server__get_image",
+      "mcp__figma-dev-mode-mcp-server__get_code",
+      "Bash(npm update:*)",
+      "WebSearch"
     ],
     "deny": []
   }

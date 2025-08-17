@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiKnowledgeTreeModel, geminiOXQuizModel } from '@/lib/gemini/client'
+import { geminiKnowledgeTreeModel, geminiOXQuizModel, uploadFileToGemini } from '@/lib/gemini/client'
 import { KNOWLEDGE_TREE_PROMPT, OX_QUIZ_GENERATION_PROMPT, EXTENDED_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { KnowledgeTreeResponse, KnowledgeNode, OXQuizResponse } from '@/lib/gemini/schemas'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
@@ -346,29 +346,42 @@ export async function POST(
         })
       }
 
-      // Convert to base64 for Gemini
-      analyzeLogger.info('Converting PDF to base64', {
+      // Upload file to Gemini File API instead of base64 conversion
+      analyzeLogger.info('Uploading PDF to Gemini File API', {
         correlationId,
         documentId: id,
         metadata: {
-          originalSize: fileData.size
+          fileSize: fileData.size,
+          fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`
         }
       })
       
-      const conversionTimer = analyzeLogger.startTimer()
-      const base64Data = await fileData.arrayBuffer().then((buffer) =>
-        Buffer.from(buffer).toString('base64')
-      )
-      const conversionDuration = conversionTimer()
+      const uploadTimer = analyzeLogger.startTimer()
+      let uploadedFile
+      try {
+        uploadedFile = await uploadFileToGemini(fileData, 'application/pdf')
+      } catch (uploadError: any) {
+        analyzeLogger.error('Failed to upload file to Gemini', {
+          correlationId,
+          documentId: id,
+          error: uploadError,
+          metadata: {
+            errorMessage: uploadError.message
+          }
+        })
+        throw new Error(`Failed to upload file to Gemini: ${uploadError.message}`)
+      }
+      const uploadDuration = uploadTimer()
       
-      analyzeLogger.info('Base64 conversion completed', {
+      analyzeLogger.info('File uploaded to Gemini successfully', {
         correlationId,
         documentId: id,
-        duration: conversionDuration,
+        duration: uploadDuration,
         metadata: {
-          base64Length: base64Data.length,
-          base64SizeMB: `${(base64Data.length / (1024 * 1024)).toFixed(2)} MB`,
-          expansionRatio: (base64Data.length / fileData.size).toFixed(2)
+          fileUri: uploadedFile.uri,
+          fileName: uploadedFile.name,
+          mimeType: uploadedFile.mimeType,
+          uploadSpeed: `${(fileData.size / 1024 / 1024 / (uploadDuration / 1000)).toFixed(2)} MB/s`
         }
       })
 
@@ -399,9 +412,9 @@ export async function POST(
               {
                 parts: [
                   {
-                    inlineData: {
-                      mimeType: 'application/pdf',
-                      data: base64Data,
+                    fileData: {
+                      fileUri: uploadedFile.uri,
+                      mimeType: uploadedFile.mimeType || 'application/pdf',
                     },
                   },
                   {
@@ -514,9 +527,9 @@ export async function POST(
         }
       })
 
-      // Save flat knowledge nodes to database
+      // Save flat knowledge nodes to database with batch operations
       const saveFlatNodes = async (nodes: any[]) => {
-        supabaseLogger.info('Starting knowledge nodes save operation', {
+        supabaseLogger.info('Starting knowledge nodes batch save operation', {
           correlationId,
           documentId: id,
           metadata: {
@@ -540,143 +553,135 @@ export async function POST(
         // Create a mapping of temporary IDs to actual database IDs
         const idMapping: Record<string, string> = {}
         
-        // First pass: Save all nodes and build ID mapping
-        for (let i = 0; i < nodes.length; i++) {
-          const node = nodes[i]
-          
-          // Validate node structure
-          if (!node || typeof node !== 'object') {
-            supabaseLogger.warn('Invalid node structure', {
-              correlationId,
-              documentId: id,
-              metadata: {
-                nodeIndex: i,
-                nodeType: typeof node,
-                nodeValue: node
-              }
-            })
-            continue
-          }
-          
-          // Prepare node data
-          const nodeData = {
-            document_id: id,
-            parent_id: null, // Will be updated in second pass
-            name: node.name || 'Untitled Node',
-            description: node.description || '',
-            level: node.level || 0,
-            position: i,
-            prerequisites: node.prerequisites || [],
-          }
-          
-          supabaseLogger.debug('Saving knowledge node', {
-            correlationId,
-            documentId: id,
-            metadata: {
-              nodeName: nodeData.name,
-              nodeLevel: nodeData.level,
-              nodeIndex: i
-            }
-          })
-          
-          try {
-            const nodeTimer = supabaseLogger.startTimer()
-            const { data: savedNode, error: insertError } = await supabase
-              .from('knowledge_nodes')
-              .insert(nodeData)
-              .select()
-              .single()
-            
-            const nodeDuration = nodeTimer()
-            
-            if (insertError) {
-              supabaseLogger.error('Failed to insert knowledge node', {
-                correlationId,
-                documentId: id,
-                error: insertError,
-                duration: nodeDuration,
-                metadata: {
-                  nodeName: nodeData.name,
-                  nodeIndex: i,
-                  errorCode: insertError.code,
-                  errorDetails: insertError.details
-                }
-              })
-              continue
-            }
-
-            supabaseLogger.debug('Knowledge node saved successfully', {
-              correlationId,
-              documentId: id,
-              duration: nodeDuration,
-              metadata: {
-                nodeId: savedNode.id,
-                nodeName: savedNode.name,
-                nodeIndex: i
-              }
-            })
-            
-            // Map temporary ID to actual database ID
-            if (node.id && savedNode.id) {
-              idMapping[node.id] = savedNode.id
-            }
-          } catch (nodeError: any) {
-            supabaseLogger.error('Exception while saving node', {
-              correlationId,
-              documentId: id,
-              error: nodeError,
-              metadata: {
-                nodeName: nodeData.name,
-                nodeIndex: i,
-                errorType: nodeError.name,
-                errorMessage: nodeError.message
-              }
-            })
-          }
-        }
+        // Prepare all nodes data for batch insert
+        const nodesData = nodes.map((node, i) => ({
+          document_id: id,
+          user_id: FIXED_USER_ID, // Add user_id field
+          subject_id: document.subject_id, // Add subject_id from document
+          parent_id: null, // Will be updated in second pass
+          name: node.name || 'Untitled Node',
+          description: node.description || '',
+          level: node.level || 0,
+          position: i,
+          prerequisites: node.prerequisites || [],
+        }))
         
-        // Second pass: Update parent_id references
-        supabaseLogger.info('Updating parent-child relationships', {
+        supabaseLogger.info('Performing batch insert of knowledge nodes', {
           correlationId,
           documentId: id,
           metadata: {
-            relationshipCount: nodes.filter(n => n.parent_id).length
+            batchSize: nodesData.length
           }
         })
         
+        // Batch insert all nodes at once
+        const batchTimer = supabaseLogger.startTimer()
+        const { data: savedNodes, error: batchError } = await supabase
+          .from('knowledge_nodes')
+          .insert(nodesData)
+          .select()
+        
+        const batchDuration = batchTimer()
+        
+        if (batchError) {
+          supabaseLogger.error('Batch insert of knowledge nodes failed', {
+            correlationId,
+            documentId: id,
+            error: batchError,
+            duration: batchDuration,
+            metadata: {
+              errorCode: batchError.code,
+              errorDetails: batchError.details,
+              attemptedCount: nodesData.length
+            }
+          })
+          throw new Error(`Failed to batch insert knowledge nodes: ${batchError.message}`)
+        }
+        
+        supabaseLogger.info('Batch insert of knowledge nodes successful', {
+          correlationId,
+          documentId: id,
+          duration: batchDuration,
+          metadata: {
+            insertedCount: savedNodes?.length || 0,
+            insertSpeed: `${((nodesData.length / (batchDuration / 1000))).toFixed(2)} nodes/sec`
+          }
+        })
+        
+        // Build ID mapping
+        if (savedNodes) {
+          savedNodes.forEach((savedNode, i) => {
+            if (nodes[i]?.id && savedNode.id) {
+              idMapping[nodes[i].id] = savedNode.id
+            }
+          })
+        }
+        
+        // Second pass: Batch update parent_id references
+        const parentUpdates = []
         for (const node of nodes) {
           if (node.parent_id && node.id && idMapping[node.id]) {
             const actualNodeId = idMapping[node.id]
             const actualParentId = idMapping[node.parent_id]
             
             if (actualParentId) {
-              const { error: updateError } = await supabase
-                .from('knowledge_nodes')
-                .update({ parent_id: actualParentId })
-                .eq('id', actualNodeId)
-              
-              if (updateError) {
-                supabaseLogger.error('Failed to update parent_id relationship', {
-                  correlationId,
-                  documentId: id,
-                  error: updateError,
-                  metadata: {
-                    nodeId: actualNodeId,
-                    parentId: actualParentId,
-                    errorCode: updateError.code
-                  }
-                })
-              } else {
-                supabaseLogger.debug('Parent-child relationship updated', {
-                  correlationId,
-                  documentId: id,
-                  metadata: {
-                    nodeId: actualNodeId,
-                    parentId: actualParentId
-                  }
-                })
-              }
+              parentUpdates.push({
+                id: actualNodeId,
+                parent_id: actualParentId
+              })
             }
+          }
+        }
+        
+        if (parentUpdates.length > 0) {
+          supabaseLogger.info('Batch updating parent-child relationships', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              updateCount: parentUpdates.length
+            }
+          })
+          
+          const updateTimer = supabaseLogger.startTimer()
+          
+          // Batch update parent_id for each node
+          let updateError = null
+          for (const update of parentUpdates) {
+            const { error } = await supabase
+              .from('knowledge_nodes')
+              .update({ parent_id: update.parent_id })
+              .eq('id', update.id)
+            
+            if (error) {
+              updateError = error
+              break
+            }
+          }
+          
+          const updateDuration = updateTimer()
+          
+          if (updateError) {
+            supabaseLogger.error('Batch update of parent relationships failed', {
+              correlationId,
+              documentId: id,
+              error: updateError,
+              duration: updateDuration,
+              metadata: {
+                errorCode: updateError.code,
+                errorDetails: updateError.details,
+                attemptedCount: parentUpdates.length
+              }
+            })
+          } else {
+            supabaseLogger.info('Batch update of parent relationships successful', {
+              correlationId,
+              documentId: id,
+              duration: updateDuration,
+              metadata: {
+                updatedCount: parentUpdates.length,
+                updateSpeed: `${((parentUpdates.length / (updateDuration / 1000))).toFixed(2)} updates/sec`
+              }
+            })
           }
         }
         
@@ -785,9 +790,9 @@ export async function POST(
                 {
                   parts: [
                     {
-                      inlineData: {
-                        mimeType: 'application/pdf',
-                        data: base64Data,
+                      fileData: {
+                        fileUri: uploadedFile.uri,
+                        mimeType: uploadedFile.mimeType || 'application/pdf',
                       },
                     },
                     {
@@ -887,9 +892,13 @@ export async function POST(
               }
             })
             
-            // Save quiz questions to database with direct node IDs
+            // Save quiz questions to database with batch operations
             if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
               const saveTimer = supabaseLogger.startTimer()
+              
+              // Prepare all valid quiz items for batch insert
+              const quizItemsToInsert = []
+              const skippedItems = []
               
               for (const item of quizData.quiz_items) {
                 // Since we passed actual database IDs to Gemini, the node_id should be valid
@@ -899,8 +908,10 @@ export async function POST(
                 const nodeExists = savedNodes.find(n => n.id === nodeId)
                 
                 if (nodeExists) {
-                  const quizItem = {
+                  quizItemsToInsert.push({
                     document_id: id,
+                    user_id: FIXED_USER_ID, // Add user_id field
+                    subject_id: document.subject_id, // Add subject_id from document
                     node_id: nodeId,
                     question: item.question,
                     question_type: 'true_false' as const,
@@ -909,67 +920,71 @@ export async function POST(
                     explanation: item.explanation,
                     difficulty: 'easy' as const, // Use valid difficulty value
                     is_assessment: true,
-                  }
-                  
-                  const { data: insertedQuiz, error: quizError } = await supabase
-                    .from('quiz_items')
-                    .insert(quizItem)
-                    .select()
-                    .single()
-                  
-                  if (quizError) {
-                    supabaseLogger.error('Failed to save quiz item', {
-                      correlationId,
-                      documentId: id,
-                      metadata: {
-                        nodeId: nodeId,
-                        nodeName: nodeExists.name,
-                        errorCode: quizError.code,
-                        errorDetails: quizError.details,
-                        errorMessage: quizError.message,
-                        errorHint: quizError.hint,
-                        quizQuestion: item.question,
-                        quizItem: quizItem,
-                        failedInsert: {
-                          document_id: quizItem.document_id,
-                          node_id: quizItem.node_id,
-                          question_type: quizItem.question_type,
-                          options: quizItem.options,
-                          difficulty: quizItem.difficulty
-                        }
-                      }
-                    })
-                    failedCount++
-                  } else {
-                    supabaseLogger.info('Quiz item saved successfully', {
-                      correlationId,
-                      documentId: id,
-                      metadata: {
-                        quizItemId: insertedQuiz?.id,
-                        nodeId: nodeId,
-                        nodeName: nodeExists.name,
-                        question: item.question.substring(0, 100) + '...'
-                      }
-                    })
-                    savedCount++
-                  }
+                  })
                 } else {
-                  supabaseLogger.warn('Quiz item references non-existent node', {
-                    correlationId,
-                    documentId: id,
-                    metadata: {
-                      nodeId: item.node_id,
-                      availableNodeIds: savedNodes.map(n => n.id),
-                      quizQuestion: item.question,
-                      quizItem: item
-                    }
+                  skippedItems.push({
+                    nodeId: item.node_id,
+                    question: item.question
                   })
                   failedCount++
                 }
               }
               
+              // Batch insert all valid quiz items at once
+              if (quizItemsToInsert.length > 0) {
+                supabaseLogger.info('Performing batch insert of quiz items', {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    batchSize: quizItemsToInsert.length,
+                    skippedCount: skippedItems.length
+                  }
+                })
+                
+                const { data: insertedQuizItems, error: batchQuizError } = await supabase
+                  .from('quiz_items')
+                  .insert(quizItemsToInsert)
+                  .select()
+                
+                if (batchQuizError) {
+                  supabaseLogger.error('Batch insert of quiz items failed', {
+                    correlationId,
+                    documentId: id,
+                    error: batchQuizError,
+                    metadata: {
+                      errorCode: batchQuizError.code,
+                      errorDetails: batchQuizError.details,
+                      errorMessage: batchQuizError.message,
+                      attemptedCount: quizItemsToInsert.length
+                    }
+                  })
+                  failedCount += quizItemsToInsert.length
+                } else {
+                  savedCount = insertedQuizItems?.length || 0
+                  supabaseLogger.info('Batch insert of quiz items successful', {
+                    correlationId,
+                    documentId: id,
+                    metadata: {
+                      insertedCount: savedCount,
+                      sampleQuizIds: insertedQuizItems?.slice(0, 3).map(q => q.id)
+                    }
+                  })
+                }
+              }
+              
+              if (skippedItems.length > 0) {
+                supabaseLogger.warn('Some quiz items were skipped due to invalid node references', {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    skippedCount: skippedItems.length,
+                    skippedItems: skippedItems.slice(0, 3)
+                  }
+                })
+              }
+              
               const saveDuration = saveTimer()
-              supabaseLogger.info('Quiz items save operation completed', {
+              supabaseLogger.info('Quiz items batch save operation completed', {
                 correlationId,
                 documentId: id,
                 duration: saveDuration,
@@ -977,7 +992,8 @@ export async function POST(
                   totalItems: quizData.quiz_items.length,
                   savedCount,
                   failedCount,
-                  successRate: `${((savedCount / quizData.quiz_items.length) * 100).toFixed(2)}%`
+                  successRate: `${((savedCount / quizData.quiz_items.length) * 100).toFixed(2)}%`,
+                  insertSpeed: savedCount > 0 ? `${((savedCount / (saveDuration / 1000))).toFixed(2)} items/sec` : 'N/A'
                 }
               })
               

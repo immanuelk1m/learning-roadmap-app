@@ -60,19 +60,12 @@ export default function CreateSubjectButton({ onSubjectCreated }: CreateSubjectB
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="btn-base btn-primary"
-        style={{
-          padding: 'var(--spacing-2) var(--spacing-4)',
-          fontSize: 'var(--font-size-sm)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 'var(--spacing-2)'
-        }}
+        className="bg-[#2f332f] text-[#2ce477] px-4 py-2 rounded-[7px] shadow-lg flex items-center gap-2 hover:scale-105 transition-transform"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <span className="font-bold text-[13px]">과목 생성</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5v14M5 12h14" stroke="#2ce477" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        새 과목
       </button>
 
       {isOpen && (

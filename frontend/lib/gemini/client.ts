@@ -17,13 +17,63 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 // Export the initialized AI instance for direct use
 export { genAI }
 
+// Helper function to upload file and wait for processing
+export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'application/pdf'): Promise<any> {
+  console.log('=== Uploading file to Gemini File API ===')
+  console.log(`File size: ${(fileData.size / (1024 * 1024)).toFixed(2)} MB`)
+  console.log(`MIME type: ${mimeType}`)
+  
+  const startTime = Date.now()
+  
+  try {
+    // Upload file using File API
+    const uploadResult = await genAI.files.upload({
+      file: fileData,
+      metadata: {
+        mimeType: mimeType
+      }
+    })
+    
+    console.log(`File uploaded in ${Date.now() - startTime}ms`)
+    console.log(`File name: ${uploadResult.name}`)
+    console.log(`File URI: ${uploadResult.uri}`)
+    console.log(`File state: ${uploadResult.state}`)
+    
+    // Wait for file to be processed if needed
+    let file = uploadResult
+    while (file.state === 'PROCESSING') {
+      console.log('File is still processing, waiting...')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Get updated file status
+      file = await genAI.files.get(file.name)
+    }
+    
+    if (file.state === 'FAILED') {
+      throw new Error(`File processing failed: ${file.error?.message || 'Unknown error'}`)
+    }
+    
+    const totalTime = Date.now() - startTime
+    console.log(`File ready for use in ${totalTime}ms`)
+    console.log(`Final file URI: ${file.uri}`)
+    console.log(`Final file mimeType: ${file.mimeType}`)
+    
+    return file
+  } catch (error: any) {
+    console.error('=== File Upload Error ===')
+    console.error('Error:', error.message)
+    console.error('Full error:', error)
+    throw error
+  }
+}
+
 // Knowledge Tree Analysis Model configuration
 export const geminiKnowledgeTreeModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Knowledge Tree API Call ===')
     console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.3')
-    console.log('Max output tokens: 32768')
+    console.log('Max output tokens: 16384')
     console.log('Response type: JSON with schema validation')
     
     try {
@@ -35,7 +85,7 @@ export const geminiKnowledgeTreeModel = {
         contents: input.contents,
         config: {
           temperature: 0.3,
-          maxOutputTokens: 32768,
+          maxOutputTokens: 16384,
           responseMimeType: "application/json",
           responseSchema: knowledgeTreeSchema,
           systemInstruction: "You are an expert curriculum designer for Korean university students. Always respond in Korean language. Analyze educational content and create structured knowledge trees.",
@@ -78,7 +128,7 @@ export const geminiQuizModel = {
       contents: input.contents,
       config: {
         temperature: 0.5,
-        maxOutputTokens: 32768,
+        maxOutputTokens: 8192,
         responseMimeType: "application/json",
         responseSchema: quizSchema,
         systemInstruction: "You are an expert quiz creator for Korean university students. Always create questions, options, and explanations in Korean language. Focus on testing understanding rather than memorization.",
@@ -95,7 +145,7 @@ export const geminiOXQuizModel = {
       contents: input.contents,
       config: {
         temperature: 0.4,
-        maxOutputTokens: 32768,
+        maxOutputTokens: 8192, // Increased from 4096
         responseMimeType: "application/json",
         responseSchema: oxQuizSchema,
         systemInstruction: "You are an expert assessment creator for Korean university students. Create O/X (True/False) questions to evaluate student understanding of concepts. Always write questions and explanations in Korean.",
@@ -156,7 +206,7 @@ export const geminiModel = {
       contents: input.contents || input,
       config: {
         temperature: 0.7,
-        maxOutputTokens: 32768,
+        maxOutputTokens: 8192,
         systemInstruction: "You are a helpful AI assistant for Korean students. Always respond in Korean language unless specifically asked otherwise.",
       },
     })
@@ -171,7 +221,7 @@ export const geminiExtendedQuizModel = {
       contents: input.contents,
       config: {
         temperature: 0.6,
-        maxOutputTokens: 32768,
+        maxOutputTokens: 8192,
         responseMimeType: "application/json",
         responseSchema: extendedQuizSchema,
         systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
@@ -186,7 +236,7 @@ export const geminiStudyGuidePageModel = {
     console.log('=== Gemini Study Guide Page API Call ===')
     console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.7')
-    console.log('Max output tokens: 32768')
+    console.log('Max output tokens: 16384')
     console.log('Response type: JSON with page-by-page schema')
     
     try {
@@ -198,7 +248,7 @@ export const geminiStudyGuidePageModel = {
         contents: input.contents,
         config: {
           temperature: 0.7,
-          maxOutputTokens: 32768,
+          maxOutputTokens: 16384,
           responseMimeType: "application/json",
           responseSchema: studyGuidePageSchema,
           systemInstruction: "You are an expert educational content creator for Korean university students. Analyze PDF documents page by page and create detailed, customized explanations for each page based on the student's knowledge level. Always write in Korean. Focus on clarity and educational value.",

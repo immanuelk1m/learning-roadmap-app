@@ -4,36 +4,39 @@
 @tailwind utilities;
 
 :root {
-  /* Professional Color Palette */
-  --color-primary-50: #EBF4FF;
-  --color-primary-100: #D1E4FF;
-  --color-primary-200: #A6CCFF;
-  --color-primary-300: #7AB0FF;
-  --color-primary-400: #4E94FF;
-  --color-primary-500: #2872F5; /* Main Primary */
-  --color-primary-600: #1B5AD4;
-  --color-primary-700: #1346B3;
-  --color-primary-800: #0E3590;
-  --color-primary-900: #082566;
+  /* Main Page Color System */
+  --color-primary: #2ce477; /* Primary green */
+  --color-primary-dark: #2f332f; /* Dark green/gray */
+  --color-background: #f8f8f8; /* Main background */
+  --color-white: #FFFFFF;
   
-  /* Neutral Scale */
+  /* Text Colors */
+  --color-text-primary: #212529;
+  --color-text-secondary: #94aac0;
+  --color-text-gray: #737373;
+  
+  /* Border Colors */
+  --color-border-light: #e5e5e5;
+  --color-border-gray: #cacaca;
+  --color-border-gray-200: #e0e0e0;
+  
+  /* Course Card Gradients */
+  --gradient-blue: linear-gradient(to bottom, #4B9BFF, #3A8FFF);
+  --gradient-red: linear-gradient(to bottom, #FF6B6B, #FF5555);
+  --gradient-green: linear-gradient(to bottom, #22C55E, #16A34A);
+  
+  /* Legacy colors for compatibility */
   --color-neutral-0: #FFFFFF;
-  --color-neutral-50: #F8F9FA;
-  --color-neutral-100: #F1F3F5;
-  --color-neutral-200: #E9ECEF;
-  --color-neutral-300: #DEE2E6;
-  --color-neutral-400: #CED4DA;
-  --color-neutral-500: #ADB5BD;
-  --color-neutral-600: #868E96;
-  --color-neutral-700: #495057;
-  --color-neutral-800: #343A40;
+  --color-neutral-50: #f8f8f8;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-600: #737373;
   --color-neutral-900: #212529;
   
   /* Semantic Colors */
-  --color-success: #10B981;
+  --color-success: #2ce477;
   --color-warning: #F59E0B;
-  --color-error: #EF4444;
-  --color-info: #3B82F6;
+  --color-error: #ff4444;
+  --color-info: #4B9BFF;
   
   /* Typography Scale */
   --font-size-xs: 0.75rem;     /* 12px */
@@ -92,15 +95,15 @@
 }
 
 @theme inline {
-  --color-background: var(--color-neutral-0);
-  --color-foreground: var(--color-neutral-900);
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-text-primary);
   --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
 }
 
 body {
-  background: var(--color-neutral-50);
-  color: var(--color-neutral-900);
+  background: var(--color-background);
+  color: var(--color-text-primary);
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   font-size: var(--font-size-base);
   line-height: var(--line-height-normal);
@@ -176,24 +179,75 @@ body {
   line-height: var(--line-height-normal);
 }
 
+/* Main Page Design System Components */
+.main-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 42px;
+}
+
+.main-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 65px;
+  background: white;
+  border-bottom: 1px solid var(--color-border-gray-200);
+  z-index: 50;
+}
+
+.main-card {
+  background: white;
+  border-radius: 5px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+}
+
+.section-title {
+  font-size: 17px;
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: #666666;
+}
+
+.btn-primary {
+  background: var(--color-primary-dark);
+  color: var(--color-primary);
+  padding: 8px 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: bold;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  transform: scale(1.05);
+}
+
 /* Surface Styles */
 .surface-primary {
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  background: white;
+  border: 1px solid var(--color-border-light);
+  border-radius: 5px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .surface-secondary {
-  background: var(--color-neutral-50);
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  border: 1px solid var(--color-border-light);
+  border-radius: 5px;
 }
 
 .surface-elevated {
-  background: var(--color-neutral-0);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  background: white;
+  border-radius: 5px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 /* Button Base Styles */

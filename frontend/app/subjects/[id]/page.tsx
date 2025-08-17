@@ -106,66 +106,87 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   const progressPercentage = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Modern Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(at_50%_0%,rgba(59,130,246,0.1),transparent_50%)]" />
-        <div className="absolute inset-0 bg-grid-slate-100" style={{ maskImage: 'linear-gradient(0deg,white,rgba(255,255,255,0.6))' }} />
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Navigation */}
-          <div className="pt-6 pb-4">
+    <div className="bg-[#f8f8f8] w-full min-h-screen">
+      {/* Navigation Header - Same as main page */}
+      <div className="fixed bg-white h-[65px] left-0 top-0 w-full z-50 border-b border-gray-200">
+        <div className="max-w-[1440px] mx-auto relative h-full">
+          {/* Logo and Welcome */}
+          <div className="absolute left-[46px] top-6 flex items-center gap-[13px]">
+            <div className="text-[#212529] text-[17.398px] font-semibold">
+              Commit
+            </div>
+            <div className="w-px h-[9.5px] border-l border-gray-300"></div>
+            <div className="text-[#94aac0] text-[12px] font-normal">
+              환영합니다, Taehee님
+            </div>
+          </div>
+
+          {/* Center Navigation */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-[60px]">
+            <Link href="/" className="text-[#212529] text-[17.398px] font-semibold cursor-pointer">Main</Link>
+            <span className="text-[#212529] text-[17.398px] font-semibold cursor-pointer">My Course</span>
+            <span className="text-[#212529] text-[17.398px] font-semibold cursor-pointer">자료별 진행률</span>
+            <span className="text-[#212529] text-[17.398px] font-semibold cursor-pointer">내커밋 한눈에 보기</span>
+          </div>
+
+          {/* Profile */}
+          <div className="absolute right-[46px] top-2 w-[50px] h-[50px] rounded-[10px] border border-[#e5e5e5] overflow-hidden bg-white">
+            <img 
+              src="data:image/png;base64,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"
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Container */}
+      <div className="max-w-[1440px] mx-auto">
+        <div className="pt-[85px] px-[42px]">
+          {/* Back Navigation */}
+          <div className="mb-4">
             <Link
-              href="/"
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/60 rounded-lg transition-all duration-200 group backdrop-blur-sm"
+              href="/subjects"
+              className="inline-flex items-center gap-2 text-[#737373] hover:text-[#212529] text-[13px] font-medium"
             >
-              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+              <ArrowLeft className="h-4 w-4" />
               과목 목록
             </Link>
           </div>
           
-          {/* Hero Content */}
-          <div className="pb-12">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8 mb-8">
-              <div className="flex items-start gap-6">
-                {/* Enhanced Subject Icon */}
-                <div className="relative">
-                  <div 
-                    className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/25 ring-1 ring-white/20"
-                    style={{
-                      background: `linear-gradient(135deg, ${subject.color || '#3B82F6'} 0%, ${subject.color || '#1E40AF'} 100%)`
-                    }}
-                  >
-                    <BookOpen className="h-9 w-9 text-white" />
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                  </div>
+          {/* Subject Header Card */}
+          <div className="bg-white rounded-[5px] shadow-lg p-5 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {/* Subject Icon */}
+                <div 
+                  className="w-16 h-16 rounded-[10px] flex items-center justify-center"
+                  style={{
+                    background: subject.color === '#737373' ? '#2f332f' : subject.color
+                  }}
+                >
+                  <BookOpen className="h-8 w-8 text-white" />
                 </div>
                 
-                <div className="flex-1">
-                  <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-2 leading-tight">
+                <div>
+                  <h1 className="text-[17px] font-bold text-[#212529]">
                     {subject.name}
                   </h1>
                   {subject.description && (
-                    <p className="text-lg text-slate-600 mb-4 leading-relaxed">{subject.description}</p>
+                    <p className="text-[13px] text-[#737373] mt-1">{subject.description}</p>
                   )}
                   
-                  {/* Stats Pills */}
-                  <div className="flex flex-wrap gap-3">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium text-slate-700 ring-1 ring-slate-200">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      {totalDocs}개 전체
-                    </div>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium text-slate-700 ring-1 ring-slate-200">
-                      <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                      {totalDocs - completedDocs}개 미완료
-                    </div>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium text-slate-700 ring-1 ring-slate-200">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                      {completedDocs}개 완료
-                    </div>
+                  {/* Stats */}
+                  <div className="flex gap-4 mt-3">
+                    <span className="text-[13px] text-[#737373]">
+                      전체 {totalDocs}개
+                    </span>
+                    <span className="text-[13px] text-[#737373]">
+                      완료 {completedDocs}개
+                    </span>
+                    <span className="text-[13px] font-semibold text-[#2ce477]">
+                      {progressPercentage}% 진행
+                    </span>
                   </div>
                 </div>
               </div>
@@ -179,77 +200,68 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
               </div>
             </div>
             
-            {/* Enhanced Progress Bar */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 ring-1 ring-white/20 shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">학습 진행 상황</h3>
-                <span className="text-sm font-medium text-slate-600">
-                  {completedDocs}/{totalDocs} 문서 · {progressPercentage}% 완료
+            
+            {/* Progress Bar */}
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[13px] text-[#737373]">학습 진행도</span>
+                <span className="text-[11px] text-[#737373]">
+                  {completedDocs}/{totalDocs} 문서
                 </span>
               </div>
-              <div className="relative h-3 bg-slate-200/80 rounded-full overflow-hidden">
+              <div className="relative h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
                 <div 
-                  className="absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out"
-                  style={{ 
-                    width: `${progressPercentage}%`,
-                    background: `linear-gradient(90deg, ${subject.color || '#3B82F6'} 0%, ${subject.color || '#1E40AF'} 100%)`,
-                    boxShadow: `0 0 20px ${subject.color || '#3B82F6'}40`
-                  }}
+                  className="absolute inset-y-0 left-0 bg-[#2ce477] rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercentage}%` }}
                 />
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 gap-8">
-          {/* Main Content Area */}
-          <div className="w-full">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-slate-200/50 border border-white/20 overflow-hidden ring-1 ring-slate-200/20">
-              {/* Tab Header */}
-              <div className="border-b border-slate-200/60 bg-slate-50/50">
-                <div className="flex">
-                  <button
-                    onClick={() => setActiveTab('files')}
-                    className={`relative px-6 py-4 font-medium text-sm transition-all duration-200 ${
-                      activeTab === 'files'
-                        ? 'bg-orange-50 text-orange-700'
-                        : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold ${
-                        activeTab === 'files' ? 'bg-orange-500 text-white' : 'bg-slate-300 text-slate-600'
-                      }`}>
+          {/* Main Content Tabs */}
+          <div className="bg-white rounded-[5px] shadow-lg overflow-hidden">
+            {/* Tab Header */}
+            <div className="border-b border-gray-200 bg-white">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab('files')}
+                  className={`relative px-6 py-4 font-medium text-[14px] transition-all duration-200 ${
+                    activeTab === 'files'
+                      ? 'bg-[#FFF5E6] text-[#FF8800]'
+                      : 'bg-transparent text-[#737373] hover:text-[#212529]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[12px] font-bold ${
+                      activeTab === 'files' ? 'bg-[#FF8800] text-white' : 'bg-[#e0e0e0] text-[#737373]'
+                    }`}>
                         1
                       </span>
                       <span>모든 파일</span>
                     </div>
                     {activeTab === 'files' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF8800]" />
                     )}
                   </button>
                   
                   <button
                     onClick={() => setActiveTab('quizzes')}
-                    className={`relative px-6 py-4 font-medium text-sm transition-all duration-200 ${
+                    className={`relative px-6 py-4 font-medium text-[14px] transition-all duration-200 ${
                       activeTab === 'quizzes'
-                        ? 'bg-orange-50 text-orange-700'
-                        : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
+                        ? 'bg-[#FFF5E6] text-[#FF8800]'
+                        : 'bg-transparent text-[#737373] hover:text-[#212529]'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold ${
-                        activeTab === 'quizzes' ? 'bg-orange-500 text-white' : 'bg-slate-300 text-slate-600'
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[12px] font-bold ${
+                        activeTab === 'quizzes' ? 'bg-[#FF8800] text-white' : 'bg-[#e0e0e0] text-[#737373]'
                       }`}>
                         2
                       </span>
                       <span>내가 생성한 문제집</span>
                     </div>
                     {activeTab === 'quizzes' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF8800]" />
                     )}
                   </button>
                 </div>
@@ -272,6 +284,5 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
           </div>
         </div>
       </div>
-    </div>
   )
 }
