@@ -172,11 +172,18 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
         }
       )
       .subscribe((status, err) => {
-        console.log('[DocumentList] Realtime subscription status:', status, err)
+        console.log('[DocumentList] Realtime subscription status:', status)
+        if (err) {
+          console.error('[DocumentList] Realtime subscription error:', err)
+        }
+        
         if (status === 'SUBSCRIBED') {
           console.log('[DocumentList] Successfully subscribed to realtime updates')
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('[DocumentList] Realtime subscription error:', err)
+        } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          console.warn('[DocumentList] Realtime subscription failed with status:', status)
+          if (err) {
+            console.error('[DocumentList] Error details:', err)
+          }
           // Fallback to polling if realtime fails
           console.log('[DocumentList] Falling back to polling due to realtime error')
           const hasProcessingDocs = documents.some(doc => doc.status === 'processing' || doc.status === 'pending')
