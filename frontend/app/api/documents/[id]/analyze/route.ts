@@ -310,7 +310,8 @@ export async function POST(
             errorDetails: JSON.stringify(downloadError, null, 2)
           }
         })
-        throw new Error(`Failed to download file: ${downloadError.message}`)
+        const errorMessage = downloadError?.message || downloadError?.toString() || 'Unknown download error'
+        throw new Error(`Failed to download file: ${errorMessage}`)
       }
 
       if (!fileData) {
@@ -1240,11 +1241,11 @@ export async function POST(
       analyzeLogger.logApiResponse('/api/documents/[id]/analyze', 500, errorDuration, {
         correlationId,
         documentId: id,
-        error: error.message
+        error: error.message || error.toString()
       })
       
       return NextResponse.json(
-        { error: 'Analysis failed', details: error.message },
+        { error: 'Analysis failed', details: error.message || error.toString() },
         { status: 500 }
       )
     }
