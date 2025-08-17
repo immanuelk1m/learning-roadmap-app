@@ -476,14 +476,14 @@ export default function OXKnowledgeAssessment({
       // 먼저 기존 understanding_level과 review_count를 조회
       const nodeIds = Object.keys(finalAssessments)
       const { data: existingStatus } = await supabase
-        .from('user_knowledge_status')
-        .select('node_id, understanding_level, review_count')
+        .from('knowledge_nodes')
+        .select('id, understanding_level, review_count')
         .eq('user_id', FIXED_USER_ID)
-        .in('node_id', nodeIds)
+        .in('id', nodeIds)
       
       // 기존 상태를 맵으로 변환
       const existingMap = new Map(
-        existingStatus?.map(s => [s.node_id, { 
+        existingStatus?.map(s => [s.id, { 
           understanding_level: s.understanding_level || 50,
           review_count: s.review_count || 0
         }]) || []
@@ -515,10 +515,16 @@ export default function OXKnowledgeAssessment({
       
       for (const data of statusData) {
         const { error } = await supabase
-          .from('user_knowledge_status')
-          .upsert([data], { 
-            onConflict: 'user_id,node_id'
+          .from('knowledge_nodes')
+          .update({
+            understanding_level: data.understanding_level,
+            last_reviewed: data.last_reviewed,
+            review_count: data.review_count,
+            assessment_method: data.assessment_method,
+            updated_at: new Date().toISOString()
           })
+          .eq('id', data.node_id)
+          .eq('user_id', FIXED_USER_ID)
 
         if (error) {
           failCount++
