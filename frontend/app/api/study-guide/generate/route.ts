@@ -48,10 +48,11 @@ export async function POST(request: NextRequest) {
 
     // Get user's knowledge status
     const { data: userStatus, error: statusError } = await supabase
-      .from('user_knowledge_status')
+      .from('knowledge_nodes')
       .select('*')
       .eq('user_id', userId)
-      .in('node_id', knowledgeNodes.map(n => n.id))
+      .eq('document_id', documentId)
+      .not('understanding_level', 'is', null)
 
     if (statusError) {
       return NextResponse.json(
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
       )
 
     // Categorize concepts based on 50 threshold (matching the UI display logic)
-    const levelMap = new Map(userStatus?.map(s => [s.node_id, s.understanding_level]) || [])
+    const levelMap = new Map(userStatus?.map(s => [s.id, s.understanding_level]) || [])
     const knownConcepts = knowledgeNodes.filter(node => {
       const level = levelMap.get(node.id)
       return level !== undefined && level >= 50

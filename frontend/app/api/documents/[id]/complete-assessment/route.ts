@@ -46,14 +46,14 @@ export async function POST(
       )
     }
 
-    // Get user's assessment results for this document's nodes
+    // Get user's assessment results from knowledge_nodes table
     const nodeIds = document.knowledge_nodes?.map((node: any) => node.id) || []
     
     const { data: assessmentResults, error: assessmentError } = await supabase
-      .from('user_knowledge_status')
+      .from('knowledge_nodes')
       .select('*')
       .eq('user_id', FIXED_USER_ID)
-      .in('node_id', nodeIds)
+      .in('id', nodeIds)
     
     if (assessmentError) {
       console.error('Error fetching assessment results:', assessmentError)
@@ -75,7 +75,7 @@ export async function POST(
       assessedNodes: assessmentResults?.length || 0,
       weakNodes: weakNodes.length,
       strongNodes: strongNodes.length,
-      weakNodeIds: weakNodes.map(n => n.node_id)
+      weakNodeIds: weakNodes.map(n => n.id)
     })
 
     // Trigger study guide generation with O/X assessment results
