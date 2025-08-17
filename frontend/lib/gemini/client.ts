@@ -71,7 +71,7 @@ export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'app
 export const geminiKnowledgeTreeModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Knowledge Tree API Call ===')
-    console.log('Model: gemini-2.5-flash')
+    console.log('Model: gemini-2.0-flash-exp')
     console.log('Temperature: 0.3')
     console.log('Max output tokens: 16384')
     console.log('Response type: JSON with schema validation')
@@ -81,7 +81,7 @@ export const geminiKnowledgeTreeModel = {
       const startTime = Date.now()
       
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-exp',
         contents: input.contents,
         config: {
           temperature: 0.3,
