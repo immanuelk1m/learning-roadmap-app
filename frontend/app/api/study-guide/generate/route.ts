@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('user_id', userId)
       .eq('document_id', documentId)
-      .not('understanding_level', 'is', null)
+      .gte('understanding_level', 0)
 
     if (statusError) {
       return NextResponse.json(

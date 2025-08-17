@@ -128,7 +128,7 @@ export const geminiQuizModel = {
       contents: input.contents,
       config: {
         temperature: 0.5,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
         responseMimeType: "application/json",
         responseSchema: quizSchema,
         systemInstruction: "You are an expert quiz creator for Korean university students. Always create questions, options, and explanations in Korean language. Focus on testing understanding rather than memorization.",
@@ -145,7 +145,7 @@ export const geminiOXQuizModel = {
       contents: input.contents,
       config: {
         temperature: 0.4,
-        maxOutputTokens: 8192, // Increased from 4096
+        maxOutputTokens: 16384, // Increased to prevent truncation
         responseMimeType: "application/json",
         responseSchema: oxQuizSchema,
         systemInstruction: "You are an expert assessment creator for Korean university students. Create O/X (True/False) questions to evaluate student understanding of concepts. Always write questions and explanations in Korean.",
@@ -206,7 +206,7 @@ export const geminiModel = {
       contents: input.contents || input,
       config: {
         temperature: 0.7,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
         systemInstruction: "You are a helpful AI assistant for Korean students. Always respond in Korean language unless specifically asked otherwise.",
       },
     })
@@ -221,7 +221,7 @@ export const geminiExtendedQuizModel = {
       contents: input.contents,
       config: {
         temperature: 0.6,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
         responseMimeType: "application/json",
         responseSchema: extendedQuizSchema,
         systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
