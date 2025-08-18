@@ -500,12 +500,11 @@ export async function POST(
       }
       
       if (!response) {
-        geminiLogger.error('Empty response from Gemini API after all retries', {
+        geminiLogger.error('Empty response from Gemini API', {
           correlationId,
           documentId: id,
           metadata: {
-            lastError: geminiError,
-            totalRetries: 3
+            lastError: geminiError
           }
         })
         throw new Error(`Empty response from AI: ${geminiError?.message || 'Unknown error'}`)
@@ -523,8 +522,7 @@ export async function POST(
           responseTokensEstimate: Math.ceil(response.length / 4),
           responsePreview: response.substring(0, 200),
           processingSpeed: `${(fileData.size / 1024 / 1024 / (geminiDuration / 1000)).toFixed(2)} MB/s`,
-          totalElapsed: `${((Date.now() - startTime) / 1000).toFixed(2)}s`,
-          retriesUsed: 3 - geminiRetries
+          totalElapsed: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
         }
       })
       
