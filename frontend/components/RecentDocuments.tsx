@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileText, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { FileText, Clock, CheckCircle, XCircle, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 
 interface Document {
   id: string
   title: string
   status: string
+  processing_status?: string
+  processing_error?: string
   created_at: string
   subject_id: string
   subject?: {
@@ -21,7 +24,9 @@ interface Document {
 export default function RecentDocuments() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
+  const [retryingDoc, setRetryingDoc] = useState<string | null>(null)
   const supabase = createClient()
+  const { showToast } = useToast()
   
   // Fixed user ID (same as in other components)
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
@@ -36,6 +41,8 @@ export default function RecentDocuments() {
             id,
             title,
             status,
+            processing_status,
+            processing_error,
             created_at,
             subject_id,
             subjects (
@@ -59,6 +66,8 @@ export default function RecentDocuments() {
             id: doc.id,
             title: doc.title,
             status: doc.status,
+            processing_status: doc.processing_status,
+            processing_error: doc.processing_error,
             created_at: doc.created_at,
             subject_id: doc.subject_id,
             subject: doc.subjects as any
@@ -97,12 +106,76 @@ export default function RecentDocuments() {
     }
   }, [])
 
-  const getStatusIcon = (status: string) => {
+  const handleRetryAnalysis = async (e: React.MouseEvent, docId: string) => {
+    e.preventDefault() // Prevent Link navigation
+    e.stopPropagation()
+    
+    setRetryingDoc(docId)
+    
+    try {
+      const response = await fetch(`/api/documents/${docId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        showToast({
+          type: 'success',
+          title: '분석 재시작',
+          message: '문서 분석을 다시 시작했습니다.',
+          duration: 5000
+        })
+        
+        // Update document status locally
+        setDocuments(prev => prev.map(doc => 
+          doc.id === docId 
+            ? { ...doc, status: 'processing', processing_status: null, processing_error: null }
+            : doc
+        ))
+      } else {
+        const errorData = await response.json()
+        
+        if (response.status === 429) {
+          showToast({
+            type: 'warning',
+            title: 'API 할당량 초과',
+            message: '아직 API 할당량이 회복되지 않았습니다. 잠시 후 다시 시도해주세요.',
+            duration: 7000
+          })
+        } else {
+          showToast({
+            type: 'error',
+            title: '재시도 실패',
+            message: errorData.message || '문서 분석을 재시작할 수 없습니다.',
+            duration: 5000
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Retry analysis error:', error)
+      showToast({
+        type: 'error',
+        title: '오류 발생',
+        message: '재시도 중 오류가 발생했습니다.',
+        duration: 5000
+      })
+    } finally {
+      setRetryingDoc(null)
+    }
+  }
+
+  const getStatusIcon = (status: string, processingStatus?: string) => {
+    if (processingStatus === 'rate_limited') {
+      return <AlertCircle className="w-4 h-4 text-orange-500" />
+    }
     switch (status) {
       case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-500" />
       case 'processing':
         return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+      case 'error':
       case 'failed':
         return <XCircle className="w-4 h-4 text-red-500" />
       default:
@@ -110,12 +183,16 @@ export default function RecentDocuments() {
     }
   }
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, processingStatus?: string) => {
+    if (processingStatus === 'rate_limited') {
+      return '할당량 초과'
+    }
     switch (status) {
       case 'completed':
         return '완료'
       case 'processing':
         return '처리중'
+      case 'error':
       case 'failed':
         return '실패'
       case 'pending':
@@ -273,15 +350,63 @@ export default function RecentDocuments() {
                       alignItems: 'center',
                       gap: 'var(--spacing-1)'
                     }}>
-                      {getStatusIcon(doc.status)}
+                      {getStatusIcon(doc.status, doc.processing_status)}
                       <span style={{ color: 'var(--color-neutral-600)' }}>
-                        {getStatusText(doc.status)}
+                        {getStatusText(doc.status, doc.processing_status)}
                       </span>
+                      {/* Show retry button for rate-limited documents */}
+                      {doc.processing_status === 'rate_limited' && (
+                        <button
+                          onClick={(e) => handleRetryAnalysis(e, doc.id)}
+                          disabled={retryingDoc === doc.id}
+                          style={{
+                            marginLeft: 'var(--spacing-2)',
+                            padding: '4px 8px',
+                            fontSize: 'var(--font-size-xs)',
+                            fontWeight: 'var(--font-weight-medium)',
+                            color: retryingDoc === doc.id ? 'var(--color-neutral-400)' : 'var(--color-primary-600)',
+                            backgroundColor: retryingDoc === doc.id ? 'var(--color-neutral-100)' : 'var(--color-primary-50)',
+                            border: `1px solid ${retryingDoc === doc.id ? 'var(--color-neutral-200)' : 'var(--color-primary-200)'}`,
+                            borderRadius: 'var(--radius-sm)',
+                            cursor: retryingDoc === doc.id ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 200ms ease'
+                          }}
+                        >
+                          {retryingDoc === doc.id ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              재시도 중...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-3 h-3" />
+                              재시도
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                     <span style={{ color: 'var(--color-neutral-500)' }}>
                       {formatDate(doc.created_at)}
                     </span>
                   </div>
+                  
+                  {/* Show error message if exists */}
+                  {doc.processing_error && (
+                    <div style={{
+                      marginTop: 'var(--spacing-2)',
+                      padding: 'var(--spacing-2)',
+                      backgroundColor: 'var(--color-orange-50)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: 'var(--font-size-xs)',
+                      color: 'var(--color-orange-700)'
+                    }}>
+                      {doc.processing_error}
+                    </div>
+                  )}
                 </div>
               </Link>
             ))}

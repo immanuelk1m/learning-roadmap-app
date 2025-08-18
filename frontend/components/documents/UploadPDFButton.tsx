@@ -197,6 +197,13 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
             
             if (!response.ok) {
               const errorText = await response.text()
+              let errorData: any = {}
+              try {
+                errorData = JSON.parse(errorText)
+              } catch {
+                errorData = { message: errorText }
+              }
+              
               uploadLogger.error('Analysis API failed', {
                 correlationId,
                 documentId: newDoc.id,
@@ -204,22 +211,42 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                 metadata: {
                   status: response.status,
                   statusText: response.statusText,
-                  errorResponse: errorText,
+                  errorResponse: errorData,
                   retryCount,
-                  willRetry: retryCount < maxRetries
+                  willRetry: false // No automatic retry for 429
                 }
               })
               
-              if (retryCount < maxRetries) {
-                retryCount++
-                const retryDelay = Math.pow(2, retryCount) * 1000 // Exponential backoff
-                uploadLogger.info(`Retrying analysis after ${retryDelay}ms`, {
-                  correlationId,
-                  documentId: newDoc.id,
-                  metadata: { retryCount, retryDelay }
+              // Handle 429 error specifically - show user action required
+              if (response.status === 429 && errorData.error === 'API_QUOTA_EXCEEDED') {
+                showToast({
+                  type: 'warning',
+                  title: 'API 할당량 초과',
+                  message: '잠시 후 문서 목록에서 재시도 버튼을 눌러주세요.',
+                  duration: 10000
                 })
-                setTimeout(triggerAnalysis, retryDelay)
+                
+                // Update the document status to show retry button
+                await supabase
+                  .from('documents')
+                  .update({ 
+                    status: 'error',
+                    processing_status: 'rate_limited',
+                    processing_error: errorData.message || 'API 할당량이 초과되었습니다.'
+                  })
+                  .eq('id', newDoc.id)
+                
+                // Don't retry automatically
+                return
               }
+              
+              // For other errors, no automatic retry either
+              showToast({
+                type: 'error',
+                title: '문서 분석 실패',
+                message: '문서 분석 중 오류가 발생했습니다. 문서 목록에서 재시도해주세요.',
+                duration: 7000
+              })
             } else {
               uploadLogger.info('Analysis API triggered successfully', {
                 correlationId,

@@ -399,26 +399,22 @@ export async function POST(
       
       let response = ''
       let geminiDuration = 0
-      let geminiRetries = 5 // Increased from 3 to 5
       let geminiError: any = null
       
-      while (geminiRetries > 0 && !response) {
-        const geminiTimer = geminiLogger.startTimer()
-        const attemptNumber = 6 - geminiRetries // 1, 2, 3, 4, 5
+      // Single attempt - no automatic retries for 429 errors
+      const geminiTimer = geminiLogger.startTimer()
+      
+      try {
+        geminiLogger.info(`🔄 Calling Combined Gemini API`, {
+          correlationId,
+          documentId: id,
+          metadata: {
+            model: 'gemini-2.5-flash',
+            fileUri: uploadedFile.uri
+          }
+        })
         
-        try {
-          geminiLogger.info(`🔄 Attempt ${attemptNumber}/5: Calling Combined Gemini API`, {
-            correlationId,
-            documentId: id,
-            metadata: {
-              attempt: attemptNumber,
-              model: 'gemini-2.5-flash',
-              fileUri: uploadedFile.uri,
-              retriesRemaining: geminiRetries - 1
-            }
-          })
-          
-          const result = await geminiCombinedModel.generateContent({
+        const result = await geminiCombinedModel.generateContent({
             contents: [
               {
                 parts: [
@@ -435,85 +431,72 @@ export async function POST(
               },
             ],
           })
-          
-          geminiDuration = geminiTimer()
-          response = result.text || ''
-          
-          // With structured output, the response should always be valid JSON
-          if (response) {
-            try {
-              const parsedResponse = parseGeminiResponse<KnowledgeTreeWithOXResponse>(
-                response,
-                { correlationId, documentId: id, responseType: 'combined' }
-              )
-              // Validate the structure
-              validateResponseStructure(
-                parsedResponse,
-                ['nodes', 'ox_quiz'],
-                { correlationId, documentId: id, responseType: 'combined' }
-              )
-              if (Array.isArray(parsedResponse.nodes) && Array.isArray(parsedResponse.ox_quiz)) {
-                // Valid response structure
-                break
-              } else {
-                throw new Error('Invalid response structure: nodes or ox_quiz is not an array')
-              }
-            } catch (parseError) {
-              geminiLogger.warn('Invalid response from Gemini, retrying', {
-                correlationId,
-                documentId: id,
-                metadata: {
-                  attempt: 4 - geminiRetries,
-                  responseLength: response.length,
-                  parseError: (parseError as Error).message
-                }
-              })
-              response = ''
-              geminiError = parseError
-            }
+        
+        geminiDuration = geminiTimer()
+        response = result.text || ''
+        
+        // Validate the response structure
+        if (response) {
+          const parsedResponse = parseGeminiResponse<KnowledgeTreeWithOXResponse>(
+            response,
+            { correlationId, documentId: id, responseType: 'combined' }
+          )
+          validateResponseStructure(
+            parsedResponse,
+            ['nodes', 'ox_quiz'],
+            { correlationId, documentId: id, responseType: 'combined' }
+          )
+          if (!Array.isArray(parsedResponse.nodes) || !Array.isArray(parsedResponse.ox_quiz)) {
+            throw new Error('Invalid response structure: nodes or ox_quiz is not an array')
           }
-        } catch (error: any) {
-          geminiDuration = geminiTimer()
-          geminiError = error
-          
-          // Calculate exponential backoff delay
-          const baseDelay = 2000 // 2 seconds
-          const maxDelay = 32000 // 32 seconds
-          let retryDelay = Math.min(baseDelay * Math.pow(2, attemptNumber - 1), maxDelay)
-          
-          // Special handling for 429 errors
-          if (error.status === 429) {
-            retryDelay = Math.min(retryDelay * 2, 60000) // Double the delay for rate limits, max 60s
-            geminiLogger.warn('🚨 Rate limit hit (429), using extended backoff', {
-              correlationId,
-              documentId: id,
-              metadata: {
-                attempt: attemptNumber,
-                retryDelayMs: retryDelay,
-                retryDelaySeconds: retryDelay / 1000
-              }
-            })
-          }
-          
-          geminiLogger.error('⚠️ Gemini API error', {
+        }
+      } catch (error: any) {
+        geminiDuration = geminiTimer()
+        geminiError = error
+        
+        // Special handling for 429 errors - return user-friendly error
+        if (error.status === 429) {
+          geminiLogger.warn('🚨 Rate limit hit (429) - User action required', {
             correlationId,
             documentId: id,
-            error,
             metadata: {
-              attempt: attemptNumber,
-              willRetry: geminiRetries > 1,
-              errorCode: error.code || 'UNKNOWN',
-              errorStatus: error.status || 'UNKNOWN',
-              errorDetails: error.details || error.message,
-              retryIn: geminiRetries > 1 ? `${retryDelay / 1000} seconds` : 'No retry'
+              errorStatus: 429,
+              errorMessage: 'API quota exceeded'
             }
           })
           
-          geminiRetries--
-          if (geminiRetries > 0 && !response) {
-            await new Promise(resolve => setTimeout(resolve, retryDelay))
-          }
+          // Update document status to indicate rate limit error
+          await supabase
+            .from('documents')
+            .update({ 
+              processing_status: 'rate_limited',
+              processing_error: 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('user_id', FIXED_USER_ID)
+          
+          return NextResponse.json(
+            { 
+              error: 'API_QUOTA_EXCEEDED',
+              message: 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.',
+              retryable: true,
+              documentId: id
+            },
+            { status: 429 }
+          )
         }
+        
+        geminiLogger.error('⚠️ Gemini API error', {
+          correlationId,
+          documentId: id,
+          error,
+          metadata: {
+            errorCode: error.code || 'UNKNOWN',
+            errorStatus: error.status || 'UNKNOWN',
+            errorDetails: error.details || error.message
+          }
+        })
       }
       
       if (!response) {
