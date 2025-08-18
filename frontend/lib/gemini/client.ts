@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema, studyGuidePageSchema } from './schemas'
+import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema, studyGuidePageSchema, knowledgeTreeWithOXSchema } from './schemas'
 
 if (!process.env.GEMINI_API_KEY) {
   console.error('=== GEMINI API KEY ERROR ===')
@@ -137,7 +137,51 @@ export const geminiQuizModel = {
   }
 }
 
-// O/X Quiz Generation Model configuration
+// Combined Knowledge Tree + O/X Quiz Model configuration
+export const geminiCombinedModel = {
+  generateContent: async (input: any) => {
+    console.log('=== Gemini Combined API Call ===')
+    console.log('Model: gemini-2.5-flash')
+    console.log('Temperature: 0.2')
+    console.log('Max output tokens: 20000')
+    console.log('Response type: JSON with combined schema')
+    
+    try {
+      console.log('Sending combined request to Gemini API...')
+      const startTime = Date.now()
+      
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: input.contents,
+        config: {
+          temperature: 0.2, // Lower for consistency
+          maxOutputTokens: 20000, // Increased for combined response
+          responseMimeType: "application/json",
+          responseSchema: knowledgeTreeWithOXSchema,
+          systemInstruction: "You are an expert curriculum designer and assessment creator for Korean university students. Always respond in Korean language. Analyze educational content to create structured knowledge trees with corresponding O/X assessment questions.",
+        },
+      })
+      
+      const endTime = Date.now()
+      console.log(`Gemini Combined API call completed in ${endTime - startTime}ms`)
+      
+      if (!result) {
+        console.error('Gemini API returned null result')
+        throw new Error('Gemini API returned null result')
+      }
+      
+      return result
+    } catch (error: any) {
+      console.error('=== Gemini Combined API Error ===')
+      console.error('Error type:', error.constructor.name)
+      console.error('Error message:', error.message)
+      console.error('Error details:', error)
+      throw error
+    }
+  }
+}
+
+// O/X Quiz Generation Model configuration (keep for backward compatibility)
 export const geminiOXQuizModel = {
   generateContent: async (input: any) => {
     return genAI.models.generateContent({

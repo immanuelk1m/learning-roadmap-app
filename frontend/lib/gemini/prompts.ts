@@ -31,6 +31,40 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
   ]
 }`
 
+export const KNOWLEDGE_TREE_WITH_OX_PROMPT = `PDF를 분석하여 지식 트리와 O/X 평가 문제를 동시에 생성하세요.
+
+**Part 1: 지식 트리 (최대 20개 노드)**
+- 구체적인 전문 용어, 지표, 공식, 이론명만 추출
+- 추상적 설명이 아닌 학습 가능한 개념만
+- 3단계 깊이까지 계층 구조
+
+**Part 2: O/X 평가 문제 (각 노드당 1개)**
+- 개념 이해도를 평가하는 문제
+- 단순 암기가 아닌 이해 확인
+- 명확한 정답과 구체적 해설
+
+**JSON 형식:**
+{
+  "nodes": [
+    {
+      "id": "node_1",
+      "parent_id": null,
+      "name": "구체적 개념명",
+      "description": "핵심 내용",
+      "level": 0,
+      "prerequisites": []
+    }
+  ],
+  "ox_quiz": [
+    {
+      "node_id": "node_1",
+      "question": "이 개념에 대한 O/X 문제",
+      "correct_answer": "O" 또는 "X",
+      "explanation": "정답인 이유를 명확히 설명"
+    }
+  ]
+}`
+
 export const QUIZ_GENERATION_PROMPT = `당신은 모든 문제의 근거를 명확히 제시하는 꼼꼼한 대학교 시험 출제위원입니다.
 
 **중요: 모든 문제, 선택지, 해설은 한국어로 작성하세요.**

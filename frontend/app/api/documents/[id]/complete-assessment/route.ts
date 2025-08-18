@@ -78,129 +78,172 @@ export async function POST(
       weakNodeIds: weakNodes.map(n => n.id)
     })
 
-    // Trigger study guide generation with O/X assessment results
-    try {
-      console.log('Triggering study guide generation with O/X results:', {
-        documentId: id,
-        weakNodes: weakNodes.length,
-        strongNodes: strongNodes.length
-      })
+    // 🚀 Parallel generation of Study Guide and Practice Quiz based on O/X assessment results
+    console.log('📊 Starting parallel generation based on assessment results:', {
+      documentId: id,
+      totalNodes: nodeIds.length,
+      weakNodes: weakNodes.length,
+      strongNodes: strongNodes.length,
+      timestamp: new Date().toISOString()
+    })
 
-      const studyGuideResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/study-guide/generate`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-assessment-based': 'true'
-          },
-          body: JSON.stringify({
-            documentId: id,
-            userId: FIXED_USER_ID
-          })
-        }
-      )
-
-      if (studyGuideResponse.ok) {
-        const result = await studyGuideResponse.json()
-        console.log('Study guide generated successfully:', {
-          documentId: id,
-          studyGuideId: result.studyGuide?.id
-        })
-      } else {
-        const errorText = await studyGuideResponse.text()
-        console.error('Failed to generate study guide:', {
-          status: studyGuideResponse.status,
-          error: errorText
-        })
-      }
-    } catch (error: any) {
-      console.error('Exception during study guide generation:', error)
-      // Don't fail the whole request if study guide generation fails
+    const parallelStartTime = Date.now()
+    const parallelResults = {
+      studyGuide: { success: false, error: null as any },
+      practiceQuiz: { success: false, error: null as any }
     }
 
-    // Trigger customized quiz generation based on assessment results
-    if (nodeIds.length > 0) {
-      try {
-        // Prepare assessment data for quiz generation
-        const assessmentData = {
-          weakNodeIds: weakNodes.map(node => node.node_id),
-          strongNodeIds: strongNodes.map(node => node.node_id),
-          assessmentResults: assessmentResults?.map(result => ({
-            nodeId: result.node_id,
-            understandingLevel: result.understanding_level,
-            assessmentMethod: result.assessment_method
-          })) || []
-        }
+    // Prepare assessment data for both generations
+    const assessmentData = {
+      weakNodeIds: weakNodes.map(node => node.node_id),
+      strongNodeIds: strongNodes.map(node => node.node_id),
+      assessmentResults: assessmentResults?.map(result => ({
+        nodeId: result.node_id,
+        understandingLevel: result.understanding_level,
+        assessmentMethod: result.assessment_method
+      })) || []
+    }
 
-        // Fixed difficulty to normal as requested
-        const difficulty: 'very_easy' | 'easy' | 'normal' | 'hard' | 'very_hard' = 'normal'
-
-        // Fixed question count to 10 as requested
-        const questionCount = 10
-
-        console.log('Triggering customized quiz generation:', {
-          documentId: id,
-          difficulty,
-          questionCount,
-          weakNodesCount: weakNodes.length,
-          strongNodesCount: strongNodes.length
-        })
-
-        const batchGenerateResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/quiz/batch-generate`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-assessment-based': 'true'
-            },
-            body: JSON.stringify({
-              documentIds: [id],
-              difficulty,
-              questionCount,
-              questionTypes: {
-                multipleChoice: true,
-                shortAnswer: false,
-                trueFalse: false
+    // Execute Study Guide and Practice Quiz generation in parallel
+    const parallelPromises = await Promise.allSettled([
+      // 1️⃣ Study Guide Generation (Based on understanding levels)
+      (async () => {
+        try {
+          console.log('📚 Starting Study Guide generation...')
+          const studyStartTime = Date.now()
+          
+          const studyGuideResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/study-guide/generate`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-assessment-based': 'true'
               },
-              userAssessmentData: assessmentData // New parameter for assessment-based generation
-            })
-          }
-        )
+              body: JSON.stringify({
+                documentId: id,
+                userId: FIXED_USER_ID,
+                assessmentData // Pass assessment results for customized generation
+              })
+            }
+          )
 
-        if (batchGenerateResponse.ok) {
-          const result = await batchGenerateResponse.json()
-          console.log('Customized quiz generated successfully:', {
-            documentId: id,
-            questionsGenerated: result.questionsGenerated
-          })
-          
-          // Verify questions were actually created
-          if (result.questionsGenerated === 0) {
-            console.error('Quiz generation succeeded but 0 questions were created:', {
+          if (studyGuideResponse.ok) {
+            const result = await studyGuideResponse.json()
+            console.log('✅ Study guide generated successfully:', {
               documentId: id,
-              result
+              studyGuideId: result.studyGuide?.id,
+              duration: `${Date.now() - studyStartTime}ms`
             })
+            parallelResults.studyGuide.success = true
+            return { type: 'studyGuide', success: true, result }
+          } else {
+            const errorText = await studyGuideResponse.text()
+            console.error('❌ Failed to generate study guide:', {
+              status: studyGuideResponse.status,
+              error: errorText
+            })
+            parallelResults.studyGuide.error = errorText
+            return { type: 'studyGuide', success: false, error: errorText }
           }
-        } else {
-          const errorText = await batchGenerateResponse.text()
-          console.error('Failed to generate customized quiz - API error:', {
-            documentId: id,
-            status: batchGenerateResponse.status,
-            statusText: batchGenerateResponse.statusText,
-            error: errorText,
-            url: batchGenerateResponse.url
-          })
-          
-          // This is a critical error - assessment completed but no practice questions
-          // We should still continue but log this prominently
-          console.error('CRITICAL: Assessment completed but practice quiz generation failed. User will see loading screen.')
+        } catch (error: any) {
+          console.error('💥 Exception during study guide generation:', error)
+          parallelResults.studyGuide.error = error.message
+          return { type: 'studyGuide', success: false, error: error.message }
         }
-      } catch (error: any) {
-        console.error('Exception during customized quiz generation:', error)
-        // Don't fail the whole request if quiz generation fails
+      })(),
+
+      // 2️⃣ Practice Quiz Generation (Customized based on weak nodes)
+      (async () => {
+        if (nodeIds.length === 0) {
+          console.log('⚠️ No nodes available for quiz generation')
+          return { type: 'practiceQuiz', success: false, error: 'No nodes available' }
+        }
+
+        try {
+          console.log('📝 Starting Practice Quiz generation...')
+          const quizStartTime = Date.now()
+
+          // Fixed parameters as requested
+          const difficulty: 'very_easy' | 'easy' | 'normal' | 'hard' | 'very_hard' = 'normal'
+          const questionCount = 10
+
+          const batchGenerateResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/quiz/batch-generate`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-assessment-based': 'true'
+              },
+              body: JSON.stringify({
+                documentIds: [id],
+                difficulty,
+                questionCount,
+                questionTypes: {
+                  multipleChoice: true,
+                  shortAnswer: false,
+                  trueFalse: false
+                },
+                userAssessmentData: assessmentData // Focus on weak nodes
+              })
+            }
+          )
+
+          if (batchGenerateResponse.ok) {
+            const result = await batchGenerateResponse.json()
+            console.log('✅ Practice quiz generated successfully:', {
+              documentId: id,
+              questionsGenerated: result.questionsGenerated,
+              duration: `${Date.now() - quizStartTime}ms`
+            })
+            
+            // Verify questions were actually created
+            if (result.questionsGenerated === 0) {
+              console.error('⚠️ Quiz generation succeeded but 0 questions were created')
+            }
+            
+            parallelResults.practiceQuiz.success = true
+            return { type: 'practiceQuiz', success: true, result }
+          } else {
+            const errorText = await batchGenerateResponse.text()
+            console.error('❌ Failed to generate practice quiz:', {
+              status: batchGenerateResponse.status,
+              error: errorText
+            })
+            parallelResults.practiceQuiz.error = errorText
+            return { type: 'practiceQuiz', success: false, error: errorText }
+          }
+        } catch (error: any) {
+          console.error('💥 Exception during practice quiz generation:', error)
+          parallelResults.practiceQuiz.error = error.message
+          return { type: 'practiceQuiz', success: false, error: error.message }
+        }
+      })()
+    ])
+
+    // Log parallel execution results
+    const parallelDuration = Date.now() - parallelStartTime
+    console.log('🎯 Parallel generation completed:', {
+      documentId: id,
+      totalDuration: `${parallelDuration}ms`,
+      studyGuide: {
+        success: parallelResults.studyGuide.success,
+        error: parallelResults.studyGuide.error
+      },
+      practiceQuiz: {
+        success: parallelResults.practiceQuiz.success,
+        error: parallelResults.practiceQuiz.error
       }
+    })
+
+    // Check for critical failures
+    if (!parallelResults.studyGuide.success && !parallelResults.practiceQuiz.success) {
+      console.error('🚨 CRITICAL: Both study guide and practice quiz generation failed!')
+    } else if (!parallelResults.practiceQuiz.success) {
+      console.error('⚠️ WARNING: Practice quiz generation failed. User may see loading screen.')
+    } else if (!parallelResults.studyGuide.success) {
+      console.error('⚠️ WARNING: Study guide generation failed. User will have limited study materials.')
     }
 
     return NextResponse.json({ 
@@ -210,7 +253,9 @@ export async function POST(
         totalNodes: nodeIds.length,
         weakNodes: weakNodes.length,
         strongNodes: strongNodes.length,
-        quizGenerated: true
+        studyGuideGenerated: parallelResults.studyGuide.success,
+        quizGenerated: parallelResults.practiceQuiz.success,
+        parallelDuration: `${parallelDuration}ms`
       }
     })
   } catch (error: any) {

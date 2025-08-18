@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiKnowledgeTreeModel, geminiOXQuizModel, uploadFileToGemini } from '@/lib/gemini/client'
-import { KNOWLEDGE_TREE_PROMPT, OX_QUIZ_GENERATION_PROMPT, EXTENDED_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
-import { KnowledgeTreeResponse, KnowledgeNode, OXQuizResponse } from '@/lib/gemini/schemas'
+import { geminiCombinedModel, uploadFileToGemini } from '@/lib/gemini/client'
+import { KNOWLEDGE_TREE_WITH_OX_PROMPT } from '@/lib/gemini/prompts'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { analyzeLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
 
 // Increase timeout for the API route to handle large PDF processing
 export const maxDuration = 300 // 300 seconds (5 minutes) timeout
+
+interface KnowledgeTreeWithOXResponse {
+  nodes: any[]
+  ox_quiz: Array<{
+    node_id: string
+    question: string
+    correct_answer: string
+    explanation: string
+  }>
+}
 
 export async function POST(
   request: NextRequest,
@@ -18,19 +27,30 @@ export async function POST(
   const timer = analyzeLogger.startTimer()
   const correlationId = request.headers.get('x-correlation-id') || Logger.generateCorrelationId()
   
-  analyzeLogger.info('Document analysis API started', {
+  analyzeLogger.info('📋 Document analysis API started', {
     correlationId,
     metadata: {
       timestamp: new Date().toISOString(),
-      headers: Object.fromEntries(request.headers.entries())
+      headers: Object.fromEntries(request.headers.entries()),
+      processSteps: [
+        '1. PDF Download from Storage',
+        '2. Upload to Gemini File API',
+        '3. Knowledge Tree + O/X Quiz Generation (Combined)',
+        '4. Save Knowledge Nodes to DB',
+        '5. Save O/X Quiz Items to DB'
+      ]
     }
   })
   
   try {
     const { id } = await params
-    analyzeLogger.info('Processing document', {
+    analyzeLogger.info('🔄 Step 0/5: Initializing document processing', {
       correlationId,
-      documentId: id
+      documentId: id,
+      metadata: {
+        step: 'initialization',
+        progress: 0
+      }
     })
     
     const supabase = await createClient()
@@ -151,62 +171,23 @@ export async function POST(
         }
       })
 
-      // Check if file exists in storage
-      const storageListTimer = supabaseLogger.startTimer()
-      const storageDir = document.file_path.split('/').slice(0, -1).join('/')
-      
-      supabaseLogger.info('Checking storage for file existence', {
-        correlationId,
-        documentId: id,
-        metadata: {
-          bucket: 'pdf-documents',
-          directory: storageDir,
-          fileName: document.file_path.split('/').pop()
-        }
-      })
-      
-      const { data: fileList, error: listError } = await supabase.storage
-        .from('pdf-documents')
-        .list(storageDir)
-
-      const listDuration = storageListTimer()
-      
-      if (listError) {
-        supabaseLogger.error('Storage list error', {
-          correlationId,
-          documentId: id,
-          error: listError,
-          duration: listDuration,
-          metadata: {
-            bucket: 'pdf-documents',
-            directory: storageDir
-          }
-        })
-      } else {
-        supabaseLogger.info('Storage directory listing successful', {
-          correlationId,
-          documentId: id,
-          duration: listDuration,
-          metadata: {
-            filesFound: fileList?.length || 0,
-            fileNames: fileList?.map(f => f.name) || []
-          }
-        })
-      }
-
       // Get file from storage with retry logic for timeout issues
       let fileData: Blob | null = null
       let downloadError: any = null
       let retries = 3
       const maxRetries = 3
       
-      analyzeLogger.info('Starting PDF download from storage', {
+      analyzeLogger.info('📥 Step 1/5: Starting PDF download from storage', {
         correlationId,
         documentId: id,
         metadata: {
+          step: 'pdf_download',
+          progress: 20,
           filePath: document.file_path,
           fileSize: document.file_size,
-          maxRetries
+          fileSizeMB: `${(document.file_size / (1024 * 1024)).toFixed(2)} MB`,
+          maxRetries,
+          estimatedTime: document.file_size > 10 * 1024 * 1024 ? 'May take longer for large file' : 'Should be quick'
         }
       })
       
@@ -325,12 +306,16 @@ export async function POST(
         throw new Error('Failed to download file: No data received')
       }
 
-      analyzeLogger.info('PDF downloaded successfully', {
+      analyzeLogger.info('✅ Step 1/5 Complete: PDF downloaded successfully', {
         correlationId,
         documentId: id,
         metadata: {
+          step: 'pdf_download',
+          status: 'completed',
+          progress: 20,
           fileSize: fileData.size,
-          fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`
+          fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`,
+          downloadTime: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
         }
       })
       
@@ -348,12 +333,15 @@ export async function POST(
       }
 
       // Upload file to Gemini File API instead of base64 conversion
-      analyzeLogger.info('Uploading PDF to Gemini File API', {
+      analyzeLogger.info('📤 Step 2/5: Uploading PDF to Gemini File API', {
         correlationId,
         documentId: id,
         metadata: {
+          step: 'gemini_upload',
+          progress: 40,
           fileSize: fileData.size,
-          fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`
+          fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`,
+          expectedDuration: 'Depends on file size and network speed'
         }
       })
       
@@ -374,29 +362,38 @@ export async function POST(
       }
       const uploadDuration = uploadTimer()
       
-      analyzeLogger.info('File uploaded to Gemini successfully', {
+      analyzeLogger.info('✅ Step 2/5 Complete: File uploaded to Gemini', {
         correlationId,
         documentId: id,
         duration: uploadDuration,
         metadata: {
+          step: 'gemini_upload',
+          status: 'completed',
+          progress: 40,
           fileUri: uploadedFile.uri,
           fileName: uploadedFile.name,
           mimeType: uploadedFile.mimeType,
-          uploadSpeed: `${(fileData.size / 1024 / 1024 / (uploadDuration / 1000)).toFixed(2)} MB/s`
+          uploadSpeed: `${(fileData.size / 1024 / 1024 / (uploadDuration / 1000)).toFixed(2)} MB/s`,
+          totalElapsed: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
         }
       })
 
       // Log memory usage before Gemini call
       analyzeLogger.logMemoryUsage('before_gemini_analysis')
 
-      // Analyze with Gemini using structured output with retry logic
-      geminiLogger.info('Sending PDF to Gemini for knowledge tree extraction', {
+      // Analyze with Gemini using combined prompt for Knowledge Tree + O/X Quiz
+      geminiLogger.info('🤖 Step 3/5: Generating Knowledge Tree + O/X Quiz (Combined)', {
         correlationId,
         documentId: id,
         metadata: {
+          step: 'combined_generation',
+          progress: 60,
           model: 'gemini-2.5-flash',
-          promptLength: KNOWLEDGE_TREE_PROMPT.length,
-          pdfSize: fileData.size
+          promptLength: KNOWLEDGE_TREE_WITH_OX_PROMPT.length,
+          promptTokensEstimate: Math.ceil(KNOWLEDGE_TREE_WITH_OX_PROMPT.length / 4),
+          pdfSize: fileData.size,
+          pdfPages: document.page_count || 'Unknown',
+          expectedProcessingTime: 'This may take 45-60 seconds'
         }
       })
       
@@ -408,7 +405,17 @@ export async function POST(
       while (geminiRetries > 0 && !response) {
         const geminiTimer = geminiLogger.startTimer()
         try {
-          const result = await geminiKnowledgeTreeModel.generateContent({
+          geminiLogger.info(`🔄 Attempt ${4 - geminiRetries}/3: Calling Combined Gemini API`, {
+            correlationId,
+            documentId: id,
+            metadata: {
+              attempt: 4 - geminiRetries,
+              model: 'gemini-2.5-flash',
+              fileUri: uploadedFile.uri
+            }
+          })
+          
+          const result = await geminiCombinedModel.generateContent({
             contents: [
               {
                 parts: [
@@ -419,7 +426,7 @@ export async function POST(
                     },
                   },
                   {
-                    text: KNOWLEDGE_TREE_PROMPT,
+                    text: KNOWLEDGE_TREE_WITH_OX_PROMPT,
                   },
                 ],
               },
@@ -432,21 +439,21 @@ export async function POST(
           // With structured output, the response should always be valid JSON
           if (response) {
             try {
-              const parsedResponse = parseGeminiResponse<KnowledgeTreeResponse>(
+              const parsedResponse = parseGeminiResponse<KnowledgeTreeWithOXResponse>(
                 response,
-                { correlationId, documentId: id, responseType: 'knowledge_tree' }
+                { correlationId, documentId: id, responseType: 'combined' }
               )
               // Validate the structure
               validateResponseStructure(
                 parsedResponse,
-                ['nodes'],
-                { correlationId, documentId: id, responseType: 'knowledge_tree' }
+                ['nodes', 'ox_quiz'],
+                { correlationId, documentId: id, responseType: 'combined' }
               )
-              if (Array.isArray(parsedResponse.nodes)) {
+              if (Array.isArray(parsedResponse.nodes) && Array.isArray(parsedResponse.ox_quiz)) {
                 // Valid response structure
                 break
               } else {
-                throw new Error('Invalid response structure: nodes is not an array')
+                throw new Error('Invalid response structure: nodes or ox_quiz is not an array')
               }
             } catch (parseError) {
               geminiLogger.warn('Invalid response from Gemini, retrying', {
@@ -465,13 +472,17 @@ export async function POST(
         } catch (error: any) {
           geminiDuration = geminiTimer()
           geminiError = error
-          geminiLogger.error('Gemini API error', {
+          geminiLogger.error('⚠️ Gemini API error', {
             correlationId,
             documentId: id,
             error,
             metadata: {
               attempt: 4 - geminiRetries,
-              willRetry: geminiRetries > 1
+              willRetry: geminiRetries > 1,
+              errorCode: error.code || 'UNKNOWN',
+              errorStatus: error.status || 'UNKNOWN',
+              errorDetails: error.details || error.message,
+              retryIn: geminiRetries > 1 ? '2 seconds' : 'No retry'
             }
           })
         }
@@ -494,48 +505,62 @@ export async function POST(
         throw new Error(`Empty response from AI: ${geminiError?.message || 'Unknown error'}`)
       }
       
-      geminiLogger.info('Gemini response received', {
+      geminiLogger.info('✅ Step 3/5 Complete: Combined response received', {
         correlationId,
         documentId: id,
         duration: geminiDuration,
         metadata: {
+          step: 'combined_generation',
+          status: 'completed',
+          progress: 60,
           responseLength: response.length,
+          responseTokensEstimate: Math.ceil(response.length / 4),
           responsePreview: response.substring(0, 200),
-          processingSpeed: `${(fileData.size / 1024 / 1024 / (geminiDuration / 1000)).toFixed(2)} MB/s`
+          processingSpeed: `${(fileData.size / 1024 / 1024 / (geminiDuration / 1000)).toFixed(2)} MB/s`,
+          totalElapsed: `${((Date.now() - startTime) / 1000).toFixed(2)}s`,
+          retriesUsed: 3 - geminiRetries
         }
       })
       
-      // Parse the final response
-      const knowledgeTree = parseGeminiResponse<KnowledgeTreeResponse>(
+      // Parse the combined response
+      const combinedData = parseGeminiResponse<KnowledgeTreeWithOXResponse>(
         response,
-        { correlationId, documentId: id, responseType: 'knowledge_tree' }
+        { correlationId, documentId: id, responseType: 'combined' }
       )
       
       // Validate the final structure
       validateResponseStructure(
-        knowledgeTree,
-        ['nodes'],
-        { correlationId, documentId: id, responseType: 'knowledge_tree' }
+        combinedData,
+        ['nodes', 'ox_quiz'],
+        { correlationId, documentId: id, responseType: 'combined' }
       )
       
-      geminiLogger.info('Successfully parsed knowledge tree', {
+      geminiLogger.info('📊 Combined data structure analysis', {
         correlationId,
         documentId: id,
         metadata: {
-          totalNodes: knowledgeTree.nodes?.length || 0,
-          nodeLevels: [...new Set(knowledgeTree.nodes?.map(n => n.level) || [])],
-          nodeNames: knowledgeTree.nodes?.slice(0, 5).map(n => n.name) || []
+          totalNodes: combinedData.nodes?.length || 0,
+          totalOXQuestions: combinedData.ox_quiz?.length || 0,
+          nodeLevels: [...new Set(combinedData.nodes?.map(n => n.level) || [])],
+          levelDistribution: combinedData.nodes?.reduce((acc: any, n: any) => {
+            acc[`level_${n.level}`] = (acc[`level_${n.level}`] || 0) + 1
+            return acc
+          }, {}),
+          nodeNames: combinedData.nodes?.slice(0, 5).map(n => n.name) || [],
+          averageDescriptionLength: combinedData.nodes?.reduce((sum: number, n: any) => sum + (n.description?.length || 0), 0) / (combinedData.nodes?.length || 1)
         }
       })
 
       // Save flat knowledge nodes to database with batch operations
       const saveFlatNodes = async (nodes: any[]) => {
-        supabaseLogger.info('Starting knowledge nodes batch save operation', {
+        supabaseLogger.info('🔄 Starting knowledge nodes batch save operation', {
           correlationId,
           documentId: id,
           metadata: {
             nodeCount: nodes?.length || 0,
-            operation: 'batch_insert'
+            operation: 'batch_insert',
+            estimatedDatabaseWrites: (nodes?.length || 0) * 2,
+            phase: 'preparation'
           }
         })
         
@@ -567,11 +592,14 @@ export async function POST(
           prerequisites: node.prerequisites || [],
         }))
         
-        supabaseLogger.info('Performing batch insert of knowledge nodes', {
+        supabaseLogger.info('📦 Performing batch insert of knowledge nodes', {
           correlationId,
           documentId: id,
           metadata: {
-            batchSize: nodesData.length
+            batchSize: nodesData.length,
+            dataSize: `${(JSON.stringify(nodesData).length / 1024).toFixed(2)} KB`,
+            operation: 'INSERT',
+            table: 'knowledge_nodes'
           }
         })
         
@@ -599,13 +627,15 @@ export async function POST(
           throw new Error(`Failed to batch insert knowledge nodes: ${batchError.message}`)
         }
         
-        supabaseLogger.info('Batch insert of knowledge nodes successful', {
+        supabaseLogger.info('✅ Batch insert of knowledge nodes successful', {
           correlationId,
           documentId: id,
           duration: batchDuration,
           metadata: {
             insertedCount: savedNodes?.length || 0,
-            insertSpeed: `${((nodesData.length / (batchDuration / 1000))).toFixed(2)} nodes/sec`
+            insertSpeed: `${((nodesData.length / (batchDuration / 1000))).toFixed(2)} nodes/sec`,
+            averageTimePerNode: `${(batchDuration / nodesData.length).toFixed(2)} ms`,
+            phase: 'nodes_inserted'
           }
         })
         
@@ -635,11 +665,14 @@ export async function POST(
         }
         
         if (parentUpdates.length > 0) {
-          supabaseLogger.info('Batch updating parent-child relationships', {
+          supabaseLogger.info('🔗 Batch updating parent-child relationships', {
             correlationId,
             documentId: id,
             metadata: {
-              updateCount: parentUpdates.length
+              updateCount: parentUpdates.length,
+              uniqueParents: [...new Set(parentUpdates.map(u => u.parent_id))].length,
+              operation: 'UPDATE parent_id',
+              phase: 'relationship_mapping'
             }
           })
           
@@ -674,446 +707,185 @@ export async function POST(
               }
             })
           } else {
-            supabaseLogger.info('Batch update of parent relationships successful', {
+            supabaseLogger.info('✅ Batch update of parent relationships successful', {
               correlationId,
               documentId: id,
               duration: updateDuration,
               metadata: {
                 updatedCount: parentUpdates.length,
-                updateSpeed: `${((parentUpdates.length / (updateDuration / 1000))).toFixed(2)} updates/sec`
+                updateSpeed: `${((parentUpdates.length / (updateDuration / 1000))).toFixed(2)} updates/sec`,
+                averageTimePerUpdate: `${(updateDuration / parentUpdates.length).toFixed(2)} ms`,
+                phase: 'relationships_established',
+                treeDepth: Math.max(...nodes.map((n: any) => n.level || 0)) + 1
               }
             })
           }
         }
         
-        return idMapping
+        return { idMapping, savedNodes }
       }
 
-      // Ensure knowledgeTree.nodes exists and is an array
-      if (!knowledgeTree.nodes || !Array.isArray(knowledgeTree.nodes)) {
+      // Ensure combinedData.nodes exists and is an array
+      if (!combinedData.nodes || !Array.isArray(combinedData.nodes)) {
         analyzeLogger.error('Invalid knowledge tree structure', {
           correlationId,
           documentId: id,
           metadata: {
-            receivedStructure: typeof knowledgeTree,
-            hasNodes: !!knowledgeTree.nodes,
-            nodesType: knowledgeTree.nodes ? typeof knowledgeTree.nodes : 'undefined'
+            receivedStructure: typeof combinedData,
+            hasNodes: !!combinedData.nodes,
+            nodesType: combinedData.nodes ? typeof combinedData.nodes : 'undefined'
           }
         })
         throw new Error('Invalid knowledge tree structure: nodes array is missing or invalid')
       }
       
-      analyzeLogger.info('Saving knowledge nodes to database', {
+      analyzeLogger.info('💾 Step 4/5: Saving knowledge nodes to database', {
         correlationId,
         documentId: id,
         metadata: {
-          totalNodes: knowledgeTree.nodes.length
+          step: 'save_nodes',
+          progress: 80,
+          totalNodes: combinedData.nodes.length,
+          expectedOperations: combinedData.nodes.length * 2 // Insert + parent update
         }
       })
       
       const nodesTimer = analyzeLogger.startTimer()
-      const nodeIdMapping = await saveFlatNodes(knowledgeTree.nodes)
+      const { idMapping: nodeIdMapping, savedNodes } = await saveFlatNodes(combinedData.nodes)
       const nodesDuration = nodesTimer()
       
-      analyzeLogger.info('Knowledge nodes saved successfully', {
+      analyzeLogger.info('✅ Step 4/5 Complete: Knowledge nodes saved', {
         correlationId,
         documentId: id,
         duration: nodesDuration,
         metadata: {
+          step: 'save_nodes',
+          status: 'completed',
+          progress: 80,
           mappedNodes: Object.keys(nodeIdMapping).length,
-          totalNodes: knowledgeTree.nodes.length
+          totalNodes: combinedData.nodes.length,
+          saveSpeed: `${(combinedData.nodes.length / (nodesDuration / 1000)).toFixed(2)} nodes/sec`,
+          totalElapsed: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
         }
       })
       
-      // Get the saved nodes from database with their actual IDs
-      const { data: savedNodes, error: fetchNodesError } = await supabase
-        .from('knowledge_nodes')
-        .select('*')
-        .eq('document_id', id)
-        .order('position', { ascending: true })
-      
-      if (fetchNodesError || !savedNodes || savedNodes.length === 0) {
-        analyzeLogger.error('Failed to fetch saved nodes for quiz generation', {
-          correlationId,
-          documentId: id,
-          error: fetchNodesError,
-          metadata: {
-            savedNodesCount: savedNodes?.length || 0
-          }
-        })
-        throw new Error('Failed to fetch saved nodes for quiz generation')
-      }
-      
-      analyzeLogger.info('Fetched saved nodes for quiz generation', {
+      // Save O/X quiz items using the mapping
+      analyzeLogger.info('📝 Step 5/5: Saving O/X quiz items to database', {
         correlationId,
         documentId: id,
         metadata: {
-          savedNodesCount: savedNodes.length,
-          sampleNodes: savedNodes.slice(0, 3).map(n => ({ id: n.id, name: n.name }))
+          step: 'save_quiz',
+          progress: 100,
+          totalQuizItems: combinedData.ox_quiz?.length || 0
         }
       })
       
-      // Generate O/X quiz questions for knowledge assessment
-      geminiLogger.info('Starting O/X quiz generation', {
-        correlationId,
-        documentId: id,
-        metadata: {
-          nodeCount: savedNodes.length,
-          promptLength: OX_QUIZ_GENERATION_PROMPT.length
-        }
-      })
+      let savedQuizCount = 0
+      let failedQuizCount = 0
       
-      // Log memory before quiz generation
-      analyzeLogger.logMemoryUsage('before_quiz_generation')
-      
-      try {
-        const quizTimer = geminiLogger.startTimer()
+      if (combinedData.ox_quiz && Array.isArray(combinedData.ox_quiz)) {
+        const quizTimer = supabaseLogger.startTimer()
         
-        // Pass actual database nodes to Gemini
-        const nodesForQuiz = savedNodes.map(node => ({
-          id: node.id,  // Use actual database ID
-          name: node.name,
-          description: node.description,
-          level: node.level,
-          prerequisites: node.prerequisites || []
-        }))
+        // Prepare all valid quiz items for batch insert
+        const quizItemsToInsert = []
+        const skippedItems = []
         
-        let quizResponse = ''
-        let quizDuration = 0
-        let quizRetries = 3
-        let quizGeminiError: any = null
-        
-        while (quizRetries > 0 && !quizResponse) {
-          const attemptTimer = geminiLogger.startTimer()
-          try {
-            const quizResult = await geminiOXQuizModel.generateContent({
-              contents: [
-                {
-                  parts: [
-                    {
-                      fileData: {
-                        fileUri: uploadedFile.uri,
-                        mimeType: uploadedFile.mimeType || 'application/pdf',
-                      },
-                    },
-                    {
-                      text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(nodesForQuiz, null, 2)}`,
-                    },
-                  ],
-                },
-              ],
+        for (const item of combinedData.ox_quiz) {
+          // Map the node_id from the response to actual database ID
+          const actualNodeId = nodeIdMapping[item.node_id]
+          
+          if (actualNodeId) {
+            quizItemsToInsert.push({
+              document_id: id,
+              user_id: FIXED_USER_ID,
+              subject_id: document.subject_id,
+              node_id: actualNodeId,
+              question: item.question,
+              question_type: 'true_false' as const,
+              options: ['O', 'X'],
+              correct_answer: item.correct_answer,
+              explanation: item.explanation,
+              difficulty: 'easy' as const,
+              is_assessment: true,
             })
-            
-            const attemptDuration = attemptTimer()
-            quizDuration += attemptDuration
-            quizResponse = quizResult.text || ''
-            
-            // With structured output, the response should always be valid JSON
-            if (quizResponse) {
-              try {
-                const parsedQuizResponse = parseGeminiResponse<OXQuizResponse>(
-                  quizResponse,
-                  { correlationId, documentId: id, responseType: 'ox_quiz' }
-                )
-                // Validate the structure
-                validateResponseStructure(
-                  parsedQuizResponse,
-                  ['quiz_items'],
-                  { correlationId, documentId: id, responseType: 'ox_quiz' }
-                )
-                if (Array.isArray(parsedQuizResponse.quiz_items)) {
-                  // Valid response structure
-                  break
-                } else {
-                  throw new Error('Invalid quiz response structure: quiz_items is not an array')
-                }
-              } catch (parseError) {
-                geminiLogger.warn('Invalid quiz response from Gemini, retrying', {
-                  correlationId,
-                  documentId: id,
-                  metadata: {
-                    attempt: 4 - quizRetries,
-                    responseLength: quizResponse.length,
-                    parseError: (parseError as Error).message
-                  }
-                })
-                quizResponse = ''
-                quizGeminiError = parseError
-              }
+          } else {
+            skippedItems.push({
+              nodeId: item.node_id,
+              question: item.question
+            })
+            failedQuizCount++
+          }
+        }
+        
+        // Batch insert all valid quiz items at once
+        if (quizItemsToInsert.length > 0) {
+          supabaseLogger.info('📥 Performing batch insert of O/X quiz items', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              batchSize: quizItemsToInsert.length,
+              skippedCount: skippedItems.length,
+              dataSize: `${(JSON.stringify(quizItemsToInsert).length / 1024).toFixed(2)} KB`,
+              table: 'quiz_items'
             }
-          } catch (error: any) {
-            const attemptDuration = attemptTimer()
-            quizDuration += attemptDuration
-            quizGeminiError = error
-            geminiLogger.error('Gemini quiz generation API error', {
+          })
+          
+          const { data: insertedQuizItems, error: batchQuizError } = await supabase
+            .from('quiz_items')
+            .insert(quizItemsToInsert)
+            .select()
+          
+          if (batchQuizError) {
+            supabaseLogger.error('Batch insert of quiz items failed', {
               correlationId,
               documentId: id,
-              error,
+              error: batchQuizError,
               metadata: {
-                attempt: 4 - quizRetries,
-                willRetry: quizRetries > 1
+                errorCode: batchQuizError.code,
+                errorDetails: batchQuizError.details,
+                errorMessage: batchQuizError.message,
+                attemptedCount: quizItemsToInsert.length
+              }
+            })
+            failedQuizCount += quizItemsToInsert.length
+          } else {
+            savedQuizCount = insertedQuizItems?.length || 0
+            supabaseLogger.info('✅ Batch insert of O/X quiz items successful', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                insertedCount: savedQuizCount,
+                sampleQuizIds: insertedQuizItems?.slice(0, 3).map(q => q.id)
               }
             })
           }
-          
-          quizRetries--
-          if (quizRetries > 0 && !quizResponse) {
-            await new Promise(resolve => setTimeout(resolve, 2000))
-          }
         }
         
-        geminiLogger.info('Quiz generation response received', {
+        const quizDuration = quizTimer()
+        
+        supabaseLogger.info('📊 O/X quiz generation final statistics', {
           correlationId,
           documentId: id,
           duration: quizDuration,
           metadata: {
-            responseLength: quizResponse.length,
-            responsePreview: quizResponse.substring(0, 200)
-          }
-        })
-        
-        let savedCount = 0
-        let failedCount = 0
-        
-        if (quizResponse) {
-          try {
-            const quizData = parseGeminiResponse<OXQuizResponse>(
-              quizResponse,
-              { correlationId, documentId: id, responseType: 'ox_quiz' }
-            )
-            
-            geminiLogger.info('Quiz response parsed successfully', {
-              correlationId,
-              documentId: id,
-              metadata: {
-                quizItemCount: quizData.quiz_items?.length || 0,
-                nodeIds: quizData.quiz_items?.map((item: any) => item.node_id) || [],
-                availableMappings: Object.keys(nodeIdMapping),
-                mappingEntries: Object.entries(nodeIdMapping).slice(0, 5)
-              }
-            })
-            
-            // Save quiz questions to database with batch operations
-            if (quizData.quiz_items && Array.isArray(quizData.quiz_items)) {
-              const saveTimer = supabaseLogger.startTimer()
-              
-              // Prepare all valid quiz items for batch insert
-              const quizItemsToInsert = []
-              const skippedItems = []
-              
-              for (const item of quizData.quiz_items) {
-                // Since we passed actual database IDs to Gemini, the node_id should be valid
-                const nodeId = item.node_id
-                
-                // Verify the node exists in our saved nodes
-                const nodeExists = savedNodes.find(n => n.id === nodeId)
-                
-                if (nodeExists) {
-                  quizItemsToInsert.push({
-                    document_id: id,
-                    user_id: FIXED_USER_ID, // Add user_id field
-                    subject_id: document.subject_id, // Add subject_id from document
-                    node_id: nodeId,
-                    question: item.question,
-                    question_type: 'true_false' as const,
-                    options: ['O', 'X'], // Pass array directly to Supabase client for JSONB
-                    correct_answer: item.correct_answer,
-                    explanation: item.explanation,
-                    difficulty: 'easy' as const, // Use valid difficulty value
-                    is_assessment: true,
-                  })
-                } else {
-                  skippedItems.push({
-                    nodeId: item.node_id,
-                    question: item.question
-                  })
-                  failedCount++
-                }
-              }
-              
-              // Batch insert all valid quiz items at once
-              if (quizItemsToInsert.length > 0) {
-                supabaseLogger.info('Performing batch insert of quiz items', {
-                  correlationId,
-                  documentId: id,
-                  metadata: {
-                    batchSize: quizItemsToInsert.length,
-                    skippedCount: skippedItems.length
-                  }
-                })
-                
-                const { data: insertedQuizItems, error: batchQuizError } = await supabase
-                  .from('quiz_items')
-                  .insert(quizItemsToInsert)
-                  .select()
-                
-                if (batchQuizError) {
-                  supabaseLogger.error('Batch insert of quiz items failed', {
-                    correlationId,
-                    documentId: id,
-                    error: batchQuizError,
-                    metadata: {
-                      errorCode: batchQuizError.code,
-                      errorDetails: batchQuizError.details,
-                      errorMessage: batchQuizError.message,
-                      attemptedCount: quizItemsToInsert.length
-                    }
-                  })
-                  failedCount += quizItemsToInsert.length
-                } else {
-                  savedCount = insertedQuizItems?.length || 0
-                  supabaseLogger.info('Batch insert of quiz items successful', {
-                    correlationId,
-                    documentId: id,
-                    metadata: {
-                      insertedCount: savedCount,
-                      sampleQuizIds: insertedQuizItems?.slice(0, 3).map(q => q.id)
-                    }
-                  })
-                }
-              }
-              
-              if (skippedItems.length > 0) {
-                supabaseLogger.warn('Some quiz items were skipped due to invalid node references', {
-                  correlationId,
-                  documentId: id,
-                  metadata: {
-                    skippedCount: skippedItems.length,
-                    skippedItems: skippedItems.slice(0, 3)
-                  }
-                })
-              }
-              
-              const saveDuration = saveTimer()
-              supabaseLogger.info('Quiz items batch save operation completed', {
-                correlationId,
-                documentId: id,
-                duration: saveDuration,
-                metadata: {
-                  totalItems: quizData.quiz_items.length,
-                  savedCount,
-                  failedCount,
-                  successRate: `${((savedCount / quizData.quiz_items.length) * 100).toFixed(2)}%`,
-                  insertSpeed: savedCount > 0 ? `${((savedCount / (saveDuration / 1000))).toFixed(2)} items/sec` : 'N/A'
-                }
-              })
-              
-              // If no quiz items were saved, this is a critical error
-              if (savedCount === 0 && quizData.quiz_items.length > 0) {
-                analyzeLogger.error('CRITICAL: No quiz items were saved', {
-                  correlationId,
-                  documentId: id,
-                  metadata: {
-                    attemptedItems: quizData.quiz_items.length,
-                    nodeIdMapping: Object.entries(nodeIdMapping).slice(0, 5),
-                    sampleQuizItems: quizData.quiz_items.slice(0, 3)
-                  }
-                })
-              }
-              
-              // Verify actual saved count in database
-              const { data: savedQuizItems, error: countError } = await supabase
-                .from('quiz_items')
-                .select('id')
-                .eq('document_id', id)
-                .eq('is_assessment', true)
-              
-              const actualSavedCount = savedQuizItems?.length || 0
-              
-              supabaseLogger.info('Quiz items verification', {
-                correlationId,
-                documentId: id,
-                metadata: {
-                  reportedSavedCount: savedCount,
-                  actualSavedCount,
-                  discrepancy: savedCount !== actualSavedCount
-                }
-              })
-              
-              if (actualSavedCount === 0 && quizData.quiz_items.length > 0) {
-                analyzeLogger.error('CRITICAL: Database verification shows no quiz items saved', {
-                  correlationId,
-                  documentId: id,
-                  metadata: {
-                    attemptedItems: quizData.quiz_items.length,
-                    reportedSaved: savedCount,
-                    actualSaved: actualSavedCount
-                  }
-                })
-              }
-            }
-          } catch (quizParseError: any) {
-            geminiLogger.error('Failed to parse quiz response', {
-              correlationId,
-              documentId: id,
-              error: quizParseError,
-              metadata: {
-                errorType: quizParseError.name,
-                errorMessage: quizParseError.message,
-                responseLength: quizResponse.length,
-                responseStart: quizResponse.substring(0, 200)
-              }
-            })
-            // Continue without failing the entire process
-          }
-        }
-      } catch (quizError: any) {
-        geminiLogger.error('Failed to generate O/X quiz questions', {
-          correlationId,
-          documentId: id,
-          error: quizError,
-          metadata: {
-            errorType: quizError.name,
-            errorMessage: quizError.message,
-            nodeCount: knowledgeTree.nodes.length
-          }
-        })
-        // Continue without failing the entire process
-      }
-
-      // Validate that quiz generation was successful
-      const { data: savedQuizItems } = await supabase
-        .from('quiz_items')
-        .select('id')
-        .eq('document_id', id)
-        .eq('is_assessment', true)
-      
-      const quizValidationSuccess = savedQuizItems && savedQuizItems.length > 0
-      
-      if (!quizValidationSuccess) {
-        analyzeLogger.error('Document completed but no O/X quiz items were saved', {
-          correlationId,
-          documentId: id,
-          metadata: {
-            nodeCount: knowledgeTree.nodes.length,
-            expectedQuizCount: knowledgeTree.nodes.length,
-            actualQuizCount: savedQuizItems?.length || 0
+            totalItems: combinedData.ox_quiz.length,
+            savedCount: savedQuizCount,
+            failedCount: failedQuizCount,
+            successRate: `${((savedQuizCount / combinedData.ox_quiz.length) * 100).toFixed(2)}%`,
+            insertSpeed: savedQuizCount > 0 ? `${((savedQuizCount / (quizDuration / 1000))).toFixed(2)} items/sec` : 'N/A',
+            averageTimePerQuiz: savedQuizCount > 0 ? `${(quizDuration / savedQuizCount).toFixed(2)} ms` : 'N/A'
           }
         })
       }
-
-      // Extended quiz generation will be done on-demand by the user
-      // This allows users to control when to generate practice questions
-      const extendedQuizCount = 0
-
-      // Get total quiz count after all generation
-      const { data: totalQuizItems } = await supabase
-        .from('quiz_items')
-        .select('id, is_assessment')
-        .eq('document_id', id)
-      
-      const assessmentCount = totalQuizItems?.filter(q => q.is_assessment).length || 0
-      const practiceCount = totalQuizItems?.filter(q => !q.is_assessment).length || 0
       
       // Update document status
       supabaseLogger.info('Updating document status to completed', {
         correlationId,
         documentId: id,
         metadata: {
-          quizGenerationSuccess: quizValidationSuccess,
-          assessmentQuizCount: assessmentCount,
-          practiceQuizCount: practiceCount,
-          totalQuizCount: totalQuizItems?.length || 0
+          quizGenerationSuccess: savedQuizCount > 0,
+          assessmentQuizCount: savedQuizCount,
+          nodeCount: combinedData.nodes.length
         }
       })
       
@@ -1123,10 +895,10 @@ export async function POST(
         .update({ 
           status: 'completed',
           quiz_generation_status: {
-            generated: (totalQuizItems?.length || 0) > 0,
-            count: totalQuizItems?.length || 0,
-            assessment_count: assessmentCount,
-            practice_count: practiceCount,
+            generated: savedQuizCount > 0,
+            count: savedQuizCount,
+            assessment_count: savedQuizCount,
+            practice_count: 0, // Will be generated after assessment
             last_attempt: new Date().toISOString()
           }
         })
@@ -1157,13 +929,12 @@ export async function POST(
           }
         })
         
-        // Practice quiz will be generated after user completes O/X assessment
-        analyzeLogger.info('O/X assessment quiz generated. Practice quiz will be created after assessment completion.', {
+        analyzeLogger.info('O/X assessment quiz ready. Practice quiz and study guide will be created after assessment completion.', {
           correlationId,
           documentId: id,
           metadata: {
-            nodeCount: knowledgeTree.nodes.length,
-            assessmentQuizCount: assessmentCount
+            nodeCount: combinedData.nodes.length,
+            assessmentQuizCount: savedQuizCount
           }
         })
       }
@@ -1172,15 +943,45 @@ export async function POST(
       analyzeLogger.logMemoryUsage('after_analysis_complete')
       
       const totalDuration = timer()
-      analyzeLogger.info('Document analysis completed successfully', {
+      
+      // Performance Summary
+      const performanceSummary = {
+        totalDuration: totalDuration,
+        steps: {
+          pdfDownload: 'Check logs for timing',
+          geminiUpload: uploadDuration || 0,
+          combinedGeneration: geminiDuration || 0,
+          saveNodes: nodesDuration || 0,
+          saveQuiz: 'Check logs for timing',
+          total: totalDuration
+        },
+        metrics: {
+          fileSize: document.file_size,
+          fileSizeMB: `${(document.file_size / (1024 * 1024)).toFixed(2)} MB`,
+          nodeCount: combinedData.nodes.length,
+          quizCount: savedQuizCount,
+          processingSpeed: `${(document.file_size / 1024 / 1024 / (totalDuration / 1000)).toFixed(2)} MB/s`,
+          nodesPerSecond: `${(combinedData.nodes.length / (totalDuration / 1000)).toFixed(2)} nodes/s`
+        }
+      }
+      
+      analyzeLogger.info('🎉 Document analysis completed successfully', {
         correlationId,
         documentId: id,
         duration: totalDuration,
         metadata: {
           fileName: document.title,
-          fileSize: document.file_size,
-          nodeCount: knowledgeTree.nodes.length,
-          processingSpeed: `${(document.file_size / 1024 / 1024 / (totalDuration / 1000)).toFixed(2)} MB/s`
+          summary: {
+            totalSteps: 5,
+            completedSteps: 5,
+            status: 'SUCCESS'
+          },
+          performance: performanceSummary,
+          results: {
+            knowledgeNodes: combinedData.nodes.length,
+            assessmentQuiz: savedQuizCount,
+            practiceQuiz: 0 // Will be generated after assessment
+          }
         }
       })
       
@@ -1193,7 +994,7 @@ export async function POST(
     } catch (error: any) {
       const errorDuration = timer()
       
-      analyzeLogger.error('Document analysis failed', {
+      analyzeLogger.error('❌ Document analysis failed', {
         correlationId,
         documentId: id,
         error,
@@ -1202,7 +1003,19 @@ export async function POST(
           errorType: error.constructor.name,
           errorMessage: error.message,
           errorStack: error.stack,
-          documentId: id
+          documentId: id,
+          failedAtStep: 'Check logs for last successful step',
+          documentInfo: {
+            title: document?.title,
+            fileSize: document?.file_size,
+            filePath: document?.file_path
+          },
+          systemState: {
+            memoryUsage: process.memoryUsage ? {
+              heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
+              heapTotal: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB`
+            } : 'N/A'
+          }
         }
       })
       

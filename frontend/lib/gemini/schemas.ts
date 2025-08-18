@@ -321,6 +321,51 @@ export const oxQuizSchema = {
   required: ["quiz_items"]
 }
 
+// Combined schema for knowledge tree with O/X quiz
+export const knowledgeTreeWithOXSchema = {
+  type: Type.OBJECT,
+  properties: {
+    nodes: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          parent_id: { 
+            type: Type.STRING,
+            nullable: true 
+          },
+          name: { type: Type.STRING },
+          description: { type: Type.STRING },
+          level: { type: Type.INTEGER },
+          prerequisites: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          }
+        },
+        required: ["id", "name", "description", "level", "prerequisites"]
+      }
+    },
+    ox_quiz: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          node_id: { type: Type.STRING },
+          question: { type: Type.STRING },
+          correct_answer: { 
+            type: Type.STRING,
+            enum: ["O", "X"]
+          },
+          explanation: { type: Type.STRING }
+        },
+        required: ["node_id", "question", "correct_answer", "explanation"]
+      }
+    }
+  },
+  required: ["nodes", "ox_quiz"]
+}
+
 // Schema for study guide generation - simplified for better JSON parsing
 export const studyGuideSchema = {
   type: Type.OBJECT,
