@@ -399,19 +399,22 @@ export async function POST(
       
       let response = ''
       let geminiDuration = 0
-      let geminiRetries = 3
+      let geminiRetries = 5 // Increased from 3 to 5
       let geminiError: any = null
       
       while (geminiRetries > 0 && !response) {
         const geminiTimer = geminiLogger.startTimer()
+        const attemptNumber = 6 - geminiRetries // 1, 2, 3, 4, 5
+        
         try {
-          geminiLogger.info(`🔄 Attempt ${4 - geminiRetries}/3: Calling Combined Gemini API`, {
+          geminiLogger.info(`🔄 Attempt ${attemptNumber}/5: Calling Combined Gemini API`, {
             correlationId,
             documentId: id,
             metadata: {
-              attempt: 4 - geminiRetries,
+              attempt: attemptNumber,
               model: 'gemini-2.5-flash',
-              fileUri: uploadedFile.uri
+              fileUri: uploadedFile.uri,
+              retriesRemaining: geminiRetries - 1
             }
           })
           
@@ -472,24 +475,44 @@ export async function POST(
         } catch (error: any) {
           geminiDuration = geminiTimer()
           geminiError = error
+          
+          // Calculate exponential backoff delay
+          const baseDelay = 2000 // 2 seconds
+          const maxDelay = 32000 // 32 seconds
+          let retryDelay = Math.min(baseDelay * Math.pow(2, attemptNumber - 1), maxDelay)
+          
+          // Special handling for 429 errors
+          if (error.status === 429) {
+            retryDelay = Math.min(retryDelay * 2, 60000) // Double the delay for rate limits, max 60s
+            geminiLogger.warn('🚨 Rate limit hit (429), using extended backoff', {
+              correlationId,
+              documentId: id,
+              metadata: {
+                attempt: attemptNumber,
+                retryDelayMs: retryDelay,
+                retryDelaySeconds: retryDelay / 1000
+              }
+            })
+          }
+          
           geminiLogger.error('⚠️ Gemini API error', {
             correlationId,
             documentId: id,
             error,
             metadata: {
-              attempt: 4 - geminiRetries,
+              attempt: attemptNumber,
               willRetry: geminiRetries > 1,
               errorCode: error.code || 'UNKNOWN',
               errorStatus: error.status || 'UNKNOWN',
               errorDetails: error.details || error.message,
-              retryIn: geminiRetries > 1 ? '2 seconds' : 'No retry'
+              retryIn: geminiRetries > 1 ? `${retryDelay / 1000} seconds` : 'No retry'
             }
           })
-        }
-        
-        geminiRetries--
-        if (geminiRetries > 0 && !response) {
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          
+          geminiRetries--
+          if (geminiRetries > 0 && !response) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay))
+          }
         }
       }
       
@@ -751,7 +774,8 @@ export async function POST(
       })
       
       const nodesTimer = analyzeLogger.startTimer()
-      const { idMapping: nodeIdMapping, savedNodes } = await saveFlatNodes(combinedData.nodes)
+      const result = await saveFlatNodes(combinedData.nodes)
+      const nodeIdMapping = result.idMapping || {}
       const nodesDuration = nodesTimer()
       
       analyzeLogger.info('✅ Step 4/5 Complete: Knowledge nodes saved', {

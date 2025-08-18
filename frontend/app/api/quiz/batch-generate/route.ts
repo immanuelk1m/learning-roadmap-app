@@ -295,6 +295,8 @@ ${documentNodes.map((node) => `- ID: ${node.id}
                 .from('quiz_items')
                 .insert({
                   document_id: document.id,
+                  user_id: FIXED_USER_ID, // Add user_id - this was missing!
+                  subject_id: document.subject_id, // Also add subject_id for consistency
                   node_id: nodeId, // Add the matched node ID
                   question: question.question,
                   question_type: questionType,
