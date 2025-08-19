@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import { FileText, Brain } from 'lucide-react'
+import { FileText, Brain, RefreshCw, AlertCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/ToastProvider'
 import DocumentStatus from './DocumentStatus'
@@ -13,6 +13,8 @@ interface Document {
   id: string
   title: string
   status: string
+  processing_status?: string
+  processing_error?: string
   created_at: string
   subject_id: string
   file_path: string
@@ -30,6 +32,7 @@ interface DocumentListProps {
 export default function DocumentList({ initialDocuments, subjectId, refreshTrigger }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>(initialDocuments)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [retryingDoc, setRetryingDoc] = useState<string | null>(null)
   const prevDocumentsRef = useRef<Document[]>(initialDocuments)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const realtimeChannelRef = useRef<any>(null)
@@ -53,7 +56,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
     console.log(`[DocumentList] ${isPolling ? 'Polling' : 'Fetching'} documents for subject:`, subjectId)
     const { data, error } = await supabase
       .from('documents')
-      .select('*, assessment_completed')
+      .select('*')
       .eq('subject_id', subjectId)
       .order('created_at', { ascending: false })
     
@@ -129,6 +132,67 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
       pollingIntervalRef.current = null
+    }
+  }
+
+  // Handle retry analysis for failed documents
+  const handleRetryAnalysis = async (docId: string) => {
+    setRetryingDoc(docId)
+    
+    try {
+      const response = await fetch(`/api/documents/${docId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        showToast({
+          type: 'success',
+          title: '분석 재시작',
+          message: '문서 분석을 다시 시작했습니다.',
+          duration: 5000
+        })
+        
+        // Update document status locally
+        setDocuments(prev => prev.map(doc => 
+          doc.id === docId 
+            ? { ...doc, status: 'processing', processing_status: null, processing_error: null }
+            : doc
+        ))
+        
+        // Start polling to track progress
+        startPolling()
+      } else {
+        const errorData = await response.json()
+        
+        if (response.status === 429) {
+          showToast({
+            type: 'warning',
+            title: 'API 할당량 초과',
+            message: '아직 API 할당량이 회복되지 않았습니다. 잠시 후 다시 시도해주세요.',
+            duration: 7000
+          })
+        } else {
+          showToast({
+            type: 'error',
+            title: '재시도 실패',
+            message: errorData.message || '문서 분석을 재시작할 수 없습니다.',
+            duration: 5000
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Retry analysis error:', error)
+      showToast({
+        type: 'error',
+        title: '오류 발생',
+        message: '재시도 중 오류가 발생했습니다.',
+        duration: 5000
+      })
+    } finally {
+      setRetryingDoc(null)
     }
   }
 
@@ -425,6 +489,34 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                     {doc.page_count} 페이지
                   </div>
                 )}
+                {/* Show error message for failed documents */}
+                {(doc.status === 'failed' || doc.status === 'error') && (
+                  <div className="w-full px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-red-700">분석 실패</p>
+                        <p className="text-xs text-red-600 mt-0.5">
+                          {doc.processing_error || '문서 분석 중 오류가 발생했습니다.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Show quota exceeded message */}
+                {doc.processing_status === 'rate_limited' && (
+                  <div className="w-full px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-orange-700">API 할당량 초과</p>
+                        <p className="text-xs text-orange-600 mt-0.5">
+                          잠시 후 재시도 버튼을 눌러주세요.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Enhanced Action Area */}
@@ -446,6 +538,33 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                     {/* Shimmer Effect */}
                     <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover/btn:opacity-10" />
                   </Link>
+                ) : doc.status === 'failed' || doc.status === 'error' || doc.processing_status === 'rate_limited' ? (
+                  <button
+                    onClick={() => handleRetryAnalysis(doc.id)}
+                    disabled={retryingDoc === doc.id}
+                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    {/* Button Background Animation */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-red-600 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                    
+                    {/* Button Content */}
+                    <div className="relative flex items-center gap-2">
+                      {retryingDoc === doc.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>재시도 중...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          <span>재시도</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Shimmer Effect */}
+                    <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover/btn:opacity-10" />
+                  </button>
                 ) : (
                   <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
                     {/* Animated Processing Indicator */}
