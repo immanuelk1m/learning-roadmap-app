@@ -268,8 +268,8 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
             학습 전 지식 평가
           </h2>
           <p className="text-gray-600">
-            각 개념에 대한 O/X 퀴즈를 통해 지식을 평가합니다.
-            정답을 맞추면 해당 개념을 아는 것으로, 틀리면 모르는 것으로 기록됩니다.
+            각 개념을 알고 있는지 선택하여 지식을 평가합니다.
+            '알고 있음'을 선택하면 해당 개념을 아는 것으로, '모름'을 선택하면 모르는 것으로 기록됩니다.
           </p>
         </div>
 

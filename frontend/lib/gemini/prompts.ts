@@ -31,39 +31,6 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
   ]
 }`
 
-export const KNOWLEDGE_TREE_WITH_OX_PROMPT = `PDF를 분석하여 지식 트리와 O/X 평가 문제를 동시에 생성하세요.
-
-**Part 1: 지식 트리 (최대 20개 노드)**
-- 구체적인 전문 용어, 지표, 공식, 이론명만 추출
-- 추상적 설명이 아닌 학습 가능한 개념만
-- 3단계 깊이까지 계층 구조
-
-**Part 2: O/X 평가 문제 (각 노드당 1개)**
-- 개념 이해도를 평가하는 문제
-- 단순 암기가 아닌 이해 확인
-- 명확한 정답과 구체적 해설
-
-**JSON 형식:**
-{
-  "nodes": [
-    {
-      "id": "node_1",
-      "parent_id": null,
-      "name": "구체적 개념명",
-      "description": "핵심 내용",
-      "level": 0,
-      "prerequisites": []
-    }
-  ],
-  "ox_quiz": [
-    {
-      "node_id": "node_1",
-      "question": "이 개념에 대한 O/X 문제",
-      "correct_answer": "O" 또는 "X",
-      "explanation": "정답인 이유를 명확히 설명"
-    }
-  ]
-}`
 
 export const QUIZ_GENERATION_PROMPT = `당신은 모든 문제의 근거를 명확히 제시하는 꼼꼼한 대학교 시험 출제위원입니다.
 
@@ -332,25 +299,6 @@ export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 �
 
 학습자의 이해도를 정확히 평가하고 학습 동기를 높일 수 있는 다양하고 흥미로운 문제를 생성하세요.`
 
-export const OX_QUIZ_GENERATION_PROMPT = `각 지식 노드에 대해 O/X 문제를 생성하세요.
-
-**규칙:**
-1. 한국어로 작성
-2. 문제는 30자 이내
-3. 설명은 20자 이내
-4. 명확한 참/거짓 판단 가능
-
-**JSON 형식:**
-{
-  "quiz_items": [
-    {
-      "node_id": "제공된 ID 그대로 사용",
-      "question": "간단한 O/X 문제",
-      "correct_answer": "O" 또는 "X",
-      "explanation": "짧은 설명"
-    }
-  ]
-}`
 
 export const STUDY_GUIDE_PROMPT = `당신은 학습자의 현재 지식 수준을 정확히 파악하고, PDF의 각 페이지별로 맞춤형 해설을 제공하는 전문 AI 튜터입니다.
 
