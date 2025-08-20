@@ -487,6 +487,40 @@ export async function POST(
           )
         }
         
+        // Special handling for 503 errors (Service Unavailable / Model Overloaded)
+        if (error.status === 503) {
+          geminiLogger.warn('🚨 Model overloaded (503) - Temporary server issue', {
+            correlationId,
+            documentId: id,
+            metadata: {
+              errorStatus: 503,
+              errorMessage: 'Model is overloaded'
+            }
+          })
+          
+          // Update document status to indicate temporary error
+          await supabase
+            .from('documents')
+            .update({ 
+              processing_status: 'model_overloaded',
+              processing_error: 'AI 모델이 일시적으로 과부하 상태입니다. 1-2분 후 다시 시도해주세요.',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('user_id', FIXED_USER_ID)
+          
+          return NextResponse.json(
+            { 
+              error: 'MODEL_OVERLOADED',
+              message: 'AI 모델이 일시적으로 과부하 상태입니다. 1-2분 후 다시 시도해주세요.',
+              retryable: true,
+              documentId: id,
+              suggestedRetryDelay: 60000 // 60 seconds
+            },
+            { status: 503 }
+          )
+        }
+        
         geminiLogger.error('⚠️ Gemini API error', {
           correlationId,
           documentId: id,
