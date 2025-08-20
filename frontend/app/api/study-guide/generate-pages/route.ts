@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiStudyGuidePageModel } from '@/lib/gemini/client'
+import { uploadFileToGemini } from '@/lib/gemini/client'
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
-import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
-import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
+import {
+  createPDFChunks,
+  processChunksInParallel,
+  mergeChunkResults,
+  getOptimalChunkSize,
+  ChunkProcessingProgress
+} from '@/lib/pdf-chunk-processor'
+import { updateProgress, clearProgress } from '../progress/route'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +21,18 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Initialize progress tracking
+    updateProgress(userId, documentId, {
+      totalChunks: 0,
+      completedChunks: 0,
+      currentChunk: 0,
+      progress: 0,
+      status: 'starting',
+      stage: 'initializing',
+      message: '해설집 생성을 시작합니다...',
+      errors: []
+    })
 
     const supabase = await createClient()
 
@@ -121,12 +139,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convert PDF to base64 for Gemini
-    console.log('Converting PDF to base64...')
-    const base64Data = await fileData.arrayBuffer().then((buffer) =>
-      Buffer.from(buffer).toString('base64')
-    )
-    console.log(`PDF converted to base64, size: ${(base64Data.length / 1024 / 1024).toFixed(2)} MB`)
+    console.log(`PDF file downloaded, size: ${(fileData.size / 1024 / 1024).toFixed(2)} MB, pages: ${document.page_count || 'unknown'}`)
+    
+    // Update progress
+    updateProgress(userId, documentId, {
+      totalChunks: 0,
+      completedChunks: 0,
+      currentChunk: 0,
+      progress: 10,
+      status: 'processing',
+      stage: 'uploading',
+      message: 'PDF 파일을 AI 서버에 업로드 중...',
+      errors: []
+    })
+    
+    // Upload file to Gemini File API for efficient processing
+    console.log('Uploading PDF to Gemini File API...')
+    let uploadedFile
+    try {
+      uploadedFile = await uploadFileToGemini(fileData, 'application/pdf')
+      console.log('File uploaded to Gemini:', uploadedFile.uri)
+    } catch (uploadError: any) {
+      console.error('Failed to upload file to Gemini:', uploadError)
+      updateProgress(userId, documentId, {
+        totalChunks: 0,
+        completedChunks: 0,
+        currentChunk: 0,
+        progress: 0,
+        status: 'error',
+        stage: 'upload_failed',
+        message: 'AI 서버 업로드 실패',
+        errors: [uploadError.message]
+      })
+      return NextResponse.json(
+        { error: 'Failed to upload file to Gemini', details: uploadError.message },
+        { status: 500 }
+      )
+    }
 
     // Prepare context for page-by-page analysis
     const incorrectQuizzes = quizAttempts?.filter(attempt => !attempt.is_correct) || []
@@ -177,42 +226,128 @@ ${unknownConcepts.map(c => `- ${c.name}: ${c.description}
 
 ${oxQuizContext}`
 
-    const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}`
-
-    const result = await geminiStudyGuidePageModel.generateContent({
-      contents: [
-        {
-          parts: [
-            {
-              inlineData: {
-                mimeType: 'application/pdf',
-                data: base64Data,
+    // Determine optimal processing strategy
+    const totalPages = document.page_count || 100 // fallback if page count unknown
+    const fileSize = fileData.size
+    const shouldUseParallel = totalPages > 20 || fileSize > 10 * 1024 * 1024 // > 20 pages or > 10MB
+    
+    console.log(`Processing strategy: ${shouldUseParallel ? 'PARALLEL' : 'SINGLE'} (${totalPages} pages, ${(fileSize / 1024 / 1024).toFixed(2)} MB)`)
+    
+    let studyGuideData: StudyGuidePageResponse
+    
+    if (shouldUseParallel) {
+      // Use parallel processing for large documents
+      const chunkSize = getOptimalChunkSize(totalPages, fileSize)
+      const chunks = createPDFChunks(totalPages, chunkSize)
+      
+      console.log(`Created ${chunks.length} chunks of ${chunkSize} pages each`)
+      
+      // Update progress with chunk info
+      updateProgress(userId, documentId, {
+        totalChunks: chunks.length,
+        completedChunks: 0,
+        currentChunk: 0,
+        progress: 20,
+        status: 'processing',
+        stage: 'preparing_chunks',
+        message: `${chunks.length}개 청크로 나누어 병렬 처리 시작...`,
+        errors: []
+      })
+      
+      // Process chunks in parallel with progress tracking
+      const progressTracker = (progress: ChunkProcessingProgress) => {
+        console.log(`Progress: ${progress.completedChunks}/${progress.totalChunks} chunks (${progress.progress}%)`)
+        if (progress.errors.length > 0) {
+          console.warn('Processing errors:', progress.errors)
+        }
+        
+        // Update progress in store for real-time tracking
+        updateProgress(userId, documentId, {
+          ...progress,
+          stage: 'processing_chunks',
+          message: `청크 ${progress.completedChunks}/${progress.totalChunks} 처리 중...`
+        })
+      }
+      
+      const chunkResults = await processChunksInParallel(
+        uploadedFile.uri,
+        uploadedFile.mimeType || 'application/pdf',
+        chunks,
+        studyGuideContext,
+        documentId,
+        3, // max concurrency
+        progressTracker
+      )
+      
+      // Merge results from all chunks
+      studyGuideData = mergeChunkResults(chunkResults, document.title, totalPages)
+      
+      // Log processing statistics
+      const successfulChunks = chunkResults.filter(r => r.result !== null).length
+      const totalProcessingTime = chunkResults.reduce((sum, r) => sum + r.processingTime, 0)
+      const averageTime = totalProcessingTime / chunkResults.length
+      
+      console.log(`Parallel processing complete: ${successfulChunks}/${chunks.length} chunks successful`)
+      console.log(`Total processing time: ${totalProcessingTime}ms, Average: ${averageTime.toFixed(0)}ms per chunk`)
+      console.log(`Generated pages: ${studyGuideData.pages?.length || 0}`)
+      
+    } else {
+      // Use single processing for smaller documents (existing logic)
+      const { geminiStudyGuidePageModel } = await import('@/lib/gemini/client')
+      const { STUDY_GUIDE_PAGE_PROMPT } = await import('@/lib/gemini/prompts')
+      const { parseGeminiResponse, validateResponseStructure } = await import('@/lib/gemini/utils')
+      
+      const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}`
+      
+      const result = await geminiStudyGuidePageModel.generateContent({
+        contents: [
+          {
+            parts: [
+              {
+                fileData: {
+                  fileUri: uploadedFile.uri,
+                  mimeType: uploadedFile.mimeType || 'application/pdf',
+                },
               },
-            },
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-    })
-    
-    const response = result.text || ''
-    
-    if (!response) {
-      throw new Error('Empty response from Gemini API')
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      })
+      
+      const response = result.text || ''
+      
+      if (!response) {
+        throw new Error('Empty response from Gemini API')
+      }
+      
+      studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
+        response,
+        { documentId, responseType: 'study_guide_pages' }
+      )
+      
+      validateResponseStructure(
+        studyGuideData,
+        ['document_title', 'total_pages', 'pages', 'overall_summary'],
+        { documentId, responseType: 'study_guide_pages' }
+      )
+      
+      console.log(`Single processing complete, generated ${studyGuideData.pages?.length || 0} pages`)
     }
     
-    const studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
-      response,
-      { documentId, responseType: 'study_guide_pages' }
-    )
-    
-    validateResponseStructure(
-      studyGuideData,
-      ['document_title', 'total_pages', 'pages', 'overall_summary'],
-      { documentId, responseType: 'study_guide_pages' }
-    )
+    // Update progress for saving phase
+    updateProgress(userId, documentId, {
+      totalChunks: 0,
+      completedChunks: 0,
+      currentChunk: 0,
+      progress: 90,
+      status: 'processing',
+      stage: 'saving',
+      message: '데이터베이스에 해설집 저장 중...',
+      errors: []
+    })
     
     // Start transaction to save study guide and pages
     const { data: studyGuide, error: guideError } = await supabase
@@ -266,11 +401,38 @@ ${oxQuizContext}`
 
     if (pagesError) {
       console.error('Error saving study guide pages:', pagesError)
+      updateProgress(userId, documentId, {
+        totalChunks: 0,
+        completedChunks: 0,
+        currentChunk: 0,
+        progress: 90,
+        status: 'error',
+        stage: 'save_failed',
+        message: '데이터베이스 저장 실패',
+        errors: [pagesError.message]
+      })
       return NextResponse.json(
         { error: 'Failed to save study guide pages' },
         { status: 500 }
       )
     }
+
+    // Complete and clear progress
+    updateProgress(userId, documentId, {
+      totalChunks: 0,
+      completedChunks: 0,
+      currentChunk: 0,
+      progress: 100,
+      status: 'completed',
+      stage: 'completed',
+      message: '해설집 생성이 완료되었습니다!',
+      errors: []
+    })
+    
+    // Clear progress after a short delay to allow UI to show completion
+    setTimeout(() => {
+      clearProgress(userId, documentId)
+    }, 3000)
 
     return NextResponse.json({
       success: true,
@@ -283,6 +445,24 @@ ${oxQuizContext}`
 
   } catch (error: any) {
     console.error('Study guide page generation error:', error)
+    
+    // Update progress with error
+    updateProgress(userId, documentId, {
+      totalChunks: 0,
+      completedChunks: 0,
+      currentChunk: 0,
+      progress: 0,
+      status: 'error',
+      stage: 'failed',
+      message: '해설집 생성 중 오류가 발생했습니다',
+      errors: [error.message]
+    })
+    
+    // Clear progress after error
+    setTimeout(() => {
+      clearProgress(userId, documentId)
+    }, 5000)
+    
     return NextResponse.json(
       { error: 'Failed to generate study guide pages', details: error.message },
       { status: 500 }

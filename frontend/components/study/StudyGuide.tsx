@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2, BookOpen, CheckCircle, XCircle, AlertCircle, FileText, Layers } from 'lucide-react'
 import StudyGuideSkeleton from './StudyGuideSkeleton'
 import StudyGuidePageCard from './StudyGuidePageCard'
+import StudyGuideProgressTracker from './StudyGuideProgressTracker'
 import { parseMarkdownToReact } from '@/lib/markdown-parser-web'
 
 interface StudyGuideProps {
@@ -170,7 +171,31 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
   }
 
   if (generating) {
-    return <StudyGuideSkeleton />
+    return (
+      <div className="h-full overflow-auto">
+        <div className="p-6">
+          <StudyGuideProgressTracker
+            userId={userId}
+            documentId={documentId}
+            isGenerating={generating}
+            onComplete={async () => {
+              console.log('Study guide generation completed')
+              await loadStudyGuide()
+              setGenerating(false)
+            }}
+            onError={(error) => {
+              console.error('Study guide generation error:', error)
+              setError({
+                type: 'general',
+                message: error
+              })
+              setGenerating(false)
+            }}
+          />
+          <StudyGuideSkeleton />
+        </div>
+      </div>
+    )
   }
 
   if (error) {
