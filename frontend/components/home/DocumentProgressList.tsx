@@ -53,8 +53,8 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
   }
   
   return (
-    <div className="bg-white rounded-[5px] shadow-lg p-5 flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="flex justify-between items-start mb-4 flex-shrink-0">
+    <div className="bg-white rounded-[5px] shadow-lg p-5 flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+      <div className="flex justify-between items-start mb-4 flex-shrink-0 min-w-0">
         <div>
           <h2 className="text-[17px] font-bold">자료별 진행도</h2>
           <p className="text-[13px] text-gray-600">
@@ -64,7 +64,7 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
         <div className="flex gap-3">
           <button 
             onClick={() => setSortBy('progress')}
-            className={`text-[14px] transition-colors ${
+        className={`text-[14px] transition-colors whitespace-nowrap ${
               sortBy === 'progress' ? 'font-bold text-gray-900' : 'text-gray-400 hover:text-gray-600'
             }`}
             aria-pressed={sortBy === 'progress'}
@@ -73,7 +73,7 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
           </button>
           <button 
             onClick={() => setSortBy('recent')}
-            className={`text-[14px] transition-colors ${
+        className={`text-[14px] transition-colors whitespace-nowrap ${
               sortBy === 'recent' ? 'font-bold text-gray-900' : 'text-gray-400 hover:text-gray-600'
             }`}
             aria-pressed={sortBy === 'recent'}
@@ -83,7 +83,10 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
         </div>
       </div>
 
-      <div className="border-t border-gray-200 pt-3 overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-0">
+      <div 
+        className="border-t border-gray-200 pt-3 overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-0"
+        style={{ scrollbarGutter: 'stable both-edges' }}
+      >
         {sortedDocuments.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p className="mb-4">아직 업로드된 자료가 없습니다</p>
