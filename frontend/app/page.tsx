@@ -91,7 +91,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="bg-[var(--color-background)] w-full h-screen flex flex-col overflow-hidden">
+    <main className="bg-[var(--color-background)] w-full h-full flex flex-col overflow-hidden">
       {/* Main Content Container */}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         {/* Main Content - 반응형 레이아웃 */}
