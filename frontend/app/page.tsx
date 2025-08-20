@@ -91,13 +91,13 @@ export default function HomePage() {
   }
 
   return (
-    <main className="bg-[var(--color-background)] w-full min-h-screen flex flex-col">
+    <main className="bg-[var(--color-background)] w-full h-screen flex flex-col overflow-hidden">
       {/* Main Content Container */}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         {/* Main Content - 반응형 레이아웃 */}
-        <div className="pt-4 pb-0 flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+        <div className="pt-4 pb-0 flex-1 flex flex-col lg:flex-row gap-6 min-h-0 overflow-hidden">
           {/* Left Column */}
-          <div className="flex-1 lg:max-w-[400px] flex flex-col h-full min-h-0">
+          <div className="flex-1 lg:max-w-[400px] flex flex-col h-full min-h-0 overflow-hidden">
             {/* Today's Recommendation */}
             <TodayRecommendation subjects={subjects} />
 
@@ -106,9 +106,9 @@ export default function HomePage() {
           </div>
 
           {/* Right Column */}
-          <div className="flex-1 flex flex-col gap-5 h-full min-h-0">
+          <div className="flex-1 flex flex-col gap-5 h-full min-h-0 overflow-hidden">
             {/* My Course Section */}
-            <div className="flex-[1.3]">
+            <div className="flex-none h-[380px] min-h-0 overflow-hidden">
               <MyCourseCards subjects={subjects} />
             </div>
 

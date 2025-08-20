@@ -10,8 +10,8 @@ interface MyCourseCardsProps {
 export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
   const router = useRouter()
   
-  // 상위 3개 과목만 표시
-  const topSubjects = subjects.slice(0, 3)
+  // 상위 8개 과목 표시 (4x2 구성)
+  const topSubjects = subjects.slice(0, 8)
   
   const getCardGradient = (subject: SubjectWithProgress, index: number) => {
     // 진행도에 따른 그라데이션
@@ -35,7 +35,7 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
   }
   
   return (
-    <div className="flex-[1.3] bg-white rounded-[5px] shadow-lg p-5 flex flex-col">
+    <div className="h-full bg-white rounded-[5px] shadow-lg p-5 flex flex-col min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-4 flex-shrink-0">
         <div>
           <h2 className="text-[15px] font-bold">My Course</h2>
@@ -57,8 +57,8 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
         </button>
       </div>
 
-      {/* 카드 컨테이너 - 높이 계산 개선 */}
-      <div className="min-h-[135px] flex gap-4 flex-wrap content-start">
+      {/* 카드 컨테이너 - 4x2 그리드, 초과 시 내부 스크롤 */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-[300px] flex-1 overflow-y-auto min-h-0 p-1 -m-1">
         {topSubjects.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-gray-500 min-h-[135px]">
             <div className="text-center">
@@ -80,7 +80,7 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
                 <div
                   key={subject.id}
                   onClick={() => router.push(`/subjects/${subject.id}`)}
-                  className="relative w-[220px] h-[135px] rounded-[12px] p-4 text-white cursor-pointer transform transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white flex-shrink-0"
+                  className="relative w-full h-auto min-h-[135px] overflow-visible rounded-[12px] p-4 text-white cursor-pointer transform transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
                   style={{
                     background: `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]})`
                   }}
@@ -127,14 +127,19 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
                         <span>D-{Math.ceil((new Date(subject.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}</span>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <div className="bg-[rgba(255,255,255,0.25)] rounded-full px-2 py-1 flex items-center gap-1">
-                        <span className="text-[12px] font-bold">{subject.completed_nodes}</span>
-                        <span className="text-[10px] opacity-80">완료</span>
+                    <div className="flex gap-2 text-[10px]">
+                      <div className="flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                          <path fillRule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-1a1 1 0 100-2h1a4 4 0 014 4v6a4 4 0 01-4 4H6a4 4 0 01-4-4V7a4 4 0 014-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>{subject.total_documents}개 문서</span>
                       </div>
-                      <div className="bg-[rgba(255,255,255,0.25)] rounded-full px-2 py-1 flex items-center gap-1">
-                        <span className="text-[12px] font-bold">{subject.node_count}</span>
-                        <span className="text-[10px] opacity-80">전체</span>
+                      <div className="flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>{subject.incomplete_nodes}개 미완료</span>
                       </div>
                     </div>
                   </div>
@@ -142,10 +147,10 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
               )
             })}
 
-            {topSubjects.length > 0 && topSubjects.length < 3 && (
+            {topSubjects.length > 0 && topSubjects.length < 8 && (
               <button
                 onClick={() => router.push('/subjects/new')}
-                className="w-[220px] h-[135px] rounded-[12px] border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex-shrink-0"
+                className="w-full h-[135px] rounded-[12px] border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label="새 과목 추가"
               >
                 <div className="text-center">

@@ -41,14 +41,11 @@ export default function TodayRecommendation({ subjects }: TodayRecommendationPro
   return (
     <div className="bg-gray-100 h-[140px] rounded-lg p-5 mb-5">
       <div className="flex items-center gap-4 h-full">
-        <div 
-          className="w-[85px] h-[85px] rounded-[5px] flex items-center justify-center"
-          style={{ backgroundColor: recommendation.color || 'var(--color-primary-dark)' }}
-        >
-          <span className="text-white text-2xl font-bold">
-            {recommendation.progress}%
-          </span>
-        </div>
+        <img 
+          src="/profile.png" 
+          alt="추천 과목" 
+          className="w-[85px] h-[85px] object-cover rounded-[5px]"
+        />
         <div className="flex-1">
           <p className="text-[15px] mb-2 text-gray-700">오늘은</p>
           <button

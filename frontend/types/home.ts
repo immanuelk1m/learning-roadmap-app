@@ -11,6 +11,8 @@ export interface SubjectWithProgress {
   completed_nodes: number
   last_activity: string | null
   documents_processing: number
+  total_documents: number
+  incomplete_nodes: number
 }
 
 export interface ActivityData {
