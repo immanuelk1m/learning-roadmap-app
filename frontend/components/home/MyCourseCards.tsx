@@ -10,8 +10,8 @@ interface MyCourseCardsProps {
 export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
   const router = useRouter()
   
-  // 상위 8개 과목 표시 (4x2 구성)
-  const topSubjects = subjects.slice(0, 8)
+  // 모든 과목 표시 (섹션 내부 스크롤)
+  const topSubjects = subjects
   
   const getCardGradient = (subject: SubjectWithProgress, index: number) => {
     // 진행도에 따른 그라데이션
@@ -57,8 +57,8 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
         </button>
       </div>
 
-      {/* 카드 컨테이너 - 4x2 그리드, 초과 시 내부 스크롤 */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-[300px] flex-1 overflow-y-auto min-h-0 p-1 -m-1">
+      {/* 카드 컨테이너 - 4x2 가시영역, 초과 시 내부 스크롤 */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 auto-rows-[135px] items-start gap-4 h-full overflow-y-auto min-h-0 p-1 -m-1">
         {topSubjects.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-gray-500 min-h-[135px]">
             <div className="text-center">
