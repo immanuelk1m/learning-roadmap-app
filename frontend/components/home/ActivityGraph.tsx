@@ -95,7 +95,7 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
     : 0
   
   return (
-    <div className="flex-1 bg-white rounded-[5px] shadow-lg p-5 flex flex-col min-h-0">
+    <div className="flex-1 bg-white rounded-[5px] shadow-lg px-5 py-[10px] flex flex-col min-h-0">
       <div className="mb-4">
         <h2 className="text-[17px] font-bold text-[#212529]">학습활동 기록</h2>
       </div>

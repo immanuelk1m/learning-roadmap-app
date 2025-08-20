@@ -95,7 +95,7 @@ export default function HomePage() {
       {/* Main Content Container */}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         {/* Main Content - 반응형 레이아웃 */}
-        <div className="pt-4 pb-0 flex-1 flex flex-col lg:flex-row gap-6 min-h-0 overflow-hidden">
+        <div className="pt-4 pb-[10px] flex-1 flex flex-col lg:flex-row gap-6 min-h-0 overflow-hidden">
           {/* Left Column */}
           <div className="flex-1 lg:max-w-[400px] flex flex-col h-full min-h-0 overflow-hidden">
             {/* Today's Recommendation */}
