@@ -95,26 +95,13 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
     : 0
   
   return (
-    <div className="flex-1 bg-white rounded-[5px] shadow-lg p-5 flex flex-col">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-[17px] font-bold text-[#212529]">학습활동 기록</h2>
-          <p className="text-[13px] text-gray-600">
-            {activities.length > 0 
-              ? `총 ${totalQuizzes}개 문제, 평균 정답률 ${avgCorrectRate}%`
-              : '오늘도 한 칸 채워볼까요?'}
-          </p>
-        </div>
-        <div className="text-right">
-          <div className="text-[11px] text-gray-500">마지막 활동</div>
-          <div className="text-[13px] font-semibold text-[#212529]">
-            {formatLastActivity(lastActivity)}
-          </div>
-        </div>
+    <div className="flex-1 bg-white rounded-[5px] shadow-lg p-5 flex flex-col min-h-0">
+      <div className="mb-4">
+        <h2 className="text-[17px] font-bold text-[#212529]">학습활동 기록</h2>
       </div>
 
       {/* 활동 그리드 */}
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1 overflow-x-auto min-h-0">
         <div className="min-w-max">
           {/* 월 라벨 */}
           <div className="flex gap-[3px] mb-2 ml-7">
@@ -170,17 +157,8 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
           </div>
           
           {/* 범례 */}
-          <div className="flex items-center gap-4 mt-4 text-[11px] text-gray-600">
-            <span>적음</span>
-            <div className="flex gap-1">
-              <div className="w-3 h-3 border border-dashed border-gray-300 rounded-sm" />
-              <div className="w-3 h-3 bg-gray-200 rounded-sm" />
-              <div className="w-3 h-3 bg-blue-300 rounded-sm" />
-              <div className="w-3 h-3 bg-blue-500 rounded-sm" />
-              <div className="w-3 h-3 bg-green-500 rounded-sm" />
-            </div>
-            <span>많음</span>
-            <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-4 mt-4 text-[11px] text-gray-600 justify-end">
+            <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full" />
               <span>높은 정답률</span>
               <div className="w-2 h-2 bg-orange-500 rounded-full" />

@@ -83,7 +83,7 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
         </div>
       </div>
 
-      <div className="border-t border-gray-200 pt-3 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+      <div className="border-t border-gray-200 pt-3 overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-0">
         {sortedDocuments.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p className="mb-4">아직 업로드된 자료가 없습니다</p>
