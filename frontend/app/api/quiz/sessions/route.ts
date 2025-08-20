@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
     const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    
+    // Add detailed logging for debugging
+    console.log('Creating quiz session:', { documentId, quizType, userId: FIXED_USER_ID })
 
     // Check if there's already an active or completed session
     const { data: existingSession } = await supabase
@@ -95,6 +98,8 @@ export async function POST(request: NextRequest) {
     const totalQuestions = questions?.length || 0
 
     // Create new session
+    console.log('Attempting to create new session with total questions:', totalQuestions)
+    
     const { data: newSession, error: createError } = await supabase
       .from('quiz_sessions')
       .insert({
@@ -111,7 +116,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createError) {
-      console.error('Error creating quiz session:', createError)
+      console.error('Error creating quiz session:', {
+        error: createError,
+        code: createError.code,
+        message: createError.message,
+        details: createError.details,
+        hint: createError.hint
+      })
       return NextResponse.json(
         { error: 'Failed to create session', details: createError.message },
         { status: 500 }

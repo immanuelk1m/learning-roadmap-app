@@ -716,19 +716,23 @@ export async function POST(
           
           const updateTimer = supabaseLogger.startTimer()
           
-          // Batch update parent_id for each node
-          let updateError = null
-          for (const update of parentUpdates) {
-            const { error } = await supabase
-              .from('knowledge_nodes')
-              .update({ parent_id: update.parent_id })
-              .eq('id', update.id)
-            
-            if (error) {
-              updateError = error
-              break
-            }
-          }
+          // Use upsert for batch update - much faster than individual updates
+          const { error: updateError } = await supabase
+            .from('knowledge_nodes')
+            .upsert(
+              parentUpdates.map(update => ({
+                id: update.id,
+                parent_id: update.parent_id,
+                // Include required fields to avoid null overwrites
+                document_id: id,
+                user_id: FIXED_USER_ID,
+                subject_id: document.subject_id
+              })),
+              { 
+                onConflict: 'id',
+                ignoreDuplicates: false 
+              }
+            )
           
           const updateDuration = updateTimer()
           

@@ -204,7 +204,7 @@ export const geminiStudyGuideModel = {
     console.log('=== Gemini Study Guide API Call ===')
     console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.6')
-    console.log('Max output tokens: 16384 (reduced for better JSON parsing)')
+    console.log('Max output tokens: 32768')
     console.log('Response type: JSON with simplified schema')
     
     try {
@@ -216,7 +216,7 @@ export const geminiStudyGuideModel = {
         contents: input.contents,
         config: {
           temperature: 0.6,
-          maxOutputTokens: 16384, // Reduced for better JSON parsing
+          maxOutputTokens: 32768, // Increased for comprehensive content
           responseMimeType: "application/json",
           responseSchema: studyGuideSchema,
           systemInstruction: "You are an expert educational content creator for Korean university students. Create comprehensive but concise study guides with clear structure. Follow the JSON schema strictly. Keep sections under 1000 characters and limit key points to 5 per section. Always write in Korean.",

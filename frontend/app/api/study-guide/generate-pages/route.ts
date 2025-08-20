@@ -284,12 +284,35 @@ ${oxQuizContext}`
       
       // Log processing statistics
       const successfulChunks = chunkResults.filter(r => r.result !== null).length
+      const failedChunks = chunkResults.filter(r => r.result === null).length
       const totalProcessingTime = chunkResults.reduce((sum, r) => sum + r.processingTime, 0)
       const averageTime = totalProcessingTime / chunkResults.length
       
       console.log(`Parallel processing complete: ${successfulChunks}/${chunks.length} chunks successful`)
+      if (failedChunks > 0) {
+        console.warn(`Warning: ${failedChunks} chunks failed to process`)
+      }
       console.log(`Total processing time: ${totalProcessingTime}ms, Average: ${averageTime.toFixed(0)}ms per chunk`)
       console.log(`Generated pages: ${studyGuideData.pages?.length || 0}`)
+      
+      // Check if we have at least some pages to save
+      if (studyGuideData.pages?.length === 0) {
+        updateProgress(userId, documentId, {
+          totalChunks: 0,
+          completedChunks: 0,
+          currentChunk: 0,
+          progress: 0,
+          status: 'error',
+          stage: 'no_pages_generated',
+          message: '페이지 생성에 실패했습니다. 다시 시도해주세요.',
+          errors: ['No pages were successfully generated']
+        })
+        
+        return NextResponse.json(
+          { error: 'Failed to generate any pages. Please try again.' },
+          { status: 500 }
+        )
+      }
       
     } else {
       // Use single processing for smaller documents (existing logic)
@@ -446,6 +469,16 @@ ${oxQuizContext}`
   } catch (error: any) {
     console.error('Study guide page generation error:', error)
     
+    // Check if it's a retryable error
+    const isRetryable = error.status === 503 || 
+                       error.status === 429 || 
+                       error.message?.includes('overloaded') ||
+                       error.message?.includes('quota')
+    
+    const errorMessage = isRetryable 
+      ? 'AI 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.'
+      : '해설집 생성 중 오류가 발생했습니다'
+    
     // Update progress with error
     updateProgress(userId, documentId, {
       totalChunks: 0,
@@ -454,7 +487,7 @@ ${oxQuizContext}`
       progress: 0,
       status: 'error',
       stage: 'failed',
-      message: '해설집 생성 중 오류가 발생했습니다',
+      message: errorMessage,
       errors: [error.message]
     })
     
@@ -462,6 +495,18 @@ ${oxQuizContext}`
     setTimeout(() => {
       clearProgress(userId, documentId)
     }, 5000)
+    
+    if (isRetryable) {
+      return NextResponse.json(
+        { 
+          error: 'SERVICE_TEMPORARILY_UNAVAILABLE',
+          message: errorMessage,
+          retryable: true,
+          suggestedRetryDelay: 30000 // 30 seconds
+        },
+        { status: 503 }
+      )
+    }
     
     return NextResponse.json(
       { error: 'Failed to generate study guide pages', details: error.message },

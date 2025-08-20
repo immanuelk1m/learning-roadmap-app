@@ -49,6 +49,8 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ErrorState | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
+  const maxRetries = 3
   const supabase = createClient()
 
   useEffect(() => {
@@ -135,10 +137,33 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
             message: errorData.message,
             progress: errorData.progress
           })
+        } else if (errorData.retryable) {
+          // Handle retryable errors (503, 429)
+          const currentRetry = retryCount + 1
+          
+          if (currentRetry < maxRetries && errorData.suggestedRetryDelay) {
+            setRetryCount(currentRetry)
+            setError({
+              type: 'general',
+              message: `${errorData.message || 'AI 서버가 일시적으로 과부하 상태입니다.'} (재시도 ${currentRetry}/${maxRetries})`
+            })
+            
+            console.log(`Retry ${currentRetry}/${maxRetries} after ${errorData.suggestedRetryDelay}ms`)
+            setTimeout(() => {
+              console.log('Auto-retrying study guide generation...')
+              generateStudyGuide(usePages)
+            }, errorData.suggestedRetryDelay)
+          } else {
+            setError({
+              type: 'general',
+              message: `${errorData.message || 'AI 서버가 일시적으로 과부하 상태입니다.'} 최대 재시도 횟수를 초과했습니다.`
+            })
+            setRetryCount(0) // Reset retry count
+          }
         } else {
           setError({
             type: 'general',
-            message: errorData.error || 'Failed to generate study guide'
+            message: errorData.message || errorData.error || 'Failed to generate study guide'
           })
         }
         return
@@ -147,6 +172,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
       const data = await response.json()
       // Reload to get the new data with pages
       await loadStudyGuide()
+      setRetryCount(0) // Reset retry count on success
     } catch (err: any) {
       console.error('Error generating study guide:', err)
       setError({

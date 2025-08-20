@@ -226,13 +226,18 @@ export default function StudyGuideProgressTracker({
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2">
             <div 
-              className="h-2 rounded-full bg-blue-500 transition-all duration-300"
+              className="h-2 rounded-full bg-blue-500 transition-all duration-300 animate-pulse"
               style={{ width: `${(progress.completedChunks / progress.totalChunks) * 100}%` }}
             />
           </div>
-          <p className="text-xs text-blue-600 mt-1">
-            각 청크는 약 20페이지씩 동시에 처리됩니다
-          </p>
+          <div className="flex items-center justify-between text-xs text-blue-600 mt-2">
+            <span>각 청크는 약 20페이지씩 동시에 처리됩니다</span>
+            {progress.completedChunks > 0 && progress.completedChunks < progress.totalChunks && (
+              <span className="font-medium">
+                {progress.totalChunks - progress.completedChunks}개 남음
+              </span>
+            )}
+          </div>
         </div>
       )}
 

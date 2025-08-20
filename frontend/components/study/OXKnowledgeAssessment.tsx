@@ -51,6 +51,7 @@ export default function OXKnowledgeAssessment({
   const assessmentNodes = useMemo(() => nodes.slice(0, 10), [nodes])
   
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [questionsLoaded, setQuestionsLoaded] = useState(false)
   const [assessments, setAssessments] = useState<Record<string, 'known' | 'unknown'>>({})
   const [skippedNodes, setSkippedNodes] = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -189,6 +190,16 @@ export default function OXKnowledgeAssessment({
           
           setQuestions(questionMap)
           setHasQuestions(Object.keys(questionMap).length > 0)
+          setQuestionsLoaded(true)
+          
+          // Find first node with a question
+          if (Object.keys(questionMap).length > 0) {
+            const firstNodeWithQuestion = assessmentNodes.findIndex(node => questionMap[node.id])
+            if (firstNodeWithQuestion >= 0 && firstNodeWithQuestion !== 0) {
+              console.log(`Starting from node ${firstNodeWithQuestion} which has a quiz question`)
+              setCurrentIndex(firstNodeWithQuestion)
+            }
+          }
         } else {
           quizLogger.warn('No quiz questions returned', {
             correlationId,
@@ -199,6 +210,7 @@ export default function OXKnowledgeAssessment({
             }
           })
           setHasQuestions(false)
+          setQuestionsLoaded(true)
         }
       } catch (error: any) {
         const duration = loadTimer()
@@ -213,13 +225,14 @@ export default function OXKnowledgeAssessment({
           }
         })
         setHasQuestions(false)
+        setQuestionsLoaded(true)
       } finally {
         setIsLoading(false)
       }
     }
 
     loadQuestions()
-  }, [nodes, supabase, correlationId, documentId])
+  }, [assessmentNodes, supabase, correlationId, documentId])
 
   const buildDependencyMap = () => {
     const dependencyMap = new Map<string, string[]>()
@@ -280,7 +293,8 @@ export default function OXKnowledgeAssessment({
   const findNextAssessableNode = (startIndex: number = currentIndex + 1): number => {
     for (let i = startIndex; i < assessmentNodes.length; i++) {
       const nodeId = assessmentNodes[i].id
-      if (!skippedNodes.has(nodeId) && !(nodeId in assessments)) {
+      // Check if node has a quiz question and is not skipped/assessed
+      if (!skippedNodes.has(nodeId) && !(nodeId in assessments) && questions[nodeId]) {
         return i
       }
     }
@@ -489,16 +503,13 @@ export default function OXKnowledgeAssessment({
         }]) || []
       )
 
-      // 점진적으로 understanding_level 업데이트
+      // 평가 결과에 따른 이해도 설정 (최초 평가)
       const statusData = Object.entries(finalAssessments).map(([nodeId, status]) => {
         const existing = existingMap.get(nodeId)
-        const currentLevel = existing?.understanding_level ?? 50  // 기본값 50
         const currentCount = existing?.review_count ?? 0
         
-        // 맞으면 +20, 틀리면 -20 (0~100 범위)
-        const newLevel = status === 'known' 
-          ? Math.min(100, currentLevel + 20)
-          : Math.max(0, currentLevel - 20)
+        // 최초 평가: 맞으면 70, 틀리면 0으로 설정
+        const newLevel = status === 'known' ? 70 : 0
         
         return {
           user_id: FIXED_USER_ID,
@@ -760,7 +771,19 @@ export default function OXKnowledgeAssessment({
   }
 
   // Only show skeleton when actually processing an answer or when essential data is missing
-  if (!currentNode || !currentQuestion || (isProcessingAnswer && !showFeedback)) {
+  if (!questionsLoaded || !currentNode || !currentQuestion || (isProcessingAnswer && !showFeedback)) {
+    if (!questionsLoaded) {
+      return <OXQuizSkeleton />
+    }
+    
+    // If questions are loaded but current node has no question, try to find next one
+    if (currentNode && !currentQuestion && questionsLoaded) {
+      const nextIndex = findNextAssessableNode(currentIndex)
+      if (nextIndex !== -1 && nextIndex !== currentIndex) {
+        setTimeout(() => setCurrentIndex(nextIndex), 0)
+      }
+    }
+    
     return <OXQuizSkeleton />
   }
 
@@ -801,9 +824,6 @@ export default function OXKnowledgeAssessment({
           <h3 className="text-xl font-bold text-gray-900 mb-2">
             {currentNode.name}
           </h3>
-          <p className="text-sm text-gray-600 mb-6">
-            {currentNode.description}
-          </p>
           
           {/* Quiz Question */}
           <div className="bg-gray-50 rounded-xl p-6 mb-6">

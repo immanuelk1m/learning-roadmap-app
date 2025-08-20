@@ -49,20 +49,31 @@ export function createPDFChunks(totalPages: number, chunkSize: number = 20): PDF
 }
 
 /**
- * Process a single PDF chunk with Gemini API
+ * Process a single PDF chunk with Gemini API with retry logic
  */
 export async function processPDFChunk(
   fileUri: string,
   mimeType: string,
   chunk: PDFChunk,
   studyGuideContext: string,
-  documentId: string
+  documentId: string,
+  maxRetries: number = 3
 ): Promise<ChunkProcessingResult> {
   const startTime = Date.now()
+  let lastError: any = null
   
-  try {
-    // Create chunk-specific prompt
-    const chunkPrompt = `${STUDY_GUIDE_PAGE_PROMPT}
+  // Retry logic for transient errors
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Add delay between retries with exponential backoff
+      if (attempt > 1) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000) // Max 10 seconds
+        console.log(`Retrying chunk ${chunk.chunkIndex + 1} after ${delay}ms (attempt ${attempt}/${maxRetries})`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+      
+      // Create chunk-specific prompt
+      const chunkPrompt = `${STUDY_GUIDE_PAGE_PROMPT}
 
 ${studyGuideContext}
 
@@ -74,70 +85,94 @@ ${studyGuideContext}
 해당 페이지 범위의 내용만을 분석하여 페이지별 해설을 작성하세요.
 다른 페이지의 내용은 포함하지 마세요.`
 
-    console.log(`Processing chunk ${chunk.chunkIndex + 1}/${chunk.totalChunks} (pages ${chunk.startPage}-${chunk.endPage})`)
-    
-    const result = await geminiStudyGuidePageModel.generateContent({
-      contents: [
-        {
-          parts: [
-            {
-              fileData: {
-                fileUri,
-                mimeType,
+      console.log(`Processing chunk ${chunk.chunkIndex + 1}/${chunk.totalChunks} (pages ${chunk.startPage}-${chunk.endPage}) - Attempt ${attempt}`)
+      
+      const result = await geminiStudyGuidePageModel.generateContent({
+        contents: [
+          {
+            parts: [
+              {
+                fileData: {
+                  fileUri,
+                  mimeType,
+                },
               },
-            },
-            {
-              text: chunkPrompt,
-            },
-          ],
-        },
-      ],
-    })
+              {
+                text: chunkPrompt,
+              },
+            ],
+          },
+        ],
+      })
+      
+      const response = result.text || ''
+      
+      if (!response) {
+        throw new Error('Empty response from Gemini API')
+      }
     
-    const response = result.text || ''
-    
-    if (!response) {
-      throw new Error('Empty response from Gemini API')
-    }
-    
-    const studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
-      response,
-      { documentId, responseType: 'study_guide_pages_chunk' }
-    )
-    
-    validateResponseStructure(
-      studyGuideData,
-      ['document_title', 'total_pages', 'pages'],
-      { documentId, responseType: 'study_guide_pages_chunk' }
-    )
-    
-    // Filter pages to ensure only the requested range is included
-    if (studyGuideData.pages) {
-      studyGuideData.pages = studyGuideData.pages.filter(
-        page => page.page_number >= chunk.startPage && page.page_number <= chunk.endPage
+      const studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
+        response,
+        { documentId, responseType: 'study_guide_pages_chunk' }
       )
+      
+      validateResponseStructure(
+        studyGuideData,
+        ['document_title', 'total_pages', 'pages'],
+        { documentId, responseType: 'study_guide_pages_chunk' }
+      )
+      
+      // Filter pages to ensure only the requested range is included
+      if (studyGuideData.pages) {
+        studyGuideData.pages = studyGuideData.pages.filter(
+          page => page.page_number >= chunk.startPage && page.page_number <= chunk.endPage
+        )
+      }
+      
+      const processingTime = Date.now() - startTime
+      console.log(`Chunk ${chunk.chunkIndex + 1} processed successfully in ${processingTime}ms, got ${studyGuideData.pages?.length || 0} pages`)
+      
+      return {
+        chunk,
+        result: studyGuideData,
+        error: null,
+        processingTime
+      }
+      
+    } catch (error: any) {
+      lastError = error
+      
+      // Check if error is retryable (503, 429, or network errors)
+      const isRetryable = error.status === 503 || 
+                         error.status === 429 || 
+                         error.code === 'ECONNRESET' ||
+                         error.code === 'ETIMEDOUT' ||
+                         error.message?.includes('overloaded') ||
+                         error.message?.includes('timeout')
+      
+      if (!isRetryable || attempt === maxRetries) {
+        const processingTime = Date.now() - startTime
+        console.error(`Error processing chunk ${chunk.chunkIndex + 1} after ${attempt} attempts:`, error)
+        
+        return {
+          chunk,
+          result: null,
+          error: `Failed after ${attempt} attempts: ${error.message || 'Unknown error'}`,
+          processingTime
+        }
+      }
+      
+      console.warn(`Chunk ${chunk.chunkIndex + 1} failed (attempt ${attempt}), will retry: ${error.message}`)
     }
-    
-    const processingTime = Date.now() - startTime
-    console.log(`Chunk ${chunk.chunkIndex + 1} processed in ${processingTime}ms, got ${studyGuideData.pages?.length || 0} pages`)
-    
-    return {
-      chunk,
-      result: studyGuideData,
-      error: null,
-      processingTime
-    }
-    
-  } catch (error: any) {
-    const processingTime = Date.now() - startTime
-    console.error(`Error processing chunk ${chunk.chunkIndex + 1}:`, error)
-    
-    return {
-      chunk,
-      result: null,
-      error: error.message || 'Unknown error',
-      processingTime
-    }
+  }
+  
+  // Should not reach here, but handle just in case
+  const processingTime = Date.now() - startTime
+  return {
+    chunk,
+    result: null,
+    error: lastError?.message || 'Unknown error after all retries',
+    processingTime
   }
 }
 
@@ -186,18 +221,30 @@ export async function processChunksInParallel(
     updateProgress(currentIndex, 'processing')
     
     try {
-      const result = await processPDFChunk(fileUri, mimeType, chunk, studyGuideContext, documentId)
+      // Process chunk with retry logic
+      const result = await processPDFChunk(
+        fileUri, 
+        mimeType, 
+        chunk, 
+        studyGuideContext, 
+        documentId,
+        3 // Max retries per chunk
+      )
       results[currentIndex] = result
       
       if (result.error) {
         errors.push(`Chunk ${currentIndex + 1}: ${result.error}`)
+        console.warn(`Chunk ${currentIndex + 1} failed permanently: ${result.error}`)
+      } else {
+        console.log(`Chunk ${currentIndex + 1} completed successfully`)
       }
       
       completedChunks++
       updateProgress(currentIndex, completedChunks === chunks.length ? 'completed' : 'processing')
       
     } catch (error: any) {
-      const errorMsg = `Chunk ${currentIndex + 1}: ${error.message || 'Unknown error'}`
+      // This should rarely happen as processPDFChunk handles its own errors
+      const errorMsg = `Chunk ${currentIndex + 1}: Unexpected error: ${error.message || 'Unknown error'}`
       errors.push(errorMsg)
       results[currentIndex] = {
         chunk,
@@ -292,8 +339,11 @@ export function getOptimalChunkSize(totalPages: number, fileSize: number): numbe
     chunkSize = 20 // Standard chunk size
   } else if (totalPages > 50) {
     chunkSize = 15 // Smaller chunks for medium documents
-  } else {
+  } else if (totalPages > 20) {
     chunkSize = 10 // Small chunks for small documents
+  } else {
+    // For very small documents, process all at once
+    chunkSize = totalPages
   }
   
   // Adjust based on file size (in MB)
@@ -305,6 +355,11 @@ export function getOptimalChunkSize(totalPages: number, fileSize: number): numbe
   } else {
     chunkSize = Math.min(chunkSize + 5, 30) // Increase chunk size for small files
   }
+  
+  // Ensure chunk size doesn't exceed total pages
+  chunkSize = Math.min(chunkSize, totalPages)
+  
+  console.log(`Optimal chunk size calculated: ${chunkSize} pages (Total: ${totalPages} pages, Size: ${fileSizeMB.toFixed(2)} MB)`)
   
   return chunkSize
 }
