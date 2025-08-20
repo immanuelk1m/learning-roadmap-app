@@ -101,7 +101,7 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
       </div>
 
       {/* 활동 그리드 */}
-      <div className="flex-1 overflow-x-auto min-h-0">
+      <div className="flex-1 overflow-auto min-h-0">
         <div className="min-w-max">
           {/* 월 라벨 */}
           <div className="flex gap-[3px] mb-2 ml-7">
@@ -156,15 +156,7 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
             </div>
           </div>
           
-          {/* 범례 */}
-          <div className="flex items-center gap-4 mt-4 text-[11px] text-gray-600 justify-end">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              <span>높은 정답률</span>
-              <div className="w-2 h-2 bg-orange-500 rounded-full" />
-              <span>낮은 정답률</span>
-            </div>
-          </div>
+          {/* 범례 제거됨 */}
         </div>
       </div>
     </div>
