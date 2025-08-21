@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, BookOpen, Brain } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BookOpen, Brain, AlertCircle } from 'lucide-react'
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer'
 
 interface StudyGuidePage {

@@ -39,10 +39,10 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
         if (error) {
           console.error('PDF download error:', error)
           console.error('Error details:', {
-            message: error.message,
-            name: error.name,
-            stack: error.stack,
-            cause: error.cause,
+            errorMessage: error.message,
+            errorName: error.name,
+            errorStack: error.stack,
+            errorCause: error.cause,
             ...error
           })
           const errorMessage = error.message || error.name || JSON.stringify(error) || 'Unknown error'
@@ -62,9 +62,9 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
       } catch (err: any) {
         console.error('PDF loading error:', err)
         console.error('Error details:', {
-          message: err.message,
-          name: err.name,
-          stack: err.stack,
+          errorMessage: err.message,
+          errorName: err.name,
+          errorStack: err.stack,
           ...err
         })
         setError(`PDF 로딩 중 오류가 발생했습니다: ${err.message || err.name || 'Unknown error'}`)
