@@ -5,6 +5,14 @@ import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
 import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { updateProgress, clearProgress } from '@/lib/progress-store'
+import { 
+  createPDFChunks, 
+  processPDFChunk, 
+  mergeChunkResults,
+  ChunkProcessingResult 
+} from '@/lib/pdf-chunk-processor'
+
+export const maxDuration = 300
 
 export async function POST(request: NextRequest) {
   let documentId: string | undefined
@@ -226,77 +234,96 @@ ${unknownConcepts.map(c => `- ${c.name}: ${c.description}
 
 ${oxQuizContext}`
 
-    // Process entire PDF as single document
+    // Process PDF using chunk-based approach
     const totalPages = document.page_count || 100 // fallback if page count unknown
     const fileSize = fileData.size
     
-    console.log(`Processing entire PDF: ${totalPages} pages, ${(fileSize / 1024 / 1024).toFixed(2)} MB`)
+    console.log(`Processing PDF with chunks: ${totalPages} pages, ${(fileSize / 1024 / 1024).toFixed(2)} MB`)
+    
+    // Create 20-page chunks
+    const chunks = createPDFChunks(totalPages, 20)
+    console.log(`Created ${chunks.length} chunks for processing`)
     
     // Update progress for processing phase
     updateProgress(userId, documentId, {
-      totalChunks: 0,
+      totalChunks: chunks.length,
       completedChunks: 0,
       currentChunk: 0,
       progress: 30,
       status: 'processing',
       stage: 'analyzing',
-      message: 'PDF 분석 중...',
+      message: `PDF를 ${chunks.length}개 청크로 분석 중...`,
       errors: []
     })
     
-    let studyGuideData: StudyGuidePageResponse
+    // Process each chunk sequentially
+    const chunkResults: ChunkProcessingResult[] = []
+    const errors: string[] = []
     
-    // Always use single processing for entire PDF
-    const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}`
-    
-    // Update progress before API call
-    updateProgress(userId, documentId, {
-      totalChunks: 0,
-      completedChunks: 0,
-      currentChunk: 0,
-      progress: 50,
-      status: 'processing',
-      stage: 'generating',
-      message: '페이지별 퀵노트 생성 중...',
-      errors: []
-    })
-    
-    const result = await geminiStudyGuidePageModel.generateContent({
-      contents: [
-        {
-          parts: [
-            {
-              fileData: {
-                fileUri: uploadedFile.uri,
-                mimeType: uploadedFile.mimeType || 'application/pdf',
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-    })
-    
-    const response = result.text || ''
-    
-    if (!response) {
-      throw new Error('Empty response from Gemini API')
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]
+      
+      // Update progress for current chunk
+      updateProgress(userId, documentId, {
+        totalChunks: chunks.length,
+        completedChunks: i,
+        currentChunk: i + 1,
+        progress: 30 + Math.round((i / chunks.length) * 60), // 30-90% range
+        status: 'processing',
+        stage: 'generating',
+        message: `청크 ${i + 1}/${chunks.length} 처리 중 (페이지 ${chunk.startPage}-${chunk.endPage})...`,
+        errors
+      })
+      
+      try {
+        // Process chunk with retry logic
+        const result = await processPDFChunk(
+          uploadedFile.uri,
+          uploadedFile.mimeType || 'application/pdf',
+          chunk,
+          studyGuideContext,
+          documentId,
+          3 // max retries
+        )
+        
+        chunkResults.push(result)
+        
+        if (result.error) {
+          errors.push(`청크 ${i + 1}: ${result.error}`)
+          console.warn(`Chunk ${i + 1} failed: ${result.error}`)
+        } else {
+          console.log(`Chunk ${i + 1} completed successfully with ${result.result?.pages?.length || 0} pages`)
+        }
+        
+      } catch (error: any) {
+        const errorMsg = `청크 ${i + 1} 처리 실패: ${error.message || 'Unknown error'}`
+        errors.push(errorMsg)
+        console.error(errorMsg)
+        
+        // Continue with next chunk even if this one fails
+        chunkResults.push({
+          chunk,
+          result: null,
+          error: errorMsg,
+          processingTime: 0
+        })
+      }
     }
     
-    studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
-      response,
-      { documentId, responseType: 'study_guide_pages' }
+    // Check if we have any successful results
+    const successfulResults = chunkResults.filter(r => r.result && r.result.pages)
+    if (successfulResults.length === 0) {
+      throw new Error('No chunks were successfully processed')
+    }
+    
+    // Merge all chunk results
+    const studyGuideData = mergeChunkResults(
+      chunkResults,
+      document.title,
+      totalPages
     )
     
-    validateResponseStructure(
-      studyGuideData,
-      ['document_title', 'total_pages', 'pages', 'overall_summary'],
-      { documentId, responseType: 'study_guide_pages' }
-    )
-    
-    console.log(`Processing complete, generated ${studyGuideData.pages?.length || 0} pages`)
+    console.log(`Processing complete: ${successfulResults.length}/${chunks.length} chunks successful, generated ${studyGuideData.pages?.length || 0} pages total`)
     
     // Check if we have pages to save
     if (!studyGuideData.pages || studyGuideData.pages.length === 0) {

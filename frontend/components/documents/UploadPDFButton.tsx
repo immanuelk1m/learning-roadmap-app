@@ -6,6 +6,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/ToastProvider'
 import { uploadLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Configure PDF.js worker
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+}
 
 interface UploadPDFButtonProps {
   subjectId: string
@@ -21,7 +27,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
   const supabase = createClient()
   const { showToast } = useToast()
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
       if (selectedFile.type !== 'application/pdf') {
@@ -32,6 +38,32 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         setError('파일 크기는 50MB 이하여야 합니다.')
         return
       }
+      
+      // Check page count limit (40 pages max)
+      try {
+        setError('PDF 페이지 수 확인 중...')
+        
+        const arrayBuffer = await selectedFile.arrayBuffer()
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+        const pageCount = pdf.numPages
+        
+        console.log(`PDF page count: ${pageCount}`)
+        
+        if (pageCount > 40) {
+          setError(`PDF는 최대 40페이지까지만 업로드 가능합니다. (현재: ${pageCount}페이지)`)
+          setFile(null)
+          return
+        }
+        
+        // Store page count for later use
+        ;(selectedFile as any).pageCount = pageCount
+        
+      } catch (error) {
+        console.error('Failed to check PDF page count:', error)
+        setError('PDF 파일을 확인하는 중 오류가 발생했습니다.')
+        return
+      }
+      
       setFile(selectedFile)
       setError(null)
     }
@@ -137,6 +169,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         title: file.name.replace('.pdf', ''),
         file_path: fileName,
         file_size: file.size,
+        page_count: (file as any).pageCount || null,
         status: 'processing',
       }
       
@@ -397,7 +430,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                   클릭하여 PDF 파일을 선택하세요
                 </p>
                 <p className="text-sm text-gray-500">또는 파일을 여기에 드래그하세요</p>
-                <p className="text-xs text-gray-400 mt-2">최대 50MB까지 지원</p>
+                <p className="text-xs text-gray-400 mt-2">최대 50MB, 40페이지까지 지원</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -418,7 +451,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                         {file.name}
                       </p>
                       <p className="text-xs text-green-600">
-                        {(file.size / (1024 * 1024)).toFixed(1)} MB • 업로드 준비 완료
+                        {(file.size / (1024 * 1024)).toFixed(1)} MB • {(file as any).pageCount}페이지 • 업로드 준비 완료
                       </p>
                     </div>
                   </div>
