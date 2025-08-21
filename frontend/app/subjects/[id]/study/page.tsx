@@ -62,7 +62,7 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
         .single()
     : { data: null }
 
-  // Get knowledge nodes for the document
+  // Get knowledge nodes for the document (includes understanding_level)
   const { data: knowledgeNodes } = selectedDocumentId
     ? await supabase
         .from('knowledge_nodes')
@@ -72,14 +72,11 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
         .order('position')
     : { data: [] }
 
-  // Get user knowledge status
-  const { data: userStatus } = selectedDocumentId
-    ? await supabase
-        .from('user_knowledge_status')
-        .select('*')
-        .eq('user_id', FIXED_USER_ID)
-        .in('node_id', knowledgeNodes?.map(n => n.id) || [])
-    : { data: [] }
+  // Convert knowledge nodes understanding_level to userStatus format
+  const userStatus = knowledgeNodes?.map(node => ({
+    node_id: node.id,
+    understanding_level: node.understanding_level || 0
+  })) || []
 
   // Check if study guide exists
   const { data: studyGuide } = selectedDocumentId

@@ -69,7 +69,7 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
   const getNodeStatus = (nodeId: string): 'known' | 'unknown' => {
     const level = userStatus.find(s => s.node_id === nodeId)?.understanding_level
     if (level === undefined) return 'unknown'
-    if (level >= 50) return 'known'
+    if (level >= 70) return 'known'  // Changed from 50 to 70 to match assessment scoring
     return 'unknown'
   }
 
