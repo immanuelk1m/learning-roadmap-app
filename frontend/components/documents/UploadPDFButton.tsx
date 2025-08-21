@@ -93,10 +93,10 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
 
       if (uploadError) {
         console.error('Storage upload error details:', {
-          message: uploadError.message,
-          name: uploadError.name,
-          stack: uploadError.stack,
-          cause: uploadError.cause,
+          errorMessage: uploadError.message,
+          errorName: uploadError.name,
+          errorStack: uploadError.stack,
+          errorCause: uploadError.cause,
           ...uploadError
         })
         
