@@ -181,7 +181,7 @@ export default function StudyTabs({
     },
     {
       id: 'guide' as const,
-      label: 'PDF 해설집',
+      label: 'PDF 퀵노트',
       icon: BookOpen,
       content: studyGuideContent
     }
@@ -224,7 +224,7 @@ export default function StudyTabs({
           )}
           {isLoadingStatus ? '로딩 중...' :
            isGenerating ? '퀴즈 생성 중...' : 
-           !assessmentStatus?.hasCompletedOXAssessment ? '학습 전 지식 평가하기' :
+           !assessmentStatus?.hasCompletedOXAssessment ? '학습 전 배경지식 체크하기' :
            '문제풀고 지식트리 완성하기!'
           }
         </button>

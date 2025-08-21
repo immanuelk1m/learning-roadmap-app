@@ -532,7 +532,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                     {/* Button Content */}
                     <div className="relative flex items-center gap-2">
                       <Brain className="w-4 h-4" />
-                      <span>{doc.assessment_completed ? '학습 시작하기' : '학습 전 지식 평가'}</span>
+                      <span>{doc.assessment_completed ? '학습 시작하기' : '학습 전 배경지식 체크'}</span>
                     </div>
                     
                     {/* Shimmer Effect */}

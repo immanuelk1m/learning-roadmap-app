@@ -320,7 +320,7 @@ export function mergeChunkResults(
     document_title: documentTitle,
     total_pages: totalPages,
     pages: allPages,
-    overall_summary: overallSummary || `${documentTitle}에 대한 종합적인 페이지별 해설집입니다.`,
+    overall_summary: overallSummary || `${documentTitle}에 대한 종합적인 페이지별 퀵노트입니다.`,
     learning_path: uniqueLearningPath.length > 0 ? uniqueLearningPath : undefined
   }
 }

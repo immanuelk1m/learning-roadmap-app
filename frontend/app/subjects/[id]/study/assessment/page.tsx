@@ -254,7 +254,7 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
               </Link>
               <div className="border-l border-gray-300 pl-4">
                 <h1 className="text-lg font-semibold text-gray-900">{subject.name}</h1>
-                <p className="text-sm text-gray-600">지식 평가</p>
+                <p className="text-sm text-gray-600">학습 전 배경지식 체크</p>
               </div>
             </div>
           </div>
@@ -265,7 +265,7 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            학습 전 지식 평가
+            학습 전 배경지식 체크
           </h2>
           <p className="text-gray-600">
             각 개념을 알고 있는지 선택하여 지식을 평가합니다.

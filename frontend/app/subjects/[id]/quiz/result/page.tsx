@@ -69,7 +69,7 @@ export default async function QuizResultPage({ params, searchParams }: QuizResul
   const percentage = totalNumber > 0 ? Math.round((scoreNumber / totalNumber) * 100) : 0
 
   // Calculate knowledge improvement
-  const knownNodes = userStatus?.filter(s => s.understanding_level >= 50).length || 0
+  const knownNodes = userStatus?.filter(s => s.understanding_level >= 70).length || 0
   const totalNodes = knowledgeNodes?.length || 0
   const knowledgePercentage = totalNodes > 0 ? Math.round((knownNodes / totalNodes) * 100) : 0
 
@@ -124,7 +124,7 @@ export default async function QuizResultPage({ params, searchParams }: QuizResul
               <TrendingUp className="h-8 w-8 text-purple-600 mx-auto mb-2" />
               <p className="text-sm text-gray-600 mb-1">개선된 개념</p>
               <p className="text-2xl font-bold text-gray-900">
-                {userStatus?.filter(s => s.assessment_method === 'quiz' && s.understanding_level >= 50).length || 0}개
+                {userStatus?.filter(s => s.assessment_method === 'quiz' && s.understanding_level >= 70).length || 0}개
               </p>
               <p className="text-sm text-purple-600 font-medium">퀴즈로 학습 완료</p>
             </div>

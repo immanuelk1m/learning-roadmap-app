@@ -53,7 +53,7 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
   }
   
   return (
-    <div className="bg-white rounded-[5px] shadow-lg px-5 py-[20px] flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+    <div className="bg-white rounded-[5px] px-5 py-[20px] flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
       <div className="flex justify-between items-center mb-4 flex-shrink-0 min-w-0">
         <h2 className="text-[17px] font-bold">자료별 진행도</h2>
         <div className="flex gap-3">

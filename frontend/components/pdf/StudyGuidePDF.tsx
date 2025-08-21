@@ -331,7 +331,7 @@ export default function StudyGuidePDF({
     const status = userStatusMap.get(nodeId)
     if (!status) return styles.unknownBadge
     if (status.understanding_level >= 80) return styles.knownBadge
-    if (status.understanding_level >= 50) return styles.unclearBadge
+    if (status.understanding_level >= 70) return styles.unclearBadge
     return styles.unknownBadge
   }
   
@@ -340,7 +340,7 @@ export default function StudyGuidePDF({
     const status = userStatusMap.get(nodeId)
     if (!status) return '학습 필요'
     if (status.understanding_level >= 80) return '잘 알고 있어요'
-    if (status.understanding_level >= 50) return '조금 더 공부가 필요해요'
+    if (status.understanding_level >= 70) return '조금 더 공부가 필요해요'
     return '새로 배워야 해요'
   }
   
@@ -456,7 +456,7 @@ export default function StudyGuidePDF({
     <Document>
       {/* Cover Page */}
       <Page size="A4" style={[styles.page, styles.coverPage]}>
-        <Text style={styles.coverTitle}>나만의 맞춤 해설집</Text>
+        <Text style={styles.coverTitle}>나만의 맞춤 퀵노트</Text>
         <Text style={styles.coverSubtitle}>{documentName}</Text>
         
         <View style={styles.coverStats}>

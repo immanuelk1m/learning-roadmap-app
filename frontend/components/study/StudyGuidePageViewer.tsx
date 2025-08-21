@@ -72,7 +72,7 @@ export default function StudyGuidePageViewer({
       <div className="border-b border-gray-200 p-4 bg-white">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-xl font-bold text-gray-900">
-            {documentTitle || '학습 해설집'}
+            {documentTitle || '학습 퀵노트'}
           </h2>
           <div className="flex items-center gap-2">
             <button

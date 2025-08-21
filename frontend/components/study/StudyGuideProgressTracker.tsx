@@ -162,7 +162,7 @@ export default function StudyGuideProgressTracker({
       case 'saving':
         return '데이터베이스에 저장 중...'
       case 'completed':
-        return '해설집 생성 완료!'
+        return '퀵노트 생성 완료!'
       case 'failed':
       case 'upload_failed':
       case 'save_failed':
@@ -183,7 +183,7 @@ export default function StudyGuideProgressTracker({
           {getStatusIcon()}
           <div>
             <h3 className={`text-lg font-semibold ${getStatusColor()}`}>
-              개인 맞춤 해설집 생성 중
+              개인 맞춤 퀵노트 생성 중
             </h3>
             <p className="text-sm text-gray-600">
               {getStageMessage()}

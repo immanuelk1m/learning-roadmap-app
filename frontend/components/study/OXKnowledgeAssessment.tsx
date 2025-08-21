@@ -617,11 +617,11 @@ export default function OXKnowledgeAssessment({
               </div>
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {isGeneratingStudyGuide ? '해설집 생성 중...' : '평가 결과 저장 중...'}
+                  {isGeneratingStudyGuide ? '퀵노트 생성 중...' : '평가 결과 저장 중...'}
                 </h3>
                 <p className="text-sm text-gray-600">
                   {isGeneratingStudyGuide 
-                    ? '학습 전 지식 평가 결과를 바탕으로 개인 맞춤 해설집을 생성하고 있습니다.'
+                    ? '학습 전 배경지식 체크 결과를 바탕으로 개인 맞춤 퀵노트를 생성하고 있습니다.'
                     : '평가 결과를 저장하고 있습니다.'
                   }
                 </p>

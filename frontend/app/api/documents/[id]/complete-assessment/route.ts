@@ -60,13 +60,13 @@ export async function POST(
       // Continue even if we can't get assessment results
     }
 
-    // Identify weak nodes (understanding_level < 50)
+    // Identify weak nodes (understanding_level < 70)
     const weakNodes = assessmentResults?.filter(
-      result => result.understanding_level < 50
+      result => result.understanding_level < 70
     ) || []
     
     const strongNodes = assessmentResults?.filter(
-      result => result.understanding_level >= 50
+      result => result.understanding_level >= 70
     ) || []
 
     console.log('Assessment analysis:', {

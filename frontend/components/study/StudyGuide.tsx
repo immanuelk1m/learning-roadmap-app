@@ -229,7 +229,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
       return (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <BookOpen className="h-12 w-12 text-blue-500 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">지식 평가가 필요합니다</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">학습 전 배경지식 체크가 필요합니다</h3>
           <p className="text-gray-600 mb-4">{error.message}</p>
           {error.progress && (
             <div className="mb-4 w-full max-w-xs">
@@ -250,7 +250,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
               onClick={() => window.location.href = `/subjects/${window.location.pathname.split('/')[2]}/study/assessment?doc=${documentId}`}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              지식 평가 시작하기
+              학습 전 배경지식 체크 시작하기
             </button>
             <button
               onClick={loadStudyGuide}
@@ -266,7 +266,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <p className="text-gray-600 mb-4">해설집 로딩 중 오류가 발생했습니다.</p>
+        <p className="text-gray-600 mb-4">퀵노트 로딩 중 오류가 발생했습니다.</p>
         <p className="text-sm text-gray-500 mb-4">{error.message}</p>
         <button
           onClick={loadStudyGuide}
@@ -285,15 +285,15 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
           <div className="mx-auto h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
             <FileText className="h-10 w-10 text-blue-600" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">해설집이 없습니다</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-3">퀵노트가 없습니다</h3>
           <p className="text-gray-600 mb-6">
-            학습 전 지식 평가 결과를 바탕으로 개인 맞춤 해설집을 생성해보세요.
+            학습 전 배경지식 체크 결과를 바탕으로 개인 맞춤 퀵노트를 생성해보세요.
           </p>
           <button
             onClick={() => generateStudyGuide(true)}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            페이지별 해설집 생성하기
+            페이지별 퀵노트 생성하기
           </button>
         </div>
       </div>
@@ -313,7 +313,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-gray-900">개인 맞춤 해설집</h2>
+              <h2 className="text-2xl font-bold text-gray-900">개인 맞춤 퀵노트</h2>
               {isPageBased && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-sm font-medium">
                   <Layers className="w-4 h-4" />
@@ -371,12 +371,12 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
                 formatContent(studyGuide.content)
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">해설집 콘텐츠가 없습니다.</p>
+                  <p className="text-gray-500 mb-4">퀵노트 콘텐츠가 없습니다.</p>
                   <button
                     onClick={() => generateStudyGuide(true)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    페이지별 해설집 생성하기
+                    페이지별 퀵노트 생성하기
                   </button>
                 </div>
               )}

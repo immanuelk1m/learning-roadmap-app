@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { uploadFileToGemini } from '@/lib/gemini/client'
+import { uploadFileToGemini, geminiStudyGuidePageModel } from '@/lib/gemini/client'
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
-import {
-  createPDFChunks,
-  processChunksInParallel,
-  mergeChunkResults,
-  getOptimalChunkSize,
-  ChunkProcessingProgress
-} from '@/lib/pdf-chunk-processor'
+import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
+import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { updateProgress, clearProgress } from '../progress/route'
 
 export async function POST(request: NextRequest) {
@@ -30,7 +25,7 @@ export async function POST(request: NextRequest) {
       progress: 0,
       status: 'starting',
       stage: 'initializing',
-      message: '해설집 생성을 시작합니다...',
+      message: '퀵노트 생성을 시작합니다...',
       errors: []
     })
 
@@ -85,7 +80,7 @@ export async function POST(request: NextRequest) {
     if (assessedNodes === 0) {
       return NextResponse.json({
         error: 'Knowledge assessment not started',
-        message: 'Please complete the knowledge assessment first',
+        message: '학습 전 배경지식 체크를 먼저 완료해주세요',
         requiresAssessment: true
       }, { status: 400 })
     }
@@ -93,7 +88,7 @@ export async function POST(request: NextRequest) {
     if (assessedNodes < totalNodes) {
       return NextResponse.json({
         error: 'Knowledge assessment incomplete',
-        message: `Please assess all ${totalNodes} concepts. Currently assessed: ${assessedNodes}`,
+        message: `배경지식 체크를 완료해주세요. (${assessedNodes}/${totalNodes} 개념 완료)`,
         requiresAssessment: true,
         progress: { assessed: assessedNodes, total: totalNodes }
       }, { status: 400 })
@@ -123,9 +118,9 @@ export async function POST(request: NextRequest) {
           .then(res => res.data?.map(item => item.id) || [])
       )
 
-    // Categorize concepts based on 50 threshold
-    const knownConcepts = userNodes?.filter(node => node.understanding_level >= 50) || []
-    const unknownConcepts = userNodes?.filter(node => node.understanding_level < 50) || []
+    // Categorize concepts based on 70 threshold (matching assessment scoring)
+    const knownConcepts = userNodes?.filter(node => node.understanding_level >= 70) || []
+    const unknownConcepts = userNodes?.filter(node => node.understanding_level < 70) || []
 
     // Get original document content for context
     const { data: fileData } = await supabase.storage
@@ -226,138 +221,95 @@ ${unknownConcepts.map(c => `- ${c.name}: ${c.description}
 
 ${oxQuizContext}`
 
-    // Determine optimal processing strategy
+    // Process entire PDF as single document
     const totalPages = document.page_count || 100 // fallback if page count unknown
     const fileSize = fileData.size
-    const shouldUseParallel = totalPages > 20 || fileSize > 10 * 1024 * 1024 // > 20 pages or > 10MB
     
-    console.log(`Processing strategy: ${shouldUseParallel ? 'PARALLEL' : 'SINGLE'} (${totalPages} pages, ${(fileSize / 1024 / 1024).toFixed(2)} MB)`)
+    console.log(`Processing entire PDF: ${totalPages} pages, ${(fileSize / 1024 / 1024).toFixed(2)} MB`)
+    
+    // Update progress for processing phase
+    updateProgress(userId, documentId, {
+      totalChunks: 0,
+      completedChunks: 0,
+      currentChunk: 0,
+      progress: 30,
+      status: 'processing',
+      stage: 'analyzing',
+      message: 'PDF 분석 중...',
+      errors: []
+    })
     
     let studyGuideData: StudyGuidePageResponse
     
-    if (shouldUseParallel) {
-      // Use parallel processing for large documents
-      const chunkSize = getOptimalChunkSize(totalPages, fileSize)
-      const chunks = createPDFChunks(totalPages, chunkSize)
-      
-      console.log(`Created ${chunks.length} chunks of ${chunkSize} pages each`)
-      
-      // Update progress with chunk info
+    // Always use single processing for entire PDF
+    const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}`
+    
+    // Update progress before API call
+    updateProgress(userId, documentId, {
+      totalChunks: 0,
+      completedChunks: 0,
+      currentChunk: 0,
+      progress: 50,
+      status: 'processing',
+      stage: 'generating',
+      message: '페이지별 퀵노트 생성 중...',
+      errors: []
+    })
+    
+    const result = await geminiStudyGuidePageModel.generateContent({
+      contents: [
+        {
+          parts: [
+            {
+              fileData: {
+                fileUri: uploadedFile.uri,
+                mimeType: uploadedFile.mimeType || 'application/pdf',
+              },
+            },
+            {
+              text: prompt,
+            },
+          ],
+        },
+      ],
+    })
+    
+    const response = result.text || ''
+    
+    if (!response) {
+      throw new Error('Empty response from Gemini API')
+    }
+    
+    studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
+      response,
+      { documentId, responseType: 'study_guide_pages' }
+    )
+    
+    validateResponseStructure(
+      studyGuideData,
+      ['document_title', 'total_pages', 'pages', 'overall_summary'],
+      { documentId, responseType: 'study_guide_pages' }
+    )
+    
+    console.log(`Processing complete, generated ${studyGuideData.pages?.length || 0} pages`)
+    
+    // Check if we have pages to save
+    if (!studyGuideData.pages || studyGuideData.pages.length === 0) {
       updateProgress(userId, documentId, {
-        totalChunks: chunks.length,
+        totalChunks: 0,
         completedChunks: 0,
         currentChunk: 0,
-        progress: 20,
-        status: 'processing',
-        stage: 'preparing_chunks',
-        message: `${chunks.length}개 청크로 나누어 병렬 처리 시작...`,
-        errors: []
+        progress: 0,
+        status: 'error',
+        stage: 'no_pages_generated',
+        message: '페이지 생성에 실패했습니다. 다시 시도해주세요.',
+        errors: ['No pages were successfully generated']
       })
       
-      // Process chunks in parallel with progress tracking
-      const progressTracker = (progress: ChunkProcessingProgress) => {
-        console.log(`Progress: ${progress.completedChunks}/${progress.totalChunks} chunks (${progress.progress}%)`)
-        if (progress.errors.length > 0) {
-          console.warn('Processing errors:', progress.errors)
-        }
-        
-        // Update progress in store for real-time tracking
-        updateProgress(userId, documentId, {
-          ...progress,
-          stage: 'processing_chunks',
-          message: `청크 ${progress.completedChunks}/${progress.totalChunks} 처리 중...`
-        })
-      }
-      
-      const chunkResults = await processChunksInParallel(
-        uploadedFile.uri,
-        uploadedFile.mimeType || 'application/pdf',
-        chunks,
-        studyGuideContext,
-        documentId,
-        3, // max concurrency
-        progressTracker
+      return NextResponse.json(
+        { error: 'Failed to generate any pages. Please try again.' },
+        { status: 500 }
       )
-      
-      // Merge results from all chunks
-      studyGuideData = mergeChunkResults(chunkResults, document.title, totalPages)
-      
-      // Log processing statistics
-      const successfulChunks = chunkResults.filter(r => r.result !== null).length
-      const failedChunks = chunkResults.filter(r => r.result === null).length
-      const totalProcessingTime = chunkResults.reduce((sum, r) => sum + r.processingTime, 0)
-      const averageTime = totalProcessingTime / chunkResults.length
-      
-      console.log(`Parallel processing complete: ${successfulChunks}/${chunks.length} chunks successful`)
-      if (failedChunks > 0) {
-        console.warn(`Warning: ${failedChunks} chunks failed to process`)
-      }
-      console.log(`Total processing time: ${totalProcessingTime}ms, Average: ${averageTime.toFixed(0)}ms per chunk`)
-      console.log(`Generated pages: ${studyGuideData.pages?.length || 0}`)
-      
-      // Check if we have at least some pages to save
-      if (studyGuideData.pages?.length === 0) {
-        updateProgress(userId, documentId, {
-          totalChunks: 0,
-          completedChunks: 0,
-          currentChunk: 0,
-          progress: 0,
-          status: 'error',
-          stage: 'no_pages_generated',
-          message: '페이지 생성에 실패했습니다. 다시 시도해주세요.',
-          errors: ['No pages were successfully generated']
-        })
-        
-        return NextResponse.json(
-          { error: 'Failed to generate any pages. Please try again.' },
-          { status: 500 }
-        )
-      }
-      
-    } else {
-      // Use single processing for smaller documents (existing logic)
-      const { geminiStudyGuidePageModel } = await import('@/lib/gemini/client')
-      const { STUDY_GUIDE_PAGE_PROMPT } = await import('@/lib/gemini/prompts')
-      const { parseGeminiResponse, validateResponseStructure } = await import('@/lib/gemini/utils')
-      
-      const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}`
-      
-      const result = await geminiStudyGuidePageModel.generateContent({
-        contents: [
-          {
-            parts: [
-              {
-                fileData: {
-                  fileUri: uploadedFile.uri,
-                  mimeType: uploadedFile.mimeType || 'application/pdf',
-                },
-              },
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-      })
-      
-      const response = result.text || ''
-      
-      if (!response) {
-        throw new Error('Empty response from Gemini API')
-      }
-      
-      studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
-        response,
-        { documentId, responseType: 'study_guide_pages' }
-      )
-      
-      validateResponseStructure(
-        studyGuideData,
-        ['document_title', 'total_pages', 'pages', 'overall_summary'],
-        { documentId, responseType: 'study_guide_pages' }
-      )
-      
-      console.log(`Single processing complete, generated ${studyGuideData.pages?.length || 0} pages`)
     }
     
     // Update progress for saving phase
@@ -368,7 +320,7 @@ ${oxQuizContext}`
       progress: 90,
       status: 'processing',
       stage: 'saving',
-      message: '데이터베이스에 해설집 저장 중...',
+      message: '데이터베이스에 퀵노트 저장 중...',
       errors: []
     })
     
@@ -448,7 +400,7 @@ ${oxQuizContext}`
       progress: 100,
       status: 'completed',
       stage: 'completed',
-      message: '해설집 생성이 완료되었습니다!',
+      message: '퀵노트 생성이 완료되었습니다!',
       errors: []
     })
     
@@ -477,7 +429,7 @@ ${oxQuizContext}`
     
     const errorMessage = isRetryable 
       ? 'AI 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.'
-      : '해설집 생성 중 오류가 발생했습니다'
+      : '퀵노트 생성 중 오류가 발생했습니다'
     
     // Update progress with error
     updateProgress(userId, documentId, {

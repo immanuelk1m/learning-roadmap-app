@@ -95,14 +95,23 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
     : 0
   
   return (
-    <div className="flex-1 bg-white rounded-[5px] shadow-lg px-5 py-[20px] flex flex-col min-h-0">
-      <div className="mb-4">
+    <div className="flex-1 bg-white rounded-[5px] p-5 flex flex-col min-h-[200px]">
+      <div className="mb-4 flex justify-between items-center">
         <h2 className="text-[17px] font-bold text-[#212529]">학습활동 기록</h2>
+        {/* 범례 */}
+        <div className="flex items-center gap-4 text-[11px] text-gray-600">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full" />
+            <span>높은 정답률</span>
+            <div className="w-2 h-2 bg-orange-500 rounded-full" />
+            <span>낮은 정답률</span>
+          </div>
+        </div>
       </div>
 
-      {/* 활동 그리드 */}
-      <div className="flex-1 overflow-auto min-h-0">
-        <div className="min-w-max">
+      {/* 활동 그리드 - 스크롤 가능 영역 */}
+      <div className="flex-1 overflow-auto min-h-0 pr-2 custom-scrollbar">
+        <div className="min-w-[750px] pb-2">
           {/* 월 라벨 */}
           <div className="flex gap-[3px] mb-2 ml-7">
             {getMonthLabels().map((month, i) => (
@@ -155,8 +164,6 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
               })}
             </div>
           </div>
-          
-          {/* 범례 제거됨 */}
         </div>
       </div>
     </div>

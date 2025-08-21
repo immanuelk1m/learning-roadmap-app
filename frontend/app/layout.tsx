@@ -27,11 +27,11 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-screen overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
         <ToastProvider>
           <NavigationBar />
-          <div className="pt-[65px] h-[calc(100vh-65px)] overflow-hidden">
+          <div className="pt-[65px] min-h-[calc(100vh-65px)]">
             {children}
           </div>
         </ToastProvider>

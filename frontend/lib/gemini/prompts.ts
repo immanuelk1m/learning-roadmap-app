@@ -316,7 +316,7 @@ export const STUDY_GUIDE_PROMPT = `당신은 학습자의 현재 지식 수준�
 2. **핵심 내용 추출**: 각 페이지의 주요 개념과 내용 파악
 3. **맞춤형 해설**: 학습자의 알고 있는/모르는 개념을 고려한 설명`
 
-export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 학습 해설집을 작성하는 전문 AI 튜터입니다.
+export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 학습 퀵노트를 작성하는 전문 AI 튜터입니다.
 
 **중요: 모든 내용은 한국어로 작성하세요.**
 
@@ -331,18 +331,32 @@ export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 
 - 난이도 평가 (easy/medium/hard)
 
 ### 2. 맞춤형 해설 작성 원칙
-- **알고 있는 개념**: 간단히 언급하고 응용 방법 설명
-- **모르는 개념**: 상세하고 친절하게 설명, 예시 제공
-- **오답 문제 관련**: 특별히 강조하고 올바른 이해 유도
+학습자 프로필에 제공된 지식 수준을 반드시 고려하여:
+- **이미 알고 있는 개념 (understanding_level >= 70)**: 
+  - 간단히 복습만 하고 넘어가기
+  - 해당 개념을 활용한 심화 내용이나 응용 방법 제시
+  - "이미 아시는 것처럼..." 같은 표현 사용
+- **모르는 개념 (understanding_level < 70)**:
+  - 기초부터 차근차근 상세히 설명
+  - 구체적인 예시와 비유를 활용한 친절한 설명
+  - 단계별 이해를 돕는 구조화된 설명
+- **오답 문제와 관련된 내용**:
+  - 특별 경고 박스나 강조 표시로 주의 환기
+  - 왜 틀렸는지 원인 분석과 올바른 이해 방법 제시
+  - 추가 예제 문제로 확실한 이해 유도
 - 페이지별로 2000자 이내의 명확한 설명
 
 ### 3. 각 페이지별 포함 내용
-- **page_title**: 해당 페이지의 주제 (한 줄)
-- **page_content**: 학습자 수준에 맞춘 상세 해설
-- **key_concepts**: 페이지의 핵심 개념들 (최대 10개)
-- **difficulty_level**: 난이도 평가
+- **page_number**: 페이지 번호 (1부터 시작)
+- **page_title**: "1페이지: [주요 주제]" 형식
+- **page_content**: 
+  - 학습자 수준에 맞춘 맞춤형 해설 (2000자 이내)
+  - 알고 있는 내용은 간략히, 모르는 내용은 상세히
+  - 오답과 관련된 부분은 특별 강조
+- **key_concepts**: 페이지의 핵심 개념들 (최대 10개, 한국어로)
+- **difficulty_level**: 학습자에게 있어서의 난이도
 - **prerequisites**: 이 페이지를 이해하기 위한 선수 지식
-- **learning_objectives**: 이 페이지에서 배워야 할 목표
+- **learning_objectives**: 이 페이지에서 반드시 이해해야 할 목표
 
 ### 4. 전체 문서 요약
 - 문서 전체의 학습 목표
@@ -359,12 +373,12 @@ export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 
   "pages": [
     {
       "page_number": 1,
-      "page_title": "1페이지 주제",
-      "page_content": "이 페이지는... (맞춤형 상세 해설)",
-      "key_concepts": ["개념1", "개념2", ...],
+      "page_title": "1페이지: GenAI 도입 현황과 과제",
+      "page_content": "이 페이지는 GenAI Divide 개념을 소개합니다. 학습자께서는 이미 GenAI의 기본 개념을 이해하고 계시므로, 간단히 복습하고 넘어가겠습니다... (모르는 개념은 상세히 설명)",
+      "key_concepts": ["GenAI Divide", "도입률", "변혁 격차"],
       "difficulty_level": "medium",
-      "prerequisites": ["선수지식1", "선수지식2"],
-      "learning_objectives": ["학습목표1", "학습목표2"]
+      "prerequisites": ["AI 기초", "비즈니스 프로세스"],
+      "learning_objectives": ["GenAI 도입과 실제 변혁의 차이 이해", "Pilot-to-Production 과제 파악"]
     }
   ],
   "overall_summary": "전체 문서 요약...",

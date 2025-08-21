@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiStudyGuideModel } from '@/lib/gemini/client'
-import { StudyGuideResponse } from '@/lib/gemini/schemas'
-import { STUDY_GUIDE_PROMPT } from '@/lib/gemini/prompts'
+import { geminiStudyGuidePageModel, uploadFileToGemini } from '@/lib/gemini/client'
+import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
+import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 
 export async function POST(request: NextRequest) {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (assessedNodes === 0) {
       return NextResponse.json({
         error: 'Knowledge assessment not started',
-        message: 'Please complete the knowledge assessment first',
+        message: '학습 전 배경지식 체크를 먼저 완료해주세요',
         requiresAssessment: true
       }, { status: 400 })
     }
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     if (assessedNodes < totalNodes) {
       return NextResponse.json({
         error: 'Knowledge assessment incomplete',
-        message: `Please assess all ${totalNodes} concepts. Currently assessed: ${assessedNodes}`,
+        message: `배경지식 체크를 완료해주세요. (${assessedNodes}/${totalNodes} 개념 완료)`,
         requiresAssessment: true,
         progress: { assessed: assessedNodes, total: totalNodes }
       }, { status: 400 })
@@ -109,11 +109,11 @@ export async function POST(request: NextRequest) {
     const levelMap = new Map(userStatus?.map(s => [s.id, s.understanding_level]) || [])
     const knownConcepts = knowledgeNodes.filter(node => {
       const level = levelMap.get(node.id)
-      return level !== undefined && level >= 50
+      return level !== undefined && level >= 70  // Changed to match assessment scoring
     })
     const unknownConcepts = knowledgeNodes.filter(node => {
       const level = levelMap.get(node.id)
-      return level !== undefined && level < 50
+      return level !== undefined && level < 70  // Changed to match assessment scoring
     })
 
     if (unknownConcepts.length === 0) {
@@ -133,12 +133,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convert PDF to base64 for Gemini
-    console.log('Converting PDF to base64...')
-    const base64Data = await fileData.arrayBuffer().then((buffer) =>
-      Buffer.from(buffer).toString('base64')
-    )
-    console.log(`PDF converted to base64, size: ${(base64Data.length / 1024 / 1024).toFixed(2)} MB`)
+    // Upload PDF to Gemini File API
+    console.log('Uploading PDF to Gemini File API...')
+    const pdfBlob = new Blob([fileData], { type: 'application/pdf' })
+    const uploadedFile = await uploadFileToGemini(pdfBlob, 'application/pdf')
+    console.log('PDF uploaded to Gemini:', uploadedFile.uri)
 
     // Prepare O/X quiz results for Gemini
     const incorrectQuizzes = quizAttempts?.filter(attempt => !attempt.is_correct) || []
@@ -177,14 +176,20 @@ ${correctQuizzes.slice(0, 5).map(attempt =>
 
 **문서:** ${document.title}
 
-**이미 알고 있는 개념 (${knownConcepts.length}개):**
-${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
+**이미 알고 있는 개념 (${knownConcepts.length}개, understanding_level >= 70):**
+${knownConcepts.map(c => {
+  const level = levelMap.get(c.id) || 0
+  return `- ${c.name} (이해도: ${level}%): ${c.description}`
+}).join('\n')}
 
-**학습이 필요한 개념 (${unknownConcepts.length}개):**
-${unknownConcepts.map(c => `- ${c.name}: ${c.description}
-  필요한 선수 지식: ${c.prerequisites.length > 0 ? c.prerequisites.join(', ') : '없음'}`).join('\n\n')}
+**학습이 필요한 개념 (${unknownConcepts.length}개, understanding_level < 70):**
+${unknownConcepts.map(c => {
+  const level = levelMap.get(c.id) || 0
+  return `- ${c.name} (이해도: ${level}%): ${c.description}
+  필요한 선수 지식: ${c.prerequisites.length > 0 ? c.prerequisites.join(', ') : '없음'}`
+}).join('\n\n')}
 
-학습자의 현재 상태를 고려하여 맞춤형 학습 해설집을 생성하세요. 이미 알고 있는 개념을 활용하여 모르는 개념을 설명하고, 효과적인 학습 전략을 제시하세요.
+학습자의 현재 상태를 고려하여 맞춤형 학습 퀵노트를 생성하세요. 이미 알고 있는 개념을 활용하여 모르는 개념을 설명하고, 효과적인 학습 전략을 제시하세요.
 ` : `
 ## 학습자 프로필 분석
 
@@ -197,16 +202,16 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
 이제 더 깊이 있는 이해와 실제 활용을 위한 심화 학습 가이드를 제공합니다.
 `
 
-    const prompt = `${STUDY_GUIDE_PROMPT}\n${studyGuideContext}${oxQuizContext}`
+    const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}${oxQuizContext}`
 
-    const result = await geminiStudyGuideModel.generateContent({
+    const result = await geminiStudyGuidePageModel.generateContent({
       contents: [
         {
           parts: [
             {
-              inlineData: {
-                mimeType: 'application/pdf',
-                data: base64Data,
+              fileData: {
+                fileUri: uploadedFile.uri,
+                mimeType: uploadedFile.mimeType || 'application/pdf',
               },
             },
             {
@@ -223,38 +228,21 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
       throw new Error('Empty response from Gemini API')
     }
     
-    const studyGuideData = parseGeminiResponse<StudyGuideResponse>(
+    const studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
       response,
-      { documentId, responseType: 'study_guide' }
+      { documentId, responseType: 'study_guide_pages' }
     )
     
     validateResponseStructure(
       studyGuideData,
-      ['title', 'sections', 'summary'],
-      { documentId, responseType: 'study_guide' }
+      ['document_title', 'total_pages', 'pages'],
+      { documentId, responseType: 'study_guide_pages' }
     )
     
-    // Convert structured data to markdown format for storage
-    const studyGuideContent = `# ${studyGuideData.title}
+    // Create overall summary from page data
+    const overallSummary = studyGuideData.overall_summary || 
+      `${document.title}에 대한 페이지별 맞춤 퀵노트입니다. 총 ${studyGuideData.total_pages}페이지로 구성되어 있습니다.`
 
-${studyGuideData.sections.map(section => `
-## ${section.heading}
-
-${section.content}
-
-### 핵심 포인트
-${section.key_points.map(point => `- ${point}`).join('\n')}
-`).join('\n')}
-
-## 요약
-${studyGuideData.summary}
-
-${studyGuideData.references && studyGuideData.references.length > 0 ? `
-## 참고자료
-${studyGuideData.references.map(ref => `- ${ref}`).join('\n')}
-` : ''}`
-
-    // Save study guide to database - delete existing one first to avoid duplicates
     // Check if study guide already exists
     const { data: existingGuide } = await supabase
       .from('study_guides')
@@ -267,13 +255,23 @@ ${studyGuideData.references.map(ref => `- ${ref}`).join('\n')}
     let saveError
     
     if (existingGuide) {
+      // Delete existing pages first
+      await supabase
+        .from('study_guide_pages')
+        .delete()
+        .eq('study_guide_id', existingGuide.id)
+      
       // Update existing study guide
       const { data, error } = await supabase
         .from('study_guides')
         .update({
-          content: studyGuideContent,
+          content: overallSummary,
           known_concepts: knownConcepts.map(c => c.id),
           unknown_concepts: unknownConcepts.map(c => c.id),
+          document_title: studyGuideData.document_title,
+          total_pages: studyGuideData.total_pages,
+          overall_summary: overallSummary,
+          generation_method: 'pages',
           updated_at: new Date().toISOString()
         })
         .eq('id', existingGuide.id)
@@ -289,9 +287,13 @@ ${studyGuideData.references.map(ref => `- ${ref}`).join('\n')}
         .insert({
           user_id: userId,
           document_id: documentId,
-          content: studyGuideContent,
+          content: overallSummary,
           known_concepts: knownConcepts.map(c => c.id),
-          unknown_concepts: unknownConcepts.map(c => c.id)
+          unknown_concepts: unknownConcepts.map(c => c.id),
+          document_title: studyGuideData.document_title,
+          total_pages: studyGuideData.total_pages,
+          overall_summary: overallSummary,
+          generation_method: 'pages'
         })
         .select()
         .single()
@@ -308,9 +310,37 @@ ${studyGuideData.references.map(ref => `- ${ref}`).join('\n')}
       )
     }
 
+    // Save individual pages
+    if (studyGuide && studyGuideData.pages) {
+      const pagesData = studyGuideData.pages.map(page => ({
+        study_guide_id: studyGuide.id,
+        page_number: page.page_number,
+        page_title: page.page_title,
+        page_content: page.page_content,
+        key_concepts: page.key_concepts || [],
+        difficulty_level: page.difficulty_level || 'medium',
+        prerequisites: page.prerequisites || [],
+        learning_objectives: page.learning_objectives || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }))
+
+      const { error: pagesError } = await supabase
+        .from('study_guide_pages')
+        .insert(pagesData)
+
+      if (pagesError) {
+        console.error('Error saving study guide pages:', pagesError)
+        // Don't fail the whole operation if pages fail to save
+      } else {
+        console.log(`Successfully saved ${pagesData.length} study guide pages`)
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      studyGuide
+      studyGuide,
+      pagesCount: studyGuideData.pages?.length || 0
     })
 
   } catch (error: any) {

@@ -42,12 +42,12 @@ export async function POST(request: NextRequest) {
     // Categorize nodes based on understanding level
     const weakNodes = nodes?.filter(node => {
       const status = userStatus?.find(s => s.node_id === node.id)
-      return !status || status.understanding_level < 50
+      return !status || status.understanding_level < 70
     }) || []
 
     const strongNodes = nodes?.filter(node => {
       const status = userStatus?.find(s => s.node_id === node.id)
-      return status && status.understanding_level >= 50
+      return status && status.understanding_level >= 70
     }) || []
 
     // Get file content from storage
