@@ -430,7 +430,7 @@ export async function POST(
         
         // Validate the response structure
         if (response) {
-          const parsedResponse = parseGeminiResponse<KnowledgeTreeWithOXResponse>(
+          const parsedResponse = parseGeminiResponse<KnowledgeTreeResponse>(
             response,
             { correlationId, documentId: id, responseType: 'combined' }
           )
@@ -554,7 +554,7 @@ export async function POST(
       })
       
       // Parse the combined response
-      const combinedData = parseGeminiResponse<KnowledgeTreeWithOXResponse>(
+      const combinedData = parseGeminiResponse<KnowledgeTreeResponse>(
         response,
         { correlationId, documentId: id, responseType: 'combined' }
       )
@@ -571,12 +571,12 @@ export async function POST(
         documentId: id,
         metadata: {
           totalNodes: combinedData.nodes?.length || 0,
-          nodeLevels: [...new Set(combinedData.nodes?.map(n => n.level) || [])],
+          nodeLevels: [...new Set(combinedData.nodes?.map((n: any) => n.level) || [])],
           levelDistribution: combinedData.nodes?.reduce((acc: any, n: any) => {
             acc[`level_${n.level}`] = (acc[`level_${n.level}`] || 0) + 1
             return acc
           }, {}),
-          nodeNames: combinedData.nodes?.slice(0, 5).map(n => n.name) || [],
+          nodeNames: combinedData.nodes?.slice(0, 5).map((n: any) => n.name) || [],
           averageDescriptionLength: combinedData.nodes?.reduce((sum: number, n: any) => sum + (n.description?.length || 0), 0) / (combinedData.nodes?.length || 1)
         }
       })

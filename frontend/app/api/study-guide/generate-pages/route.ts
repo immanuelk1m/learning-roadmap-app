@@ -4,11 +4,16 @@ import { uploadFileToGemini, geminiStudyGuidePageModel } from '@/lib/gemini/clie
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
 import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
-import { updateProgress, clearProgress } from '../progress/route'
+import { updateProgress, clearProgress } from '@/lib/progress-store'
 
 export async function POST(request: NextRequest) {
+  let documentId: string | undefined
+  let userId: string | undefined
+  
   try {
-    const { documentId, userId } = await request.json()
+    const body = await request.json()
+    documentId = body.documentId
+    userId = body.userId
 
     if (!documentId || !userId) {
       return NextResponse.json(
@@ -405,9 +410,11 @@ ${oxQuizContext}`
     })
     
     // Clear progress after a short delay to allow UI to show completion
-    setTimeout(() => {
-      clearProgress(userId, documentId)
-    }, 3000)
+    if (userId && documentId) {
+      setTimeout(() => {
+        clearProgress(userId!, documentId!)
+      }, 3000)
+    }
 
     return NextResponse.json({
       success: true,
@@ -431,22 +438,24 @@ ${oxQuizContext}`
       ? 'AI 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.'
       : '퀵노트 생성 중 오류가 발생했습니다'
     
-    // Update progress with error
-    updateProgress(userId, documentId, {
-      totalChunks: 0,
-      completedChunks: 0,
-      currentChunk: 0,
-      progress: 0,
-      status: 'error',
-      stage: 'failed',
-      message: errorMessage,
-      errors: [error.message]
-    })
-    
-    // Clear progress after error
-    setTimeout(() => {
-      clearProgress(userId, documentId)
-    }, 5000)
+    // Update progress with error (only if we have userId and documentId)
+    if (userId && documentId) {
+        updateProgress(userId, documentId, {
+        totalChunks: 0,
+        completedChunks: 0,
+        currentChunk: 0,
+        progress: 0,
+        status: 'error',
+        stage: 'failed',
+        message: errorMessage,
+        errors: [error.message]
+      })
+      
+      // Clear progress after error
+      setTimeout(() => {
+        clearProgress(userId!, documentId!)
+      }, 5000)
+    }
     
     if (isRetryable) {
       return NextResponse.json(

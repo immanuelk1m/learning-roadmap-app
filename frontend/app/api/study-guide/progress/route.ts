@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// In-memory store for progress tracking
-// In production, you might want to use Redis or similar
-const progressStore = new Map<string, any>()
+import { getProgress, updateProgress } from '@/lib/progress-store'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -16,8 +13,7 @@ export async function GET(request: NextRequest) {
     )
   }
   
-  const key = `${userId}:${documentId}`
-  const progress = progressStore.get(key)
+  const progress = getProgress(userId, documentId)
   
   return NextResponse.json({
     progress: progress || {
@@ -42,11 +38,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const key = `${userId}:${documentId}`
-    progressStore.set(key, {
-      ...progress,
-      timestamp: new Date().toISOString()
-    })
+    updateProgress(userId, documentId, progress)
     
     return NextResponse.json({ success: true })
   } catch (error: any) {
@@ -55,19 +47,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-// Utility function to update progress from the generation API
-export function updateProgress(userId: string, documentId: string, progress: any) {
-  const key = `${userId}:${documentId}`
-  progressStore.set(key, {
-    ...progress,
-    timestamp: new Date().toISOString()
-  })
-}
-
-// Utility function to clear progress when generation is complete
-export function clearProgress(userId: string, documentId: string) {
-  const key = `${userId}:${documentId}`
-  progressStore.delete(key)
 }
