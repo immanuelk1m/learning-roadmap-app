@@ -131,7 +131,7 @@ export default function RecentDocuments() {
         // Update document status locally
         setDocuments(prev => prev.map(doc => 
           doc.id === docId 
-            ? { ...doc, status: 'processing', processing_status: null, processing_error: null }
+            ? { ...doc, status: 'processing', processing_status: undefined, processing_error: undefined }
             : doc
         ))
       } else {
