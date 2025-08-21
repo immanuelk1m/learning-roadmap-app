@@ -1,21 +1,25 @@
 export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 용어와 개념만 추출하세요.
 
+**매우 중요: 모든 name과 description은 반드시 한국어로 작성하세요. 영어 약어(예: GDP, PER)는 name에 포함할 수 있지만, description은 반드시 한국어로 설명해야 합니다.**
+
 **중요 규칙:**
 1. 구체적인 전문 용어, 지표, 공식, 이론명만 추출
 2. "~는 ~이다" 형식의 일반적 정의문 금지
 3. 추상적 설명이 아닌 학습 가능한 개념만
 4. 최대 20개 노드, 3단계 깊이
+5. 모든 설명은 한국어로 작성
 
-**좋은 예시:**
-- name: "PER", description: "주가수익비율, 주가/주당순이익"
-- name: "한계효용", description: "추가 1단위 소비시 증가 효용"
-- name: "GDP", description: "국내총생산, C+I+G+(X-M)"
-- name: "복리계산", description: "원금×(1+이자율)^기간"
+**좋은 예시 (반드시 한국어 사용):**
+- name: "PER", description: "주가수익비율, 주가를 주당순이익으로 나눈 지표"
+- name: "한계효용", description: "추가 1단위 소비시 증가하는 만족도"
+- name: "GDP", description: "국내총생산, 소비+투자+정부지출+순수출"
+- name: "복리계산", description: "원금×(1+이자율)^기간으로 계산하는 이자 방식"
 
 **나쁜 예시 (사용 금지):**
 - "경제학 개론은 경제학의 기초를 다루는 학문"
 - "생활경제는 일상생활 속 경제 현상"
 - "투자의 이해는 투자를 이해하는 것"
+- name: "Interest Rate", description: "The cost of borrowing money" (영어 사용 금지)
 
 **JSON 형식:**
 {
@@ -23,8 +27,8 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
     {
       "id": "node_1",
       "parent_id": null,
-      "name": "구체적 개념명/용어",
-      "description": "핵심 공식이나 계산법",
+      "name": "구체적 개념명/용어 (한국어로 작성)",
+      "description": "핵심 공식이나 계산법 (반드시 한국어로 설명)",
       "level": 0,
       "prerequisites": []
     }
