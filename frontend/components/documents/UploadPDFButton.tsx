@@ -6,11 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/ToastProvider'
 import { uploadLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
-import * as pdfjsLib from 'pdfjs-dist'
-
-// Configure PDF.js worker
+// Dynamic import for PDF.js to avoid SSR issues
+let pdfjsLib: any = null
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  import('pdfjs-dist').then((pdfjs) => {
+    pdfjsLib = pdfjs
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  })
 }
 
 interface UploadPDFButtonProps {
@@ -39,29 +41,33 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         return
       }
       
-      // Check page count limit (40 pages max)
-      try {
-        setError('PDF 페이지 수 확인 중...')
-        
-        const arrayBuffer = await selectedFile.arrayBuffer()
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-        const pageCount = pdf.numPages
-        
-        console.log(`PDF page count: ${pageCount}`)
-        
-        if (pageCount > 40) {
-          setError(`PDF는 최대 40페이지까지만 업로드 가능합니다. (현재: ${pageCount}페이지)`)
-          setFile(null)
-          return
+      // Check page count limit (40 pages max) - only in browser
+      if (typeof window !== 'undefined' && pdfjsLib) {
+        try {
+          setError('PDF 페이지 수 확인 중...')
+          
+          const arrayBuffer = await selectedFile.arrayBuffer()
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+          const pageCount = pdf.numPages
+          
+          console.log(`PDF page count: ${pageCount}`)
+          
+          if (pageCount > 40) {
+            setError(`PDF는 최대 40페이지까지만 업로드 가능합니다. (현재: ${pageCount}페이지)`)
+            setFile(null)
+            return
+          }
+          
+          // Store page count for later use
+          ;(selectedFile as any).pageCount = pageCount
+          
+        } catch (error) {
+          console.error('Failed to check PDF page count:', error)
+          // Don't block upload if page count check fails
+          console.warn('Proceeding without page count validation')
         }
-        
-        // Store page count for later use
-        ;(selectedFile as any).pageCount = pageCount
-        
-      } catch (error) {
-        console.error('Failed to check PDF page count:', error)
-        setError('PDF 파일을 확인하는 중 오류가 발생했습니다.')
-        return
+      } else {
+        console.warn('PDF.js not loaded, skipping page count validation')
       }
       
       setFile(selectedFile)
@@ -451,7 +457,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                         {file.name}
                       </p>
                       <p className="text-xs text-green-600">
-                        {(file.size / (1024 * 1024)).toFixed(1)} MB • {(file as any).pageCount}페이지 • 업로드 준비 완료
+                        {(file.size / (1024 * 1024)).toFixed(1)} MB {(file as any).pageCount ? `• ${(file as any).pageCount}페이지` : ''} • 업로드 준비 완료
                       </p>
                     </div>
                   </div>
