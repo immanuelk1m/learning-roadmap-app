@@ -29,7 +29,7 @@ export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'app
     // Upload file using File API
     const uploadResult = await genAI.files.upload({
       file: fileData,
-      metadata: {
+      config: {
         mimeType: mimeType
       }
     })
@@ -46,7 +46,11 @@ export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'app
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       // Get updated file status
-      file = await genAI.files.get(file.name)
+      if (file.name) {
+        file = await genAI.files.get({ name: file.name })
+      } else {
+        throw new Error('File name is missing from upload result')
+      }
     }
     
     if (file.state === 'FAILED') {
