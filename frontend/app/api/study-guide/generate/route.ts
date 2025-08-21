@@ -254,19 +254,51 @@ ${studyGuideData.references && studyGuideData.references.length > 0 ? `
 ${studyGuideData.references.map(ref => `- ${ref}`).join('\n')}
 ` : ''}`
 
-    // Save study guide to database
-    const { data: studyGuide, error: saveError } = await supabase
+    // Save study guide to database - delete existing one first to avoid duplicates
+    // Check if study guide already exists
+    const { data: existingGuide } = await supabase
       .from('study_guides')
-      .upsert({
-        user_id: userId,
-        document_id: documentId,
-        content: studyGuideContent,
-        known_concepts: knownConcepts.map(c => c.id),
-        unknown_concepts: unknownConcepts.map(c => c.id),
-        updated_at: new Date().toISOString()
-      })
-      .select()
+      .select('id')
+      .eq('user_id', userId)
+      .eq('document_id', documentId)
       .single()
+    
+    let studyGuide
+    let saveError
+    
+    if (existingGuide) {
+      // Update existing study guide
+      const { data, error } = await supabase
+        .from('study_guides')
+        .update({
+          content: studyGuideContent,
+          known_concepts: knownConcepts.map(c => c.id),
+          unknown_concepts: unknownConcepts.map(c => c.id),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingGuide.id)
+        .select()
+        .single()
+      
+      studyGuide = data
+      saveError = error
+    } else {
+      // Insert new study guide
+      const { data, error } = await supabase
+        .from('study_guides')
+        .insert({
+          user_id: userId,
+          document_id: documentId,
+          content: studyGuideContent,
+          known_concepts: knownConcepts.map(c => c.id),
+          unknown_concepts: unknownConcepts.map(c => c.id)
+        })
+        .select()
+        .single()
+      
+      studyGuide = data
+      saveError = error
+    }
 
     if (saveError) {
       console.error('Error saving study guide:', saveError)
