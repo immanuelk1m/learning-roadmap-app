@@ -113,7 +113,7 @@ export async function POST(
           const studyStartTime = Date.now()
           
           const studyGuideResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/study-guide/generate`,
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003'}/api/study-guide/generate`,
             {
               method: 'POST',
               headers: {
@@ -169,7 +169,7 @@ export async function POST(
           const questionCount = 10
 
           const batchGenerateResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/quiz/batch-generate`,
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003'}/api/quiz/batch-generate`,
             {
               method: 'POST',
               headers: {

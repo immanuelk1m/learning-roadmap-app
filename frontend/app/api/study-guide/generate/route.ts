@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { geminiStudyGuidePageModel, uploadFileToGemini } from '@/lib/gemini/client'
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
 import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     // Get document info
     const { data: document, error: docError } = await supabase
@@ -122,13 +122,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Get original document content for context
-    const { data: fileData } = await supabase.storage
+    const { data: fileData, error: downloadError } = await supabase.storage
       .from('pdf-documents')
       .download(document.file_path)
 
-    if (!fileData) {
+    if (downloadError) {
+      console.error('Failed to download file for document', documentId, downloadError)
       return NextResponse.json(
-        { error: 'Failed to download PDF file' },
+        { error: `Failed to download PDF file: ${downloadError.message}` },
+        { status: 500 }
+      )
+    }
+
+    if (!fileData) {
+      console.error('No file data received for document', documentId)
+      return NextResponse.json(
+        { error: 'Failed to download PDF file: No data received' },
         { status: 500 }
       )
     }

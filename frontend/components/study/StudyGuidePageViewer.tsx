@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, BookOpen, Target, Brain, AlertCircle } from 'lucide-react'
-import { parseMarkdownToReact } from '@/lib/markdown-parser-web'
+import { ChevronLeft, ChevronRight, BookOpen, Brain } from 'lucide-react'
+import MarkdownRenderer from '@/components/ui/MarkdownRenderer'
 
 interface StudyGuidePage {
   page_number: number
@@ -53,18 +53,6 @@ export default function StudyGuidePageViewer({
     }
   }
 
-  const getDifficultyColor = (level?: string) => {
-    switch (level) {
-      case 'easy':
-        return 'bg-green-100 text-green-800'
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'hard':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   return (
     <div className="h-full flex flex-col">
@@ -117,58 +105,17 @@ export default function StudyGuidePageViewer({
 
       {/* Page content */}
       <div className="flex-1 overflow-auto p-6">
-        {/* Page title and metadata */}
+        {/* Page title */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-3">
-            <h3 className="text-2xl font-semibold text-gray-900">
-              {page.page_title || `페이지 ${page.page_number}`}
-            </h3>
-            {page.difficulty_level && (
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(page.difficulty_level)}`}>
-                {page.difficulty_level === 'easy' ? '쉬움' : 
-                 page.difficulty_level === 'medium' ? '보통' : '어려움'}
-              </span>
-            )}
-          </div>
-
-          {/* Prerequisites */}
-          {page.prerequisites && page.prerequisites.length > 0 && (
-            <div className="mb-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <AlertCircle className="h-4 w-4" />
-                <span className="font-medium">선수 지식:</span>
-                <span>{page.prerequisites.join(', ')}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Learning objectives */}
-          {page.learning_objectives && page.learning_objectives.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div className="flex items-start gap-3">
-                <Target className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-blue-900 mb-2">학습 목표</h4>
-                  <ul className="space-y-1">
-                    {page.learning_objectives.map((objective, idx) => (
-                      <li key={idx} className="text-sm text-blue-800 flex items-start">
-                        <span className="mr-2">•</span>
-                        <span>{objective}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
+          <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+            {page.page_title || `페이지 ${page.page_number}`}
+          </h3>
         </div>
 
         {/* Main content */}
-        <div className="prose prose-gray max-w-none mb-6">
+        <div className="mb-6">
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            {typeof page.page_content === 'string' 
-              ? parseMarkdownToReact(page.page_content)
-              : page.page_content}
+            <MarkdownRenderer content={page.page_content} />
           </div>
         </div>
 
@@ -202,7 +149,7 @@ export default function StudyGuidePageViewer({
               <div>
                 <h4 className="font-medium text-yellow-900 mb-2">전체 요약</h4>
                 <div className="text-sm text-yellow-800">
-                  {parseMarkdownToReact(overallSummary)}
+                  <MarkdownRenderer content={overallSummary} />
                 </div>
               </div>
             </div>

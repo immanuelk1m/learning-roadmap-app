@@ -19,6 +19,18 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
   useEffect(() => {
     const loadPDF = async () => {
       try {
+        console.log('Loading PDF from path:', filePath)
+        
+        // First check if file exists
+        const { data: fileList, error: listError } = await supabase.storage
+          .from('pdf-documents')
+          .list(filePath.split('/').slice(0, -1).join('/'), {
+            limit: 100,
+            search: filePath.split('/').pop()
+          })
+        
+        console.log('File list result:', fileList, 'Error:', listError)
+        
         // Use download method to get file data and create blob URL
         const { data: fileData, error } = await supabase.storage
           .from('pdf-documents')
@@ -26,11 +38,20 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
 
         if (error) {
           console.error('PDF download error:', error)
-          setError(`PDF를 불러올 수 없습니다: ${error.message}`)
+          console.error('Error details:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack,
+            cause: error.cause,
+            ...error
+          })
+          const errorMessage = error.message || error.name || JSON.stringify(error) || 'Unknown error'
+          setError(`PDF를 불러올 수 없습니다: ${errorMessage}`)
           return
         }
 
         if (fileData) {
+          console.log('PDF loaded successfully, size:', fileData.size)
           // Create blob URL for PDF viewing
           const blob = new Blob([fileData], { type: 'application/pdf' })
           const url = URL.createObjectURL(blob)
@@ -40,7 +61,13 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
         }
       } catch (err: any) {
         console.error('PDF loading error:', err)
-        setError(`PDF 로딩 중 오류가 발생했습니다: ${err.message}`)
+        console.error('Error details:', {
+          message: err.message,
+          name: err.name,
+          stack: err.stack,
+          ...err
+        })
+        setError(`PDF 로딩 중 오류가 발생했습니다: ${err.message || err.name || 'Unknown error'}`)
       } finally {
         setLoading(false)
       }

@@ -6,7 +6,7 @@ import { Loader2, BookOpen, CheckCircle, XCircle, AlertCircle, FileText, Layers 
 import StudyGuideSkeleton from './StudyGuideSkeleton'
 import StudyGuidePageCard from './StudyGuidePageCard'
 import StudyGuideProgressTracker from './StudyGuideProgressTracker'
-import { parseMarkdownToReact } from '@/lib/markdown-parser-web'
+import MarkdownRenderer from '@/components/ui/MarkdownRenderer'
 
 interface StudyGuideProps {
   documentId: string
@@ -184,9 +184,6 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
     }
   }
 
-  const formatContent = (content: string) => {
-    return parseMarkdownToReact(content)
-  }
 
   if (loading) {
     return (
@@ -357,30 +354,25 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
                 pageTitle={page.page_title}
                 pageContent={page.page_content}
                 keyConcepts={page.key_concepts}
-                difficultyLevel={page.difficulty_level}
-                prerequisites={page.prerequisites}
-                learningObjectives={page.learning_objectives}
                 isExpanded={index === 0} // Expand first page by default
               />
             ))}
           </div>
         ) : (
-          <div className="prose prose-gray max-w-none">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              {studyGuide.content ? (
-                formatContent(studyGuide.content)
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">퀵노트 콘텐츠가 없습니다.</p>
-                  <button
-                    onClick={() => generateStudyGuide(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    페이지별 퀵노트 생성하기
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            {studyGuide.content ? (
+              <MarkdownRenderer content={studyGuide.content} />
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">퀵노트 콘텐츠가 없습니다.</p>
+                <button
+                  onClick={() => generateStudyGuide(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  페이지별 퀵노트 생성하기
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

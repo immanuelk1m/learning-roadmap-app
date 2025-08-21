@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { uploadFileToGemini, geminiStudyGuidePageModel } from '@/lib/gemini/client'
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
 import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       errors: []
     })
 
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     // Get document info
     const { data: document, error: docError } = await supabase

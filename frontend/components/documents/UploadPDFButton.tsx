@@ -72,6 +72,13 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         }
       })
 
+      console.log('Starting storage upload...', {
+        bucket: 'pdf-documents',
+        fileName,
+        fileSize: file.size,
+        fileType: file.type
+      })
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('pdf-documents')
         .upload(fileName, file, {
@@ -79,12 +86,26 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
           upsert: false
         })
 
+      console.log('Storage upload result:', {
+        data: uploadData,
+        error: uploadError
+      })
+
       if (uploadError) {
+        console.error('Storage upload error details:', {
+          message: uploadError.message,
+          name: uploadError.name,
+          stack: uploadError.stack,
+          cause: uploadError.cause,
+          ...uploadError
+        })
+        
         uploadLogger.error('Storage upload failed', {
           correlationId,
           error: uploadError,
           metadata: {
             errorMessage: uploadError.message,
+            errorDetails: JSON.stringify(uploadError),
             storagePath: fileName
           }
         })

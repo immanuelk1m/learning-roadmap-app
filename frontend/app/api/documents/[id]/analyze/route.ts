@@ -648,16 +648,38 @@ export async function POST(
         // Create a mapping of temporary IDs to actual database IDs
         const idMapping: Record<string, string> = {}
         
+        // Deduplicate nodes by name to avoid constraint violations
+        // If duplicate names exist, append a number suffix
+        const nameCount: Record<string, number> = {}
+        const deduplicatedNodes = nodes.map((node, i) => {
+          let nodeName = node.name || 'Untitled Node'
+          
+          // Track how many times we've seen this name
+          if (nameCount[nodeName]) {
+            nameCount[nodeName]++
+            nodeName = `${nodeName} (${nameCount[nodeName]})`
+          } else {
+            nameCount[nodeName] = 1
+          }
+          
+          return {
+            ...node,
+            originalName: node.name,
+            name: nodeName,
+            originalIndex: i
+          }
+        })
+        
         // Prepare all nodes data for batch insert
-        const nodesData = nodes.map((node, i) => ({
+        const nodesData = deduplicatedNodes.map((node, i) => ({
           document_id: id,
           user_id: FIXED_USER_ID, // Add user_id field
           subject_id: document.subject_id, // Add subject_id from document
           parent_id: null, // Will be updated in second pass
-          name: node.name || 'Untitled Node',
+          name: node.name,
           description: node.description || '',
           level: node.level || 0,
-          position: i,
+          position: node.originalIndex,
           prerequisites: node.prerequisites || [],
         }))
         
@@ -711,15 +733,15 @@ export async function POST(
         // Build ID mapping
         if (savedNodes) {
           savedNodes.forEach((savedNode, i) => {
-            if (nodes[i]?.id && savedNode.id) {
-              idMapping[nodes[i].id] = savedNode.id
+            if (deduplicatedNodes[i]?.id && savedNode.id) {
+              idMapping[deduplicatedNodes[i].id] = savedNode.id
             }
           })
         }
         
         // Second pass: Batch update parent_id references
         const parentUpdates = []
-        for (const node of nodes) {
+        for (const node of deduplicatedNodes) {
           if (node.parent_id && node.id && idMapping[node.id]) {
             const actualNodeId = idMapping[node.id]
             const actualParentId = idMapping[node.parent_id]

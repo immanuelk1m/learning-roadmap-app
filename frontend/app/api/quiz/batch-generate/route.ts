@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { geminiQuizModel } from '@/lib/gemini/client'
 import { EXTENDED_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const body: BatchGenerateRequest = await request.json()
     const { documentIds, difficulty, questionCount, questionTypes, customTitle, userAssessmentData } = body
     
-    const supabase = await createClient()
+    const supabase = createServiceClient()
     
     // Use fixed user ID
     const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
