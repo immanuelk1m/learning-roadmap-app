@@ -1,11 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { notFound, redirect } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
-import KnowledgeTreeView from '@/components/study/KnowledgeTreeView'
-import PDFViewer from '@/components/study/PDFViewer'
-import StudyTabs from '@/components/study/StudyTabs'
-import StudyGuide from '@/components/study/StudyGuide'
+import StudyPageClient from '@/components/study/StudyPageClient'
 
 interface StudyPageProps {
   params: Promise<{
@@ -116,97 +111,15 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Link
-                href={`/subjects/${id}`}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                과목으로 돌아가기
-              </Link>
-              <div className="border-l border-gray-300 pl-4">
-                <h1 className="text-lg font-semibold text-gray-900">{subject.name}</h1>
-                {document && (
-                  <p className="text-sm text-gray-600">{document.title}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {!document ? (
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-          <p className="text-gray-500 mb-4">분석이 완료된 문서가 없습니다.</p>
-          <Link
-            href={`/subjects/${id}`}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            문서 업로드하기
-          </Link>
-        </div>
-      ) : (
-        <div className="flex h-[calc(100vh-73px)]">
-          {/* Left: PDF Viewer */}
-          <div className="w-1/2 bg-white border-r border-gray-200">
-            <PDFViewer documentId={document.id} filePath={document.file_path} />
-          </div>
-
-          {/* Right: Tabbed Content */}
-          <div className="w-1/2 bg-gray-50">
-            <StudyTabs
-              hasStudyGuide={!!studyGuide}
-              subjectId={id}
-              documentId={document.id}
-              knowledgeTreeContent={
-                <div className="h-full overflow-auto">
-                  <div className="p-6">
-                    <div className="mb-6">
-                      <h2 className="text-xl font-semibold text-gray-900 mb-3">
-                        지식 트리
-                      </h2>
-                      {userStatus && userStatus.length > 0 && (
-                        <div className="flex gap-6 text-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                            <span>아는 개념: {userStatus.filter(s => s.understanding_level >= 70).length}개</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                            <span>모르는 개념: {userStatus.filter(s => s.understanding_level < 70).length}개</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {knowledgeNodes && knowledgeNodes.length > 0 ? (
-                      <KnowledgeTreeView
-                        nodes={knowledgeNodes}
-                        userStatus={userStatus || []}
-                        documentId={document.id}
-                      />
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        AI가 문서를 분석 중입니다...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              }
-              studyGuideContent={
-                <StudyGuide
-                  documentId={document.id}
-                  userId={FIXED_USER_ID}
-                />
-              }
-            />
-          </div>
-        </div>
-      )}
-    </div>
+    <StudyPageClient
+      subject={subject}
+      document={document}
+      knowledgeNodes={knowledgeNodes || []}
+      userStatus={userStatus}
+      studyGuide={studyGuide}
+      subjectId={id}
+      documentId={selectedDocumentId || ''}
+      userId={FIXED_USER_ID}
+    />
   )
 }
