@@ -190,7 +190,7 @@ export default function StudyTabs({
   return (
     <div className="h-full flex flex-col">
       {/* Tab Navigation */}
-      <div className="flex justify-between items-center border-b border-gray-200 bg-white">
+      <div className="flex flex-wrap justify-between items-center border-b border-gray-200 bg-white">
         <div className="flex">
           {tabs.map((tab) => {
             const Icon = tab.icon
@@ -199,15 +199,18 @@ export default function StudyTabs({
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative",
+                  "flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap",
                   "hover:text-gray-900",
                   activeTab === tab.id
                     ? "text-blue-600 border-b-2 border-blue-600"
                     : "text-gray-500 hover:text-gray-700"
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {tab.label}
+                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">
+                  {tab.id === 'knowledge' ? '트리' : '퀵노트'}
+                </span>
               </button>
             )
           })}
@@ -215,18 +218,27 @@ export default function StudyTabs({
         <button
           onClick={handleQuizButton}
           disabled={isGenerating || isLoadingStatus}
-          className="inline-flex items-center px-4 py-2 mr-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:bg-blue-400 disabled:cursor-not-allowed"
+          className="inline-flex items-center px-2 sm:px-4 py-2 mr-2 sm:mr-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm disabled:bg-blue-400 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {isLoadingStatus || isGenerating ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2 animate-spin flex-shrink-0" />
           ) : (
-            <Sparkles className="h-4 w-4 mr-2" />
+            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
           )}
-          {isLoadingStatus ? '로딩 중...' :
-           isGenerating ? '퀴즈 생성 중...' : 
-           !assessmentStatus?.hasCompletedOXAssessment ? '학습 전 배경지식 체크하기' :
-           '문제풀고 지식트리 완성하기!'
-          }
+          <span className="hidden sm:inline">
+            {isLoadingStatus ? '로딩 중...' :
+             isGenerating ? '퀴즈 생성 중...' : 
+             !assessmentStatus?.hasCompletedOXAssessment ? '학습 전 배경지식 체크하기' :
+             '문제풀고 지식트리 완성하기!'
+            }
+          </span>
+          <span className="sm:hidden">
+            {isLoadingStatus ? '로딩' :
+             isGenerating ? '생성 중' : 
+             !assessmentStatus?.hasCompletedOXAssessment ? '지식 체크' :
+             '문제 풀기'
+            }
+          </span>
         </button>
       </div>
 
