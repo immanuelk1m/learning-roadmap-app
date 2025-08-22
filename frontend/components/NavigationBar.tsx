@@ -20,7 +20,7 @@ export default function NavigationBar() {
 
   return (
     <div className="fixed bg-white h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-200">
-      <div className="max-w-[1440px] mx-auto h-full px-4 md:px-0 flex items-center">
+      <div className="max-w-[1440px] mx-auto h-full px-4 md:px-0 flex items-center relative">
         {/* Mobile: Hamburger button (left) */}
         <button
           type="button"
@@ -33,8 +33,8 @@ export default function NavigationBar() {
           </svg>
         </button>
 
-        {/* Mobile: Center logo / Desktop: Left logo + welcome */}
-        <div className="flex-1 md:flex-initial flex items-center justify-center md:justify-start">
+        {/* Mobile: Center logo (absolute) / Desktop: Left logo + welcome */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 md:relative md:left-0 md:transform-none md:flex-initial flex items-center justify-center md:justify-start">
           <div className="flex items-center gap-[13px] flex-shrink-0">
             <div className="text-[#212529] text-[17.398px] font-semibold">Commit</div>
             <div className="hidden md:block w-px h-[9.5px] border-l border-gray-300" />
