@@ -72,7 +72,7 @@ export default function NavigationBar() {
       />
       {/* Panel */}
       <aside
-        className={`fixed top-0 right-0 h-full w-72 bg-white shadow-xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
         style={{ zIndex: 12000 }}
         aria-label="모바일 네비게이션"
       >
