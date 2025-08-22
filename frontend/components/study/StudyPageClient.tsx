@@ -120,7 +120,7 @@ export default function StudyPageClient({
 
   const mobileTabContents = {
     pdf: (
-      <div className="h-full bg-white overflow-hidden">
+      <div className="h-full bg-white overflow-auto">
         <div className="h-full w-full relative">
           <PDFViewer documentId={documentId} filePath={document.file_path} />
         </div>

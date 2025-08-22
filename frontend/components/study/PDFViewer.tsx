@@ -112,12 +112,12 @@ export default function PDFViewer({ documentId, filePath }: PDFViewerProps) {
         <>
           {isMobile ? (
             // 모바일: object 태그 사용
-            <div className="h-full w-full flex flex-col">
+            <div className="h-full w-full flex flex-col overflow-auto">
               <object
                 data={pdfUrl}
                 type="application/pdf"
                 className="flex-1 w-full min-h-0"
-                style={{ height: '100%' }}
+                style={{ height: '100%', minHeight: '600px' }}
               >
                 {/* PDF를 표시할 수 없을 때 대체 콘텐츠 */}
                 <div className="flex flex-col items-center justify-center h-full p-6 bg-gray-50">
