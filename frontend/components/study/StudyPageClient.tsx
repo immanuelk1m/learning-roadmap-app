@@ -120,10 +120,8 @@ export default function StudyPageClient({
 
   const mobileTabContents = {
     pdf: (
-      <div className="h-full bg-white overflow-auto">
-        <div className="h-full w-full relative">
-          <PDFViewer documentId={documentId} filePath={document.file_path} />
-        </div>
+      <div className="h-full bg-white">
+        <PDFViewer documentId={documentId} filePath={document.file_path} />
       </div>
     ),
     knowledge: (
@@ -241,7 +239,10 @@ export default function StudyPageClient({
         </div>
         
         {/* Mobile Tab Content */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className={cn(
+          "flex-1 relative",
+          activeMobileTab === 'pdf' ? '' : 'overflow-hidden'
+        )}>
           {mobileTabContents[activeMobileTab]}
           
           {/* Floating Quiz Button for Mobile */}
