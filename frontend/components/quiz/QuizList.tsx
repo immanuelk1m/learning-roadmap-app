@@ -130,7 +130,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
       return (
         <div>
           {/* Header with mode toggle */}
-          <div className="px-8 py-6 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/50 to-transparent">
+          <div className="px-8 py-6 border-b border-slate-200/60 bg-slate-50/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <h2 className="text-2xl font-bold text-slate-900">
@@ -142,7 +142,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
               </div>
               <button
                 onClick={() => setMode('generate')}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white font-medium rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
               >
                 <Plus className="w-4 h-4" />
                 새 문제집 생성
@@ -153,9 +153,9 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           <div className="px-8 py-20 text-center">
             {/* Empty State */}
             <div className="relative mx-auto w-24 h-24 mb-8">
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl rotate-6 opacity-60" />
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-200 to-amber-200 rounded-2xl -rotate-6 opacity-40" />
-              <div className="relative w-full h-full bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="absolute inset-0 bg-orange-200 rounded-2xl rotate-6 opacity-60" />
+              <div className="absolute inset-0 bg-orange-300 rounded-2xl -rotate-6 opacity-40" />
+              <div className="relative w-full h-full bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
                 <Brain className="h-10 w-10 text-white" />
               </div>
             </div>
@@ -185,7 +185,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
             </div>
             <button
               onClick={() => setMode('generate')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white font-medium rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
             >
               <Plus className="w-4 h-4" />
               새 문제집 생성
@@ -210,7 +210,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                 } ring-1 ring-white/20`}
               >
                 {/* Preview Area - Similar to DocumentList */}
-                <div className="relative h-48 bg-gradient-to-br from-orange-50 via-amber-50/30 to-yellow-50/50 flex items-center justify-center overflow-hidden">
+                <div className="relative h-48 bg-orange-50 flex items-center justify-center overflow-hidden">
                   {/* Animated Background */}
                   <div className="absolute inset-0 opacity-30">
                     <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(251,146,60,0.1),transparent_50%)]" />
@@ -220,9 +220,9 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   {/* Floating Icon */}
                   <div className="relative z-10">
                     <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
-                      <div className="relative w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-orange-500 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-orange-500 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
+                      <div className="relative w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
                         <Brain className="w-8 h-8 text-white" />
                       </div>
                     </div>
@@ -265,7 +265,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   {/* Quiz Type Badges */}
                   <div className="flex flex-wrap gap-2 mb-4">
                     {isAssessmentCompleted && (
-                      <div className="inline-flex items-center px-2.5 py-1 bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 rounded-lg text-xs font-semibold border border-orange-200">
+                      <div className="inline-flex items-center px-2.5 py-1 bg-orange-50 text-orange-700 rounded-lg text-xs font-semibold border border-orange-200">
                         <Check className="w-3 h-3 mr-1" />
                         평가 기반
                       </div>
@@ -281,10 +281,10 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                     {isAssessmentCompleted ? (
                       <Link
                         href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
-                        className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-orange-600 via-orange-600 to-amber-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm"
+                        className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-orange-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm"
                       >
                         {/* Button Background Animation */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-orange-700 via-orange-700 to-amber-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                        <div className="absolute inset-0 bg-orange-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
                         
                         {/* Button Content */}
                         <div className="relative flex items-center gap-2">
@@ -293,10 +293,10 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                         </div>
                         
                         {/* Shimmer Effect */}
-                        <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover/btn:opacity-10" />
+                        <div className="absolute inset-0 -skew-x-12 bg-white/10 opacity-0 group-hover/btn:opacity-10" />
                       </Link>
                     ) : (
-                      <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
+                      <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-slate-100 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
                         <Brain className="w-4 h-4 opacity-50" />
                         <span>평가 필요</span>
                       </div>
@@ -363,7 +363,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   )}
                   
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-gray-700 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-[#2f332f] rounded-lg flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -478,7 +478,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           <button
             onClick={handleGenerateQuiz}
             disabled={selectedDocuments.size === 0 || (!questionTypes.multipleChoice && !questionTypes.shortAnswer && !questionTypes.trueFalse) || generating}
-            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="inline-flex items-center gap-3 px-8 py-4 bg-orange-500 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {generating ? (
               <>

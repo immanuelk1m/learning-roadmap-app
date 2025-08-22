@@ -298,7 +298,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
     return (
       <div className="relative">
         {/* Header */}
-        <div className="px-8 py-6 border-b border-slate-200/60 bg-gradient-to-r from-slate-50/50 to-transparent">
+        <div className="px-8 py-6 border-b border-slate-200/60 bg-slate-50/50">
           <h2 className="text-2xl font-bold text-slate-900">
             업로드된 문서
             <span className="ml-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
@@ -315,9 +315,9 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
           <div className="relative">
             {/* Illustration */}
             <div className="relative mx-auto w-24 h-24 mb-8">
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl rotate-6 opacity-60" />
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 rounded-2xl -rotate-6 opacity-40" />
-              <div className="relative w-full h-full bg-gradient-to-br from-gray-800 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="absolute inset-0 bg-gray-300 rounded-2xl rotate-6 opacity-60" />
+              <div className="absolute inset-0 bg-gray-400 rounded-2xl -rotate-6 opacity-40" />
+              <div className="relative w-full h-full bg-[#2f332f] rounded-2xl flex items-center justify-center shadow-lg">
                 <FileText className="h-10 w-10 text-white" />
               </div>
             </div>
@@ -395,7 +395,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
             className="group relative bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full flex flex-col hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-slate-300/30 hover:border-slate-300/80 hover:bg-white ring-1 ring-white/20"
           >
             {/* Modern Preview Area */}
-            <div className="relative h-48 bg-gradient-to-br from-slate-50 via-gray-50/30 to-emerald-50/50 flex items-center justify-center overflow-hidden">
+            <div className="relative h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
               {/* Animated Background */}
               <div className="absolute inset-0 opacity-30">
                 <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(34,197,94,0.1),transparent_50%)]" />
@@ -405,9 +405,9 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
               {/* Floating PDF Icon */}
               <div className="relative z-10">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-emerald-600 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-emerald-600 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
-                  <div className="relative w-16 h-16 bg-gradient-to-br from-gray-800 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                  <div className="absolute inset-0 bg-[#2f332f] rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-[#2f332f] rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
+                  <div className="relative w-16 h-16 bg-[#2f332f] rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
                     <FileText className="w-8 h-8 text-white" />
                   </div>
                 </div>
@@ -524,10 +524,10 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                 {doc.status === 'completed' ? (
                   <Link
                     href={doc.assessment_completed ? `/subjects/${subjectId}/study?doc=${doc.id}` : `/subjects/${subjectId}/study/assessment?doc=${doc.id}`}
-                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-gray-800 via-gray-800 to-emerald-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/30 hover:scale-105 overflow-hidden text-sm"
+                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-[#2f332f] text-[#2ce477] font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/30 hover:scale-105 overflow-hidden text-sm"
                   >
                     {/* Button Background Animation */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900 to-emerald-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                    <div className="absolute inset-0 bg-gray-900 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
                     
                     {/* Button Content */}
                     <div className="relative flex items-center gap-2">
@@ -536,16 +536,16 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                     </div>
                     
                     {/* Shimmer Effect */}
-                    <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover/btn:opacity-10" />
+                    <div className="absolute inset-0 -skew-x-12 bg-white/10 opacity-0 group-hover/btn:opacity-10" />
                   </Link>
                 ) : doc.status === 'failed' || doc.status === 'error' || doc.processing_status === 'rate_limited' ? (
                   <button
                     onClick={() => handleRetryAnalysis(doc.id)}
                     disabled={retryingDoc === doc.id}
-                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-orange-500 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     {/* Button Background Animation */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-red-600 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                    <div className="absolute inset-0 bg-orange-600 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
                     
                     {/* Button Content */}
                     <div className="relative flex items-center gap-2">
@@ -563,13 +563,13 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                     </div>
                     
                     {/* Shimmer Effect */}
-                    <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover/btn:opacity-10" />
+                    <div className="absolute inset-0 -skew-x-12 bg-white/10 opacity-0 group-hover/btn:opacity-10" />
                   </button>
                 ) : (
-                  <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
+                  <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-slate-100 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
                     {/* Animated Processing Indicator */}
                     {doc.status === 'processing' && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-gray-100/50 to-emerald-100/50 animate-pulse rounded-xl" />
+                      <div className="absolute inset-0 bg-gray-100/50 animate-pulse rounded-xl" />
                     )}
                     
                     <div className="relative flex items-center gap-2">

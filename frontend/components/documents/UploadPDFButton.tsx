@@ -379,10 +379,10 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="group relative inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-gray-800 via-gray-800 to-emerald-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transform hover:scale-105 transition-all duration-300 ring-1 ring-white/20 overflow-hidden"
+        className="group relative inline-flex items-center gap-3 px-6 py-3 bg-[#2f332f] text-[#2ce477] font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transform hover:scale-105 transition-all duration-300 ring-1 ring-white/20 overflow-hidden"
       >
         {/* Animated Background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900 to-emerald-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+        <div className="absolute inset-0 bg-gray-900 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
         
         {/* Content */}
         <div className="relative flex items-center gap-3">
@@ -396,13 +396,13 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         </div>
         
         {/* Shimmer Effect */}
-        <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-10 group-hover:animate-shimmer" />
+        <div className="absolute inset-0 -skew-x-12 bg-white/10 opacity-0 group-hover:opacity-10 group-hover:animate-shimmer" />
       </button>
 
       {isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-emerald-50 rounded-t-2xl">
+            <div className="p-6 border-b border-gray-100 bg-gray-50 rounded-t-2xl">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
@@ -494,7 +494,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
               <button
                 onClick={handleUpload}
                 disabled={!file || loading}
-                className="px-5 py-2.5 text-sm font-medium text-[#2ce477] bg-gradient-to-r from-[#2f332f] to-gray-800 rounded-xl hover:from-gray-900 hover:to-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none"
+                className="px-5 py-2.5 text-sm font-medium text-[#2ce477] bg-[#2f332f] rounded-xl hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
