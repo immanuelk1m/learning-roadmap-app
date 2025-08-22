@@ -314,27 +314,12 @@ export default function OXKnowledgeAssessment({
         }
       })
 
-      // Mark assessment as completed
-      try {
-        const response = await fetch(`/api/documents/${documentId}/complete-assessment`, {
-          method: 'POST'
-        })
-        
-        if (!response.ok) {
-          console.warn('Failed to mark assessment as completed:', await response.text())
-        }
-      } catch (error) {
-        console.warn('Error marking assessment as completed:', error)
-      }
-      
-      // Add a small delay to ensure database writes are complete
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Auto-generate study guide after assessment completion
+      // Mark assessment as completed and auto-generate study guide
+      // Note: complete-assessment API already handles study guide generation internally
       setIsGeneratingStudyGuide(true)
       
       try {
-        assessmentLogger.info('Auto-generating study guide after assessment', {
+        assessmentLogger.info('Completing assessment and generating study guide', {
           correlationId,
           documentId,
           metadata: {
@@ -343,43 +328,41 @@ export default function OXKnowledgeAssessment({
           }
         })
         
-        const studyGuideResponse = await fetch('/api/study-guide/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            documentId,
-            userId: FIXED_USER_ID
-          })
+        const response = await fetch(`/api/documents/${documentId}/complete-assessment`, {
+          method: 'POST'
         })
-
-        if (studyGuideResponse.ok) {
-          assessmentLogger.info('Study guide generated successfully', {
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.warn('Failed to complete assessment:', errorText)
+          assessmentLogger.warn('Failed to complete assessment', {
+            correlationId,
+            documentId,
+            error: errorText
+          })
+        } else {
+          assessmentLogger.info('Assessment completed and study guide generated successfully', {
             correlationId,
             documentId
           })
-        } else {
-          const errorData = await studyGuideResponse.json()
-          assessmentLogger.warn('Study guide generation failed', {
-            correlationId,
-            documentId,
-            error: errorData
-          })
         }
-      } catch (studyGuideError: any) {
-        assessmentLogger.error('Study guide generation error', {
+      } catch (error: any) {
+        console.warn('Error completing assessment:', error)
+        assessmentLogger.error('Error completing assessment', {
           correlationId,
           documentId,
-          error: studyGuideError,
+          error,
           metadata: {
-            errorType: studyGuideError.name,
-            errorMessage: studyGuideError.message
+            errorType: error.name,
+            errorMessage: error.message
           }
         })
       } finally {
         setIsGeneratingStudyGuide(false)
       }
+      
+      // Add a small delay to ensure database writes are complete
+      await new Promise(resolve => setTimeout(resolve, 500))
       
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     } catch (error: any) {
@@ -395,62 +378,18 @@ export default function OXKnowledgeAssessment({
           redirectTo: `/subjects/${subjectId}/study?doc=${documentId}`
         }
       })
-      // Mark assessment as completed even on error
-      try {
-        const response = await fetch(`/api/documents/${documentId}/complete-assessment`, {
-          method: 'POST'
-        })
-        
-        if (!response.ok) {
-          console.warn('Failed to mark assessment as completed:', await response.text())
+      // Don't call complete-assessment in catch block to avoid duplicate calls
+      // The assessment results are already saved to knowledge_nodes table
+      assessmentLogger.info('Assessment save failed but continuing to study page', {
+        correlationId,
+        documentId,
+        metadata: {
+          note: 'Not calling complete-assessment to avoid duplicate generation'
         }
-      } catch (error) {
-        console.warn('Error marking assessment as completed:', error)
-      }
+      })
       
       // Add a small delay even on error to ensure any partial writes are complete
       await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Try to auto-generate study guide even on error (if assessments were partially saved)
-      setIsGeneratingStudyGuide(true)
-      
-      try {
-        assessmentLogger.info('Attempting study guide generation after error', {
-          correlationId,
-          documentId
-        })
-        
-        const studyGuideResponse = await fetch('/api/study-guide/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            documentId,
-            userId: FIXED_USER_ID
-          })
-        })
-
-        if (studyGuideResponse.ok) {
-          assessmentLogger.info('Study guide generated successfully after error recovery', {
-            correlationId,
-            documentId
-          })
-        } else {
-          assessmentLogger.warn('Study guide generation failed after error recovery', {
-            correlationId,
-            documentId
-          })
-        }
-      } catch (studyGuideError: any) {
-        assessmentLogger.error('Study guide generation error after assessment error', {
-          correlationId,
-          documentId,
-          error: studyGuideError
-        })
-      } finally {
-        setIsGeneratingStudyGuide(false)
-      }
       
       router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
     }

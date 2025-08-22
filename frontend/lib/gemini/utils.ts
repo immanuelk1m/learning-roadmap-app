@@ -7,7 +7,7 @@ import { geminiLogger } from '@/lib/logger'
  * @param responseType - The type of response being parsed
  * @returns Recovered JSON string
  */
-function attemptJsonRecovery(response: string, responseType: string): string {
+export function attemptJsonRecovery(response: string, responseType: string): string {
   let recovered = response.trim()
   
   // Handle truncated arrays - common issue with large responses
@@ -81,30 +81,100 @@ function attemptJsonRecovery(response: string, responseType: string): string {
     })
   }
   
-  // Handle incomplete string literals at the end
-  const lastQuoteIndex = recovered.lastIndexOf('"')
-  if (lastQuoteIndex > -1) {
-    const afterLastQuote = recovered.substring(lastQuoteIndex + 1).trim()
-    if (afterLastQuote && !afterLastQuote.match(/^[,\]\}]/)) {
-      // Truncate to the last complete string
-      recovered = recovered.substring(0, lastQuoteIndex + 1)
-      if (!recovered.endsWith('}') && !recovered.endsWith(']')) {
-        if (recovered.includes('[') && !recovered.includes(']')) {
-          recovered += ']'
-        }
-        if (recovered.includes('{') && !recovered.endsWith('}')) {
-          recovered += '}'
-        }
+  // Handle incomplete string literals at the end - improved logic
+  // Count quotes to determine if we're inside a string
+  let quoteCount = 0
+  let inString = false
+  let escapeNext = false
+  let lastCompletePosition = -1
+  
+  for (let i = 0; i < recovered.length; i++) {
+    const char = recovered[i]
+    const prevChar = i > 0 ? recovered[i - 1] : ''
+    
+    if (escapeNext) {
+      escapeNext = false
+      continue
+    }
+    
+    if (char === '\\') {
+      escapeNext = true
+      continue
+    }
+    
+    if (char === '"' && prevChar !== '\\') {
+      inString = !inString
+      quoteCount++
+      if (!inString) {
+        // We just closed a string, this is a safe position
+        lastCompletePosition = i + 1
+      }
+    }
+  }
+  
+  // If we're inside an unclosed string, truncate to the last complete position
+  if (inString && lastCompletePosition > -1) {
+    recovered = recovered.substring(0, lastCompletePosition)
+    
+    // Now we need to properly close any open arrays or objects
+    // Track structure depth more accurately
+    const structureStack: ('array' | 'object')[] = []
+    let skipString = false
+    let escapeNext = false
+    
+    for (let i = 0; i < recovered.length; i++) {
+      const char = recovered[i]
+      
+      if (escapeNext) {
+        escapeNext = false
+        continue
       }
       
-      geminiLogger.info('Applied string truncation recovery', {
-        metadata: {
-          originalLength: response.length,
-          recoveredLength: recovered.length,
-          lastQuoteIndex
+      if (char === '\\') {
+        escapeNext = true
+        continue
+      }
+      
+      if (char === '"' && !escapeNext) {
+        skipString = !skipString
+        continue
+      }
+      
+      if (!skipString) {
+        if (char === '{') {
+          structureStack.push('object')
+        } else if (char === '}') {
+          if (structureStack[structureStack.length - 1] === 'object') {
+            structureStack.pop()
+          }
+        } else if (char === '[') {
+          structureStack.push('array')
+        } else if (char === ']') {
+          if (structureStack[structureStack.length - 1] === 'array') {
+            structureStack.pop()
+          }
         }
-      })
+      }
     }
+    
+    // Close any unclosed structures in reverse order
+    while (structureStack.length > 0) {
+      const structure = structureStack.pop()
+      if (structure === 'array') {
+        recovered += ']'
+      } else if (structure === 'object') {
+        recovered += '}'
+      }
+    }
+    
+    geminiLogger.info('Applied improved string truncation recovery', {
+      metadata: {
+        originalLength: response.length,
+        recoveredLength: recovered.length,
+        lastCompletePosition,
+        wasInString: true
+      }
+    })
   }
   
   // Clean up any trailing commas that might cause issues

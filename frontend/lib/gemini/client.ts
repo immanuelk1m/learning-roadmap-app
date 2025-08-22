@@ -147,7 +147,7 @@ export const geminiCombinedModel = {
     console.log('=== Gemini Combined API Call ===')
     console.log('Model: gemini-2.5-flash-lite')
     console.log('Temperature: 0.2')
-    console.log('Max output tokens: 8000')
+    console.log('Max output tokens: 12000')
     console.log('Response type: JSON with combined schema')
     
     try {
@@ -158,8 +158,8 @@ export const geminiCombinedModel = {
         model: 'gemini-2.5-flash-lite',
         contents: input.contents,
         config: {
-          temperature: 0.2, // Lower for consistency
-          maxOutputTokens: 8000, // Reduced for lite model
+          temperature: 0.5, // Lower for consistency
+          maxOutputTokens: 12000, // Reduced for lite model
           responseMimeType: "application/json",
           responseSchema: knowledgeTreeWithOXSchema,
           systemInstruction: "You are an expert curriculum designer and assessment creator for Korean university students. CRITICAL: Always respond in Korean language. All node names and descriptions MUST be in Korean. English abbreviations (like GDP, AI, API) can be used in names but descriptions must be fully in Korean. Never use English sentences or explanations. 모든 응답은 한국어로 작성하세요.",
