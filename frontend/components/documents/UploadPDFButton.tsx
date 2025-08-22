@@ -52,8 +52,8 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
           
           console.log(`PDF page count: ${pageCount}`)
           
-          if (pageCount > 40) {
-            setError(`PDF는 최대 40페이지까지만 업로드 가능합니다. (현재: ${pageCount}페이지)`)
+          if (pageCount > 60) {
+            setError(`PDF는 최대 60페이지까지만 업로드 가능합니다. (현재: ${pageCount}페이지)`)
             setFile(null)
             return
           }
@@ -436,7 +436,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                   클릭하여 PDF 파일을 선택하세요
                 </p>
                 <p className="text-sm text-gray-500">또는 파일을 여기에 드래그하세요</p>
-                <p className="text-xs text-gray-400 mt-2">최대 50MB, 40페이지까지 지원</p>
+                <p className="text-xs text-gray-400 mt-2">최대 50MB, 60페이지까지 지원</p>
                 <input
                   ref={fileInputRef}
                   type="file"
