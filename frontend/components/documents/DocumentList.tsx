@@ -315,9 +315,9 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
           <div className="relative">
             {/* Illustration */}
             <div className="relative mx-auto w-24 h-24 mb-8">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl rotate-6 opacity-60" />
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-200 to-indigo-200 rounded-2xl -rotate-6 opacity-40" />
-              <div className="relative w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl rotate-6 opacity-60" />
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 rounded-2xl -rotate-6 opacity-40" />
+              <div className="relative w-full h-full bg-gradient-to-br from-gray-800 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <FileText className="h-10 w-10 text-white" />
               </div>
             </div>
@@ -343,7 +343,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
               업로드된 문서
             </h2>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-emerald-600">
                 {documents.length}개
               </span>
               {documents.filter(doc => doc.status === 'completed').length > 0 && (
@@ -352,8 +352,8 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                 </span>
               )}
               {isPollingActive && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-emerald-600">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-2"></div>
                   실시간 업데이트 중
                 </span>
               )}
@@ -395,19 +395,19 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
             className="group relative bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full flex flex-col hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-slate-300/30 hover:border-slate-300/80 hover:bg-white ring-1 ring-white/20"
           >
             {/* Modern Preview Area */}
-            <div className="relative h-48 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 flex items-center justify-center overflow-hidden">
+            <div className="relative h-48 bg-gradient-to-br from-slate-50 via-gray-50/30 to-emerald-50/50 flex items-center justify-center overflow-hidden">
               {/* Animated Background */}
               <div className="absolute inset-0 opacity-30">
-                <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(59,130,246,0.1),transparent_50%)]" />
-                <div className="absolute inset-0 bg-[radial-gradient(at_70%_70%,rgba(99,102,241,0.08),transparent_50%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(34,197,94,0.1),transparent_50%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(at_70%_70%,rgba(16,185,129,0.08),transparent_50%)]" />
               </div>
               
               {/* Floating PDF Icon */}
               <div className="relative z-10">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
-                  <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-emerald-600 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-emerald-600 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
+                  <div className="relative w-16 h-16 bg-gradient-to-br from-gray-800 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
                     <FileText className="w-8 h-8 text-white" />
                   </div>
                 </div>
@@ -452,7 +452,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
             <div className="p-5 flex-1 flex flex-col">
               {/* Title with Tooltip */}
               <div className="mb-3">
-                <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors duration-300 line-clamp-2 leading-tight">
+                <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors duration-300 line-clamp-2 leading-tight">
                   {doc.title}
                 </h3>
                 
@@ -524,10 +524,10 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                 {doc.status === 'completed' ? (
                   <Link
                     href={doc.assessment_completed ? `/subjects/${subjectId}/study?doc=${doc.id}` : `/subjects/${subjectId}/study/assessment?doc=${doc.id}`}
-                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/30 hover:scale-105 overflow-hidden text-sm"
+                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-gray-800 via-gray-800 to-emerald-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/30 hover:scale-105 overflow-hidden text-sm"
                   >
                     {/* Button Background Animation */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-700 via-blue-700 to-indigo-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900 to-emerald-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
                     
                     {/* Button Content */}
                     <div className="relative flex items-center gap-2">
@@ -569,12 +569,12 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                   <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
                     {/* Animated Processing Indicator */}
                     {doc.status === 'processing' && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 to-indigo-100/50 animate-pulse rounded-xl" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-gray-100/50 to-emerald-100/50 animate-pulse rounded-xl" />
                     )}
                     
                     <div className="relative flex items-center gap-2">
                       {doc.status === 'processing' ? (
-                        <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                        <div className="animate-spin w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full" />
                       ) : (
                         <div className="w-4 h-4 bg-amber-400 rounded-full animate-pulse" />
                       )}

@@ -118,7 +118,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
     return (
       <div className="p-8">
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
         </div>
       </div>
     )
@@ -270,8 +270,8 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                         평가 기반
                       </div>
                     )}
-                    <div className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5"></div>
+                    <div className="inline-flex items-center px-2 py-1 bg-gray-100 text-emerald-600 rounded-lg text-xs font-medium">
+                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></div>
                       객관식
                     </div>
                   </div>
@@ -363,7 +363,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   )}
                   
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-700 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
