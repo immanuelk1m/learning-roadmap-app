@@ -159,15 +159,8 @@ export default function StudyTabs({
       return
     }
 
-    // O/X 평가를 완료하지 않았으면 평가 페이지로
-    if (!assessmentStatus?.hasCompletedOXAssessment) {
-      console.log('[StudyTabs] O/X assessment not completed, redirecting to assessment page')
-      router.push(`/subjects/${subjectId}/study/assessment?doc=${documentId}`)
-      return
-    }
-
-    // O/X 평가를 완료했으면 바로 quiz 페이지로 이동
-    console.log('[StudyTabs] O/X assessment completed, redirecting to quiz page')
+    // 항상 퀴즈 페이지로 직접 이동
+    console.log('[StudyTabs] Redirecting to quiz page')
     router.push(`/subjects/${subjectId}/quiz?doc=${documentId}`)
   }
 
@@ -229,15 +222,13 @@ export default function StudyTabs({
             <span className="hidden sm:inline ml-1 sm:ml-2">
               {isLoadingStatus ? '로딩 중...' :
                isGenerating ? '퀴즈 생성 중...' : 
-               !assessmentStatus?.hasCompletedOXAssessment ? '학습 전 배경지식 체크하기' :
-               '문제풀고 지식트리 완성하기!'
+               '배경지식 체크'
               }
             </span>
             <span className="sm:hidden ml-1">
               {isLoadingStatus ? '로딩' :
                isGenerating ? '생성' : 
-               !assessmentStatus?.hasCompletedOXAssessment ? '체크' :
-               '문제'
+               '체크'
               }
             </span>
           </button>

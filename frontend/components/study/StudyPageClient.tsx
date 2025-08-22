@@ -79,11 +79,8 @@ export default function StudyPageClient({
       return
     }
 
-    if (!hasCompletedOXAssessment) {
-      router.push(`/subjects/${subjectId}/study/assessment?doc=${documentId}`)
-    } else {
-      router.push(`/subjects/${subjectId}/quiz?doc=${documentId}`)
-    }
+    // 항상 퀴즈 페이지로 직접 이동
+    router.push(`/subjects/${subjectId}/quiz?doc=${documentId}`)
   }
 
   if (!document) {
@@ -256,10 +253,7 @@ export default function StudyPageClient({
             ) : (
               <Sparkles className="h-4 w-4 mr-2" />
             )}
-            {isLoadingStatus ? '로딩 중...' :
-             !hasCompletedOXAssessment ? '배경지식 체크' :
-             '퀴즈 시작'
-            }
+            {isLoadingStatus ? '로딩 중...' : '배경지식 체크'}
           </button>
         </div>
       </div>
