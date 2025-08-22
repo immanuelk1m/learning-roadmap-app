@@ -120,8 +120,10 @@ export default function StudyPageClient({
 
   const mobileTabContents = {
     pdf: (
-      <div className="h-full bg-white">
-        <PDFViewer documentId={documentId} filePath={document.file_path} />
+      <div className="h-full bg-white overflow-hidden">
+        <div className="h-full w-full relative">
+          <PDFViewer documentId={documentId} filePath={document.file_path} />
+        </div>
       </div>
     ),
     knowledge: (
@@ -197,7 +199,7 @@ export default function StudyPageClient({
       {/* Mobile Layout - Tab Navigation at Top */}
       <div className="sm:hidden flex flex-col h-[calc(100vh-65px)]">
         {/* Mobile Tab Navigation */}
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white border-b border-gray-200 flex-shrink-0">
           <div className="flex">
             <button
               onClick={() => setActiveMobileTab('pdf')}
