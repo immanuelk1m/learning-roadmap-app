@@ -10,13 +10,43 @@ export default function NavigationBar() {
     <div className="fixed bg-white h-[65px] left-0 top-0 w-full z-50 border-b border-gray-200">
       <div className="max-w-[1440px] mx-auto relative h-full px-4 md:px-0">
         {/* Logo and Welcome */}
-        <div className="md:absolute md:left-[46px] md:top-6 flex items-center gap-[13px] h-full">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 md:left-[46px] flex items-center gap-[13px] h-full">
           <div className="text-[#212529] text-[17.398px] font-semibold">
             Commit
           </div>
           <div className="w-px h-[9.5px] border-l border-gray-300"></div>
           <div className="hidden md:block text-[#94aac0] text-[12px] font-normal">
             환영합니다, Taehee님
+          </div>
+        </div>
+
+        {/* Mobile Navigation (scrollable) */}
+        <div className="absolute inset-y-0 left-0 right-0 flex md:hidden items-center justify-center px-16">
+          <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap">
+            <Link 
+              href="/" 
+              className={`text-[15px] font-semibold cursor-pointer ${pathname === '/' ? 'text-[#212529]' : 'text-[#94aac0]'}`}
+            >
+              Main
+            </Link>
+            <Link 
+              href="/subjects" 
+              className={`text-[15px] font-semibold cursor-pointer ${pathname === '/subjects' || pathname.startsWith('/subjects/') ? 'text-[#212529]' : 'text-[#94aac0]'}`}
+            >
+              My Course
+            </Link>
+            <Link 
+              href="/progress" 
+              className={`text-[15px] font-semibold cursor-pointer ${pathname === '/progress' ? 'text-[#212529]' : 'text-[#94aac0]'}`}
+            >
+              자료별 진행률
+            </Link>
+            <Link 
+              href="/commits" 
+              className={`text-[15px] font-semibold cursor-pointer ${pathname === '/commits' ? 'text-[#212529]' : 'text-[#94aac0]'}`}
+            >
+              내커밋 한눈에 보기
+            </Link>
           </div>
         </div>
 
