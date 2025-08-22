@@ -194,20 +194,20 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
                   onClick={() => setActiveTab('files')}
                   className={`relative px-6 py-4 font-medium text-[14px] transition-all duration-200 ${
                     activeTab === 'files'
-                      ? 'bg-[#FFF5E6] text-[#FF8800]'
+                      ? 'bg-gray-100 text-emerald-600'
                       : 'bg-transparent text-[#737373] hover:text-[#212529]'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[12px] font-bold ${
-                      activeTab === 'files' ? 'bg-[#FF8800] text-white' : 'bg-[#e0e0e0] text-[#737373]'
+                      activeTab === 'files' ? 'bg-[#2f332f] text-[#2ce477]' : 'bg-[#e0e0e0] text-[#737373]'
                     }`}>
                         1
                       </span>
                       <span>모든 파일</span>
                     </div>
                     {activeTab === 'files' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF8800]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2ce477]" />
                     )}
                   </button>
                   
@@ -215,20 +215,20 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
                     onClick={() => setActiveTab('quizzes')}
                     className={`relative px-6 py-4 font-medium text-[14px] transition-all duration-200 ${
                       activeTab === 'quizzes'
-                        ? 'bg-[#FFF5E6] text-[#FF8800]'
+                        ? 'bg-gray-100 text-emerald-600'
                         : 'bg-transparent text-[#737373] hover:text-[#212529]'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[12px] font-bold ${
-                        activeTab === 'quizzes' ? 'bg-[#FF8800] text-white' : 'bg-[#e0e0e0] text-[#737373]'
+                        activeTab === 'quizzes' ? 'bg-[#2f332f] text-[#2ce477]' : 'bg-[#e0e0e0] text-[#737373]'
                       }`}>
                         2
                       </span>
                       <span>내가 생성한 문제집</span>
                     </div>
                     {activeTab === 'quizzes' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF8800]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2ce477]" />
                     )}
                   </button>
                 </div>

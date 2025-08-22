@@ -505,12 +505,12 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                 )}
                 {/* Show quota exceeded message */}
                 {doc.processing_status === 'rate_limited' && (
-                  <div className="w-full px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                      <AlertCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <p className="text-xs font-medium text-orange-700">API 할당량 초과</p>
-                        <p className="text-xs text-orange-600 mt-0.5">
+                        <p className="text-xs font-medium text-emerald-700">API 할당량 초과</p>
+                        <p className="text-xs text-emerald-600 mt-0.5">
                           잠시 후 재시도 버튼을 눌러주세요.
                         </p>
                       </div>
@@ -542,10 +542,10 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                   <button
                     onClick={() => handleRetryAnalysis(doc.id)}
                     disabled={retryingDoc === doc.id}
-                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-orange-500 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-[#2f332f] text-[#2ce477] font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/30 hover:scale-105 overflow-hidden text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     {/* Button Background Animation */}
-                    <div className="absolute inset-0 bg-orange-600 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                    <div className="absolute inset-0 bg-gray-900 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
                     
                     {/* Button Content */}
                     <div className="relative flex items-center gap-2">
@@ -576,7 +576,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                       {doc.status === 'processing' ? (
                         <div className="animate-spin w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full" />
                       ) : (
-                        <div className="w-4 h-4 bg-amber-400 rounded-full animate-pulse" />
+                        <div className="w-4 h-4 bg-emerald-400 rounded-full animate-pulse" />
                       )}
                       <span>
                         {doc.status === 'pending' ? 'AI 분석 대기 중' : '지식 트리 생성중'}

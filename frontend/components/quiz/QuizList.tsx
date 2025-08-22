@@ -136,13 +136,13 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                 <h2 className="text-2xl font-bold text-slate-900">
                   생성된 문제집
                 </h2>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-orange-100 text-orange-800">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-emerald-600">
                   {quizDocuments.length}개
                 </span>
               </div>
               <button
                 onClick={() => setMode('generate')}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white font-medium rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
               >
                 <Plus className="w-4 h-4" />
                 새 문제집 생성
@@ -153,9 +153,9 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           <div className="px-8 py-20 text-center">
             {/* Empty State */}
             <div className="relative mx-auto w-24 h-24 mb-8">
-              <div className="absolute inset-0 bg-orange-200 rounded-2xl rotate-6 opacity-60" />
-              <div className="absolute inset-0 bg-orange-300 rounded-2xl -rotate-6 opacity-40" />
-              <div className="relative w-full h-full bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="absolute inset-0 bg-gray-200 rounded-2xl rotate-6 opacity-60" />
+              <div className="absolute inset-0 bg-gray-300 rounded-2xl -rotate-6 opacity-40" />
+              <div className="relative w-full h-full bg-[#2f332f] rounded-2xl flex items-center justify-center shadow-lg">
                 <Brain className="h-10 w-10 text-white" />
               </div>
             </div>
@@ -205,12 +205,12 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                 key={doc.id}
                 className={`group relative bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full flex flex-col ${
                   isAssessmentCompleted 
-                    ? 'hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-orange-300/30 hover:border-orange-300/80 hover:bg-white' 
+                    ? 'hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-300/30 hover:border-emerald-300/80 hover:bg-white' 
                     : 'opacity-75 hover:opacity-90'
                 } ring-1 ring-white/20`}
               >
                 {/* Preview Area - Similar to DocumentList */}
-                <div className="relative h-48 bg-orange-50 flex items-center justify-center overflow-hidden">
+                <div className="relative h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
                   {/* Animated Background */}
                   <div className="absolute inset-0 opacity-30">
                     <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(251,146,60,0.1),transparent_50%)]" />
@@ -220,9 +220,9 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   {/* Floating Icon */}
                   <div className="relative z-10">
                     <div className="relative">
-                      <div className="absolute inset-0 bg-orange-500 rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-orange-500 rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
-                      <div className="relative w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-[#2f332f] rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-[#2f332f] rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
+                      <div className="relative w-16 h-16 bg-[#2f332f] rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
                         <Brain className="w-8 h-8 text-white" />
                       </div>
                     </div>
@@ -239,14 +239,14 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   
                   {/* Question Count Badge */}
                   <div className="absolute top-4 right-4 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-xl text-xs font-bold shadow-lg ring-1 ring-white/30 group-hover:scale-105 transition-transform duration-300">
-                    <span className="text-orange-600">{questionCount}개 문제</span>
+                    <span className="text-emerald-600">{questionCount}개 문제</span>
                   </div>
                 </div>
 
                 {/* Content Area */}
                 <div className="p-5 flex-1 flex flex-col">
                   <div className="mb-3">
-                    <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-orange-600 transition-colors duration-300 line-clamp-2 leading-tight">
+                    <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors duration-300 line-clamp-2 leading-tight">
                       {doc.title}
                     </h3>
                     <div className="flex items-center gap-4 text-sm">
@@ -265,7 +265,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   {/* Quiz Type Badges */}
                   <div className="flex flex-wrap gap-2 mb-4">
                     {isAssessmentCompleted && (
-                      <div className="inline-flex items-center px-2.5 py-1 bg-orange-50 text-orange-700 rounded-lg text-xs font-semibold border border-orange-200">
+                      <div className="inline-flex items-center px-2.5 py-1 bg-gray-50 text-emerald-700 rounded-lg text-xs font-semibold border border-gray-200">
                         <Check className="w-3 h-3 mr-1" />
                         평가 기반
                       </div>
@@ -281,10 +281,10 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                     {isAssessmentCompleted ? (
                       <Link
                         href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
-                        className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-orange-600 text-white font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 overflow-hidden text-sm"
+                        className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-[#2f332f] text-[#2ce477] font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/30 hover:scale-105 overflow-hidden text-sm"
                       >
                         {/* Button Background Animation */}
-                        <div className="absolute inset-0 bg-orange-700 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
+                        <div className="absolute inset-0 bg-gray-900 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
                         
                         {/* Button Content */}
                         <div className="relative flex items-center gap-2">
@@ -352,12 +352,12 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   onClick={() => toggleDocumentSelection(doc.id)}
                   className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                     isSelected
-                      ? 'border-orange-500 bg-orange-50'
+                      ? 'border-emerald-500 bg-emerald-50'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute top-3 right-3 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                    <div className="absolute top-3 right-3 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
                       <Check className="w-4 h-4 text-white" />
                     </div>
                   )}
@@ -408,7 +408,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                     value={value}
                     checked={difficulty === value}
                     onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
-                    className="w-4 h-4 text-orange-600 border-slate-300 focus:ring-orange-500"
+                    className="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500"
                   />
                   <span className="text-sm font-medium text-slate-900">{label}</span>
                 </label>
@@ -428,7 +428,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                 max="50"
                 value={questionCount}
                 onChange={(e) => setQuestionCount(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
-                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
               />
               <p className="text-sm text-slate-600">
                 1~50개 사이로 설정할 수 있습니다
@@ -447,7 +447,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   type="checkbox"
                   checked={questionTypes.multipleChoice}
                   onChange={(e) => setQuestionTypes(prev => ({ ...prev, multipleChoice: e.target.checked }))}
-                  className="w-4 h-4 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
+                  className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
                 />
                 <span className="text-sm font-medium text-slate-900">객관식</span>
               </label>
@@ -456,7 +456,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   type="checkbox"
                   checked={questionTypes.shortAnswer}
                   onChange={(e) => setQuestionTypes(prev => ({ ...prev, shortAnswer: e.target.checked }))}
-                  className="w-4 h-4 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
+                  className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
                 />
                 <span className="text-sm font-medium text-slate-900">단답형</span>
               </label>
@@ -465,7 +465,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   type="checkbox"
                   checked={questionTypes.trueFalse}
                   onChange={(e) => setQuestionTypes(prev => ({ ...prev, trueFalse: e.target.checked }))}
-                  className="w-4 h-4 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
+                  className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
                 />
                 <span className="text-sm font-medium text-slate-900">O/X</span>
               </label>
@@ -478,7 +478,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           <button
             onClick={handleGenerateQuiz}
             disabled={selectedDocuments.size === 0 || (!questionTypes.multipleChoice && !questionTypes.shortAnswer && !questionTypes.trueFalse) || generating}
-            className="inline-flex items-center gap-3 px-8 py-4 bg-orange-500 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="inline-flex items-center gap-3 px-8 py-4 bg-[#2f332f] text-[#2ce477] font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {generating ? (
               <>
