@@ -112,8 +112,13 @@ export async function POST(
           console.log('📚 Starting Study Guide generation...')
           const studyStartTime = Date.now()
           
+          // Fix URL for production environment
+          const baseUrl = process.env.NODE_ENV === 'production' 
+            ? 'https://mystduy.vercel.app'
+            : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003')
+          
           const studyGuideResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003'}/api/study-guide/generate`,
+            `${baseUrl}/api/study-guide/generate`,
             {
               method: 'POST',
               headers: {
@@ -169,7 +174,7 @@ export async function POST(
           const questionCount = 10
 
           const batchGenerateResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003'}/api/quiz/batch-generate`,
+            `${baseUrl}/api/quiz/batch-generate`,
             {
               method: 'POST',
               headers: {
