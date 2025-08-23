@@ -38,7 +38,7 @@ export default function NavigationBar() {
           <div className="flex items-center gap-[13px] flex-shrink-0">
             <div className="text-[#212529] text-[17.398px] font-semibold">Commit</div>
             <div className="hidden md:block w-px h-[9.5px] border-l border-gray-300" />
-            <div className="hidden md:block text-[#94aac0] text-[12px] font-normal max-w-[120px] sm:max-w-[200px] truncate">환영합니다, Taehee님</div>
+            <div className="hidden md:block text-[#94aac0] text-[12px] font-normal max-w-[120px] sm:max-w-[200px] truncate ml-4 pl-2">환영합니다, Taehee님</div>
           </div>
         </div>
 
