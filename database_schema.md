@@ -55,8 +55,8 @@ PDF 문서 정보를 저장하는 테이블임.
 **외래 키:**
 - `subject_id` → subjects(id)
 
-### 3. knowledge_nodes (지식 노드)
-문서의 지식 구조를 트리 형태로 관리하며, 사용자별 학습 상태를 통합 관리하는 테이블임.
+### 3. knowledge_nodes (개념 노드)
+문서의 개념 구조를 트리 형태로 관리하며, 사용자별 학습 상태를 통합 관리하는 테이블임.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 기본값 | 설명 |
 |--------|------------|-----------|--------|------|
@@ -101,7 +101,7 @@ PDF 문서 정보를 저장하는 테이블임.
 |--------|------------|-----------|--------|------|
 | id | uuid | ❌ | uuid_generate_v4() | 기본 키 |
 | document_id | uuid | ❌ | - | 문서 ID (documents 참조) |
-| node_id | uuid | ✅ | - | 지식 노드 ID (knowledge_nodes 참조) |
+| node_id | uuid | ✅ | - | 개념 노드 ID (knowledge_nodes 참조) |
 | question | text | ❌ | - | 문제 |
 | question_type | text | ❌ | - | 문제 유형 (multiple_choice/true_false/short_answer/fill_in_blank/matching/ox) |
 | options | jsonb | ✅ | - | 선택지 (객관식) |
@@ -185,7 +185,7 @@ PDF 문서 정보를 저장하는 테이블임.
 | user_id | uuid | ❌ | - | 사용자 ID |
 | quiz_item_id | uuid | ❌ | - | 퀴즈 문항 ID (quiz_items 참조) |
 | document_id | uuid | ❌ | - | 문서 ID (documents 참조) |
-| node_id | uuid | ✅ | - | 지식 노드 ID (knowledge_nodes 참조) |
+| node_id | uuid | ✅ | - | 개념 노드 ID (knowledge_nodes 참조) |
 | source_quote | text | ❌ | - | 원문 인용 |
 | review_count | integer | ✅ | 0 | 복습 횟수 |
 | last_reviewed | timestamptz | ✅ | - | 마지막 복습 시간 |
@@ -256,13 +256,13 @@ PDF 문서 정보를 저장하는 테이블임.
 **외래 키:**
 - `study_guide_id` → study_guides(id) ON DELETE CASCADE
 
-### 10. knowledge_assessment_quizzes (지식 평가 퀴즈)
-지식 노드 평가용 퀴즈를 저장하는 테이블임.
+### 10. knowledge_assessment_quizzes (개념 평가 퀴즈)
+개념 노드 평가용 퀴즈를 저장하는 테이블임.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 기본값 | 설명 |
 |--------|------------|-----------|--------|------|
 | id | uuid | ❌ | uuid_generate_v4() | 기본 키 |
-| node_id | uuid | ❌ | - | 지식 노드 ID (knowledge_nodes 참조) |
+| node_id | uuid | ❌ | - | 개념 노드 ID (knowledge_nodes 참조) |
 | question | text | ❌ | - | 문제 |
 | correct_answer | boolean | ❌ | - | 정답 (참/거짓) |
 | explanation | text | ✅ | - | 해설 |
@@ -354,8 +354,8 @@ profiles (독립적)
 - documents: PDF 문서 메타데이터
 
 ### 2. 지식 구조화 및 학습 추적
-- knowledge_nodes: 계층적 지식 트리 + 사용자별 학습 상태 통합 관리
-- knowledge_assessment_quizzes: 지식 평가용 퀴즈
+- knowledge_nodes: 계층적 개념 트리 + 사용자별 학습 상태 통합 관리
+- knowledge_assessment_quizzes: 개념 평가용 퀴즈
 
 ### 3. 퀴즈 시스템
 - quiz_items: 퀴즈 문제 은행

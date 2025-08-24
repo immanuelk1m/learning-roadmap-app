@@ -579,7 +579,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                         <div className="w-4 h-4 bg-emerald-400 rounded-full animate-pulse" />
                       )}
                       <span>
-                        {doc.status === 'pending' ? 'AI 분석 대기 중' : '지식 트리 생성중'}
+                        {doc.status === 'pending' ? 'AI 분석 대기 중' : '개념 트리 생성중'}
                       </span>
                     </div>
                   </div>

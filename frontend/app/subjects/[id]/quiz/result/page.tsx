@@ -115,7 +115,7 @@ export default async function QuizResultPage({ params, searchParams }: QuizResul
 
             <div className="bg-green-50 rounded-lg p-6 text-center">
               <TreePine className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-600 mb-1">지식 트리 완성도</p>
+              <p className="text-sm text-gray-600 mb-1">개념 트리 완성도</p>
               <p className="text-2xl font-bold text-gray-900">{knownNodes}/{totalNodes}</p>
               <p className="text-sm text-green-600 font-medium">{knowledgePercentage}%</p>
             </div>
@@ -152,7 +152,7 @@ export default async function QuizResultPage({ params, searchParams }: QuizResul
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="mb-6">
             <h3 className="text-xl font-semibold text-gray-900 mb-3">
-              업데이트된 지식 트리
+              업데이트된 개념 트리
             </h3>
             <p className="text-gray-600 mb-4">
               퀴즈를 통해 개선된 지식 상태를 확인하세요
@@ -177,7 +177,7 @@ export default async function QuizResultPage({ params, searchParams }: QuizResul
             />
           ) : (
             <div className="text-center py-8 text-gray-500">
-              지식 트리를 불러오는 중...
+              개념 트리를 불러오는 중...
             </div>
           )}
         </div>

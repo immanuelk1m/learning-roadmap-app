@@ -168,7 +168,7 @@ export default function StudyTabs({
   const tabs = [
     {
       id: 'knowledge' as const,
-      label: '지식 트리',
+      label: '개념 트리',
       icon: FileText,
       content: knowledgeTreeContent
     },

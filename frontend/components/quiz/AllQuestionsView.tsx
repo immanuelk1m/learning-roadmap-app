@@ -513,7 +513,7 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
-        <h2 className="text-2xl font-bold mb-2">문제풀고 지식트리 완성하기</h2>
+        <h2 className="text-2xl font-bold mb-2">문제풀고 개념트리 완성하기</h2>
         <p className="text-gray-600">
           모든 문제를 풀고 하단의 "정답 확인하기" 버튼을 클릭하세요.
         </p>
@@ -753,7 +753,7 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
           </div>
         ) : (
           <div className="text-center">
-            <h3 className="text-xl font-bold mb-4">지식 노드 업데이트 결과</h3>
+            <h3 className="text-xl font-bold mb-4">개념 노드 업데이트 결과</h3>
             
             {knowledgeUpdates.improved.length > 0 && (
               <div className="mb-4">

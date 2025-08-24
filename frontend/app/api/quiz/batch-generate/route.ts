@@ -170,10 +170,10 @@ ${focusPrompt}
 2. 지정된 난이도 분포를 따라 문제를 구성하세요.
 3. 모든 문제는 PDF 내용에 직접 근거해야 합니다.
 4. 각 문제의 difficulty 필드를 정확히 설정하세요.
-5. **각 문제마다 관련된 지식 노드를 반드시 지정하세요 (node_id와 node_name 필드).**
+5. **각 문제마다 관련된 개념 노드를 반드시 지정하세요 (node_id와 node_name 필드).**
 
 ${documentNodes.length > 0 ? `
-**이 문서의 지식 노드들 (문제와 연결해야 함)**:
+**이 문서의 개념 노드들 (문제와 연결해야 함)**:
 ${documentNodes.map((node) => `- ID: ${node.id}
   이름: ${node.name}
   설명: ${node.description}

@@ -117,8 +117,8 @@ export async function POST(
 ## 문서 제목
 ${document.title}
 
-## 지식 노드 정보
-다음 지식 노드들에 대해 다양한 유형의 평가 문제를 총 ${Math.min(knowledgeNodes.length * 2, 20)}개 생성하세요:
+## 개념 노드 정보
+다음 개념 노드들에 대해 다양한 유형의 평가 문제를 총 ${Math.min(knowledgeNodes.length * 2, 20)}개 생성하세요:
 ${knowledgeNodes.map((node, index) => `
 ${index + 1}. ${node.name} (node_id: "${node.id}")
    - 설명: ${node.description}

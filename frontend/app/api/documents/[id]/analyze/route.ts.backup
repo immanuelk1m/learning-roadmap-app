@@ -791,7 +791,7 @@ export async function POST(
                       },
                     },
                     {
-                      text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 지식 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(nodesForQuiz, null, 2)}`,
+                      text: `${OX_QUIZ_GENERATION_PROMPT}\n\n다음 개념 노드들에 대해 O/X 문제를 생성하세요:\n${JSON.stringify(nodesForQuiz, null, 2)}`,
                     },
                   ],
                 },
@@ -1092,8 +1092,8 @@ export async function POST(
 ## 대상 문서
 ${document.title}
 
-## 지식 노드 정보
-다음 지식 노드들에 대해 다양한 유형의 평가 문제를 8개 생성하세요:
+## 개념 노드 정보
+다음 개념 노드들에 대해 다양한 유형의 평가 문제를 8개 생성하세요:
 ${savedNodes.map((node, index) => `
 ${index + 1}. ${node.name} (node_id: "${node.id}")
    - 설명: ${node.description}

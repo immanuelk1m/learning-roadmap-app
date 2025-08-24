@@ -126,7 +126,7 @@ export default function StudyPageClient({
         <div className="p-4">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              지식 트리
+              개념 트리
             </h2>
             {userStatus && userStatus.length > 0 && (
               <div className="flex gap-4 text-xs">
@@ -218,7 +218,7 @@ export default function StudyPageClient({
               )}
             >
               <FileText className="h-4 w-4" />
-              <span>지식 트리</span>
+              <span>개념 트리</span>
             </button>
             <button
               onClick={() => setActiveMobileTab('guide')}
@@ -276,7 +276,7 @@ export default function StudyPageClient({
                 <div className="p-6">
                   <div className="mb-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-3">
-                      지식 트리
+                      개념 트리
                     </h2>
                     {userStatus && userStatus.length > 0 && (
                       <div className="flex gap-6 text-sm">
