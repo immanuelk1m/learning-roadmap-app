@@ -2,6 +2,7 @@
 
 import { ActivityData } from '@/types/home'
 import { useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface ActivityGraphProps {
   activities: ActivityData[]
@@ -9,6 +10,7 @@ interface ActivityGraphProps {
 }
 
 export default function ActivityGraph({ activities, lastActivity }: ActivityGraphProps) {
+  const router = useRouter()
   // 지난 365일간의 날짜 생성
   const dateGrid = useMemo(() => {
     const grid: { date: string; activity?: ActivityData }[] = []
@@ -98,15 +100,13 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
     <div className="flex-1 bg-white rounded-[5px] p-5 flex flex-col min-h-[200px]">
       <div className="mb-4 flex justify-between items-center">
         <h2 className="text-[17px] font-bold text-[#212529]">학습활동 기록</h2>
-        {/* 범례 */}
-        <div className="flex items-center gap-4 text-[11px] text-gray-600">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full" />
-            <span>높은 정답률</span>
-            <div className="w-2 h-2 bg-orange-500 rounded-full" />
-            <span>낮은 정답률</span>
-          </div>
-        </div>
+        <button
+          onClick={() => router.push('/commits')}
+          className="text-[11px] text-gray-600 hover:text-gray-800 px-3 py-1 rounded-md border border-gray-300 hover:border-gray-400 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+          aria-label="학습활동 상세 기록 페이지로 이동"
+        >
+          전체보기
+        </button>
       </div>
 
       {/* 활동 그리드 - 스크롤 가능 영역 */}
