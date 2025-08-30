@@ -285,14 +285,18 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                     {sessions.length > 0 ? (
                       <div className="divide-y divide-slate-100">
                         {sessions.map((session, index) => (
-                          <div key={session.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
-                            <div className="flex flex-col gap-2">
+                          isAssessmentCompleted ? (
+                            <Link
+                              key={session.id}
+                              href={`/subjects/${subjectId}/quiz?doc=${doc.id}&session=${session.id}`}
+                              className="block px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer group"
+                            >
                               <div className="flex items-start gap-3">
-                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-gray-200 transition-colors">
                                   <Brain className="w-3.5 h-3.5 text-gray-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-medium text-slate-900 truncate">
+                                  <h4 className="text-sm font-medium text-slate-900 truncate group-hover:text-emerald-600 transition-colors">
                                     {formatSessionName(doc, session, index)}
                                   </h4>
                                   <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
@@ -318,18 +322,38 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                                     </span>
                                   </div>
                                 </div>
+                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors mt-0.5" />
                               </div>
-                              {isAssessmentCompleted && (
-                                <Link
-                                  href={`/subjects/${subjectId}/quiz?doc=${doc.id}&session=${session.id}`}
-                                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-xs w-full"
-                                >
-                                  {session.status === 'completed' ? '다시 풀기' : '이어 풀기'}
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </Link>
-                              )}
+                            </Link>
+                          ) : (
+                            <div key={session.id} className="px-5 py-3 opacity-60 cursor-not-allowed">
+                              <div className="flex items-start gap-3">
+                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <Brain className="w-3.5 h-3.5 text-gray-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-slate-700 truncate">
+                                    {formatSessionName(doc, session, index)}
+                                  </h4>
+                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-400">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {new Date(session.created_at).toLocaleDateString('ko-KR', {
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })}
+                                    </span>
+                                    <span>
+                                      {session.total_questions}개
+                                    </span>
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+                                      평가 필요
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
+                          )
                         ))}
                       </div>
                     ) : (
