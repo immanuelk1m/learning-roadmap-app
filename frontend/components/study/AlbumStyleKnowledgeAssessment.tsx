@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { assessmentLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
@@ -30,7 +30,7 @@ export default function AlbumStyleKnowledgeAssessment({
   documentId
 }: AlbumStyleKnowledgeAssessmentProps) {
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set())
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
+  const [selectedLevel1Node, setSelectedLevel1Node] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGeneratingStudyGuide, setIsGeneratingStudyGuide] = useState(false)
   const router = useRouter()
@@ -46,10 +46,17 @@ export default function AlbumStyleKnowledgeAssessment({
     [nodes]
   )
 
-  // Level 2 노드들을 가져오기 (parent_id가 없으므로 level로만 구분)
-  const level2Nodes = useMemo(() => 
-    nodes.filter(node => node.level === 2).sort((a, b) => a.position - b.position),
-    [nodes]
+  // 선택된 Level 1 노드의 자식 노드들 가져오기
+  const getChildNodes = (parentId: string) => {
+    return nodes
+      .filter(node => node.parent_id === parentId)
+      .sort((a, b) => (a.position || 0) - (b.position || 0))
+  }
+
+  // 현재 선택된 Level 1 노드의 자식들
+  const currentLevel2Nodes = useMemo(() => 
+    selectedLevel1Node ? getChildNodes(selectedLevel1Node) : [],
+    [selectedLevel1Node, nodes]
   )
 
   const toggleNodeSelection = (nodeId: string) => {
@@ -64,16 +71,13 @@ export default function AlbumStyleKnowledgeAssessment({
     })
   }
 
-  const toggleNodeExpansion = (nodeId: string) => {
-    setExpandedNodes(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId)
-      } else {
-        newSet.add(nodeId)
-      }
-      return newSet
-    })
+  const handleLevel1NodeClick = (nodeId: string) => {
+    // Level 1 노드 선택/해제
+    if (selectedLevel1Node === nodeId) {
+      setSelectedLevel1Node(null)
+    } else {
+      setSelectedLevel1Node(nodeId)
+    }
   }
 
   const handleSubmit = async () => {
@@ -209,104 +213,101 @@ export default function AlbumStyleKnowledgeAssessment({
         </p>
       </div>
 
-      {/* Level 1 노드들 - 앨범 스타일 그리드 */}
-      <div className="space-y-6 mb-8">
+      {/* Level 1 노드들 - 그리드 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {level1Nodes.map(level1Node => {
-          const isExpanded = expandedNodes.has(level1Node.id)
-          const hasChildren = level2Nodes.length > 0
+          const isSelected = selectedLevel1Node === level1Node.id
+          const childNodes = getChildNodes(level1Node.id)
+          const hasChildren = childNodes.length > 0
 
           return (
-            <div key={level1Node.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              {/* Level 1 노드 헤더 */}
-              <div className="p-4 bg-gradient-to-r from-gray-50 to-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    {/* 확장 버튼 */}
+            <button
+              key={level1Node.id}
+              onClick={() => handleLevel1NodeClick(level1Node.id)}
+              className={`p-4 rounded-xl border-2 transition-all text-left ${
+                isSelected
+                  ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    selectedNodes.has(level1Node.id)
+                      ? 'bg-emerald-500'
+                      : 'bg-gray-200'
+                  }`}>
+                    <Check className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">
+                      {level1Node.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {level1Node.description}
+                    </p>
                     {hasChildren && (
-                      <button
-                        onClick={() => toggleNodeExpansion(level1Node.id)}
-                        className="p-1 hover:bg-gray-100 rounded transition-colors"
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="w-5 h-5 text-gray-500" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-gray-500" />
-                        )}
-                      </button>
+                      <p className="text-xs text-blue-600 mt-2 font-medium">
+                        {childNodes.length}개 하위 개념 {isSelected ? '표시됨' : '보기'}
+                      </p>
                     )}
-
-                    {/* Level 1 노드 카드 */}
-                    <button
-                      onClick={() => toggleNodeSelection(level1Node.id)}
-                      className={`flex-1 flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
-                        selectedNodes.has(level1Node.id)
-                          ? 'border-emerald-500 bg-emerald-50'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          selectedNodes.has(level1Node.id)
-                            ? 'bg-emerald-500'
-                            : 'bg-gray-200'
-                        }`}>
-                          <Check className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="text-left">
-                          <h3 className="font-semibold text-gray-900">
-                            {level1Node.name}
-                          </h3>
-                          <p className="text-sm text-gray-500 mt-0.5">
-                            {level1Node.description}
-                          </p>
-                        </div>
-                      </div>
-                      {hasChildren && (
-                        <span className="text-sm text-gray-500 ml-4">
-                          {level2Nodes.length}개 하위 개념
-                        </span>
-                      )}
-                    </button>
                   </div>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleNodeSelection(level1Node.id)
+                  }}
+                  className="ml-2 p-1.5 rounded hover:bg-gray-100"
+                  title={selectedNodes.has(level1Node.id) ? '알고 있음 해제' : '알고 있음 표시'}
+                >
+                  <Check className={`w-4 h-4 ${
+                    selectedNodes.has(level1Node.id) ? 'text-emerald-500' : 'text-gray-400'
+                  }`} />
+                </button>
               </div>
-
-              {/* Level 2 노드들 - 확장시에만 표시 */}
-              {isExpanded && hasChildren && (
-                <div className="px-4 pb-4 pt-2 bg-gray-50/50">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {level2Nodes.map(childNode => (
-                      <button
-                        key={childNode.id}
-                        onClick={() => toggleNodeSelection(childNode.id)}
-                        className={`p-3 rounded-lg border-2 transition-all hover:scale-105 ${
-                          selectedNodes.has(childNode.id)
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 bg-white hover:border-gray-300'
-                        }`}
-                        title={childNode.description}
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            selectedNodes.has(childNode.id)
-                              ? 'bg-blue-500'
-                              : 'bg-gray-200'
-                          }`}>
-                            <Check className="w-4 h-4 text-white" />
-                          </div>
-                          <span className="text-sm font-medium text-gray-700 text-center line-clamp-2">
-                            {childNode.name}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            </button>
           )
         })}
       </div>
+
+      {/* Level 2 노드들 - 선택된 Level 1 노드의 자식들만 표시 */}
+      {selectedLevel1Node && currentLevel2Nodes.length > 0 && (
+        <div className="mb-8">
+          <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {level1Nodes.find(n => n.id === selectedLevel1Node)?.name}의 하위 개념
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {currentLevel2Nodes.map(childNode => (
+                <button
+                  key={childNode.id}
+                  onClick={() => toggleNodeSelection(childNode.id)}
+                  className={`p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                    selectedNodes.has(childNode.id)
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                  title={childNode.description}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      selectedNodes.has(childNode.id)
+                        ? 'bg-emerald-500'
+                        : 'bg-gray-200'
+                    }`}>
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 text-center line-clamp-2">
+                      {childNode.name}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 하단 상태 바 및 제출 버튼 */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg">
