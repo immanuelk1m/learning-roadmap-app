@@ -45,21 +45,11 @@ export default function AlbumStyleKnowledgeAssessment({
     [nodes]
   )
 
-  // Level 2 노드들을 parent_id로 그룹화
-  const level2NodesByParent = useMemo(() => {
-    const grouped = new Map<string, KnowledgeNode[]>()
-    nodes
-      .filter(node => node.level === 2)
-      .forEach(node => {
-        if (node.parent_id) {
-          if (!grouped.has(node.parent_id)) {
-            grouped.set(node.parent_id, [])
-          }
-          grouped.get(node.parent_id)!.push(node)
-        }
-      })
-    return grouped
-  }, [nodes])
+  // Level 2 노드들을 가져오기 (parent_id가 없으므로 level로만 구분)
+  const level2Nodes = useMemo(() => 
+    nodes.filter(node => node.level === 2).sort((a, b) => a.position - b.position),
+    [nodes]
+  )
 
   const toggleNodeSelection = (nodeId: string) => {
     setSelectedNodes(prev => {
@@ -221,10 +211,8 @@ export default function AlbumStyleKnowledgeAssessment({
       {/* Level 1 노드들 - 앨범 스타일 그리드 */}
       <div className="space-y-6 mb-8">
         {level1Nodes.map(level1Node => {
-          const childNodes = level2NodesByParent.get(level1Node.id) || []
           const isExpanded = expandedNodes.has(level1Node.id)
-          const hasChildren = childNodes.length > 0
-          const selectedChildCount = childNodes.filter(child => selectedNodes.has(child.id)).length
+          const hasChildren = level2Nodes.length > 0
 
           return (
             <div key={level1Node.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -261,11 +249,7 @@ export default function AlbumStyleKnowledgeAssessment({
                             ? 'bg-emerald-500'
                             : 'bg-gray-200'
                         }`}>
-                          {selectedNodes.has(level1Node.id) ? (
-                            <Check className="w-5 h-5 text-white" />
-                          ) : (
-                            <span className="text-sm font-bold text-gray-600">L1</span>
-                          )}
+                          <Check className="w-5 h-5 text-white" />
                         </div>
                         <div className="text-left">
                           <h3 className="font-semibold text-gray-900">
@@ -278,7 +262,7 @@ export default function AlbumStyleKnowledgeAssessment({
                       </div>
                       {hasChildren && (
                         <span className="text-sm text-gray-500 ml-4">
-                          {selectedChildCount > 0 && `${selectedChildCount}/`}{childNodes.length}개 하위 개념
+                          {level2Nodes.length}개 하위 개념
                         </span>
                       )}
                     </button>
@@ -290,7 +274,7 @@ export default function AlbumStyleKnowledgeAssessment({
               {isExpanded && hasChildren && (
                 <div className="px-4 pb-4 pt-2 bg-gray-50/50">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {childNodes.map(childNode => (
+                    {level2Nodes.map(childNode => (
                       <button
                         key={childNode.id}
                         onClick={() => toggleNodeSelection(childNode.id)}
@@ -307,11 +291,7 @@ export default function AlbumStyleKnowledgeAssessment({
                               ? 'bg-blue-500'
                               : 'bg-gray-200'
                           }`}>
-                            {selectedNodes.has(childNode.id) ? (
-                              <Check className="w-4 h-4 text-white" />
-                            ) : (
-                              <span className="text-xs font-bold text-gray-600">L2</span>
-                            )}
+                            <Check className="w-4 h-4 text-white" />
                           </div>
                           <span className="text-sm font-medium text-gray-700 text-center line-clamp-2">
                             {childNode.name}
@@ -331,10 +311,9 @@ export default function AlbumStyleKnowledgeAssessment({
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            <span className="font-semibold text-gray-900">{selectedNodes.size}</span>개 개념 선택됨
             {selectedNodes.size > 0 && (
-              <span className="ml-2 text-gray-500">
-                (선택한 개념들은 이미 알고 있는 것으로 표시됩니다)
+              <span className="text-gray-500">
+                선택한 개념들은 이미 알고 있는 것으로 표시됩니다
               </span>
             )}
           </div>
