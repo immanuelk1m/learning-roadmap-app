@@ -233,42 +233,44 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           </div>
         </div>
 
-        {/* Quiz Table */}
-        <div className="p-8">
-          <div className="space-y-8">
+        {/* Quiz Columns with Horizontal Scroll */}
+        <div className="px-8 py-6 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 hover:scrollbar-thumb-slate-400">
+          <div className="flex gap-6 min-w-min pb-2">
             {quizDocuments.map((doc) => {
               const questionCount = doc.quiz_generation_status?.count || 0
               const isAssessmentCompleted = doc.assessment_completed || false
               const sessions = quizSessions[doc.id] || []
               
               return (
-                <div key={doc.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div key={doc.id} className="flex-shrink-0 w-[400px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                   {/* Document Header */}
-                  <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#2f332f] rounded-lg flex items-center justify-center">
+                  <div className="px-5 py-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="w-10 h-10 bg-[#2f332f] rounded-lg flex items-center justify-center flex-shrink-0">
                           <FileText className="w-5 h-5 text-white" />
                         </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-base font-semibold text-slate-900 truncate">
                             {doc.title.replace(/\.pdf$/i, '')}
                           </h3>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
-                            <span>{questionCount}개 문제</span>
-                            {isAssessmentCompleted && (
-                              <span className="inline-flex items-center gap-1 text-emerald-600">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                평가 완료
-                              </span>
-                            )}
+                          <div className="flex flex-col gap-1 mt-1 text-xs text-slate-600">
+                            <div className="flex items-center gap-3">
+                              <span>{questionCount}개 문제</span>
+                              {isAssessmentCompleted && (
+                                <span className="inline-flex items-center gap-1 text-emerald-600">
+                                  <CheckCircle className="w-3 h-3" />
+                                  평가 완료
+                                </span>
+                              )}
+                            </div>
                             <span className="text-slate-400">
                               {new Date(doc.created_at).toLocaleDateString('ko-KR')}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="ml-2">
                         <DeleteQuizButton
                           documentId={doc.id}
                           documentTitle={doc.title}
@@ -279,73 +281,76 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                   </div>
                   
                   {/* Quiz Sessions List */}
-                  <div className="divide-y divide-slate-100">
+                  <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent hover:scrollbar-thumb-slate-300">
                     {sessions.length > 0 ? (
-                      sessions.map((session, index) => (
-                        <div key={session.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <Brain className="w-4 h-4 text-gray-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-sm font-medium text-slate-900">
-                                  {formatSessionName(doc, session, index)}
-                                </h4>
-                                <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {new Date(session.created_at).toLocaleDateString('ko-KR')}
-                                  </span>
-                                  <span>
-                                    {session.total_questions}개 문제
-                                  </span>
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium ${
-                                    session.status === 'completed' 
-                                      ? 'bg-green-100 text-green-700'
-                                      : session.status === 'in_progress'
-                                      ? 'bg-yellow-100 text-yellow-700'
-                                      : 'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {session.status === 'completed' ? '완료' : 
-                                     session.status === 'in_progress' ? '진행 중' : '중단됨'}
-                                  </span>
+                      <div className="divide-y divide-slate-100">
+                        {sessions.map((session, index) => (
+                          <div key={session.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-start gap-3">
+                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <Brain className="w-3.5 h-3.5 text-gray-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-slate-900 truncate">
+                                    {formatSessionName(doc, session, index)}
+                                  </h4>
+                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {new Date(session.created_at).toLocaleDateString('ko-KR', {
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })}
+                                    </span>
+                                    <span>
+                                      {session.total_questions}개
+                                    </span>
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full font-medium ${
+                                      session.status === 'completed' 
+                                        ? 'bg-green-100 text-green-700'
+                                        : session.status === 'in_progress'
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {session.status === 'completed' ? '완료' : 
+                                       session.status === 'in_progress' ? '진행 중' : '중단'}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2">
                               {isAssessmentCompleted && (
                                 <Link
                                   href={`/subjects/${subjectId}/quiz?doc=${doc.id}&session=${session.id}`}
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-sm"
+                                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-xs w-full"
                                 >
                                   {session.status === 'completed' ? '다시 풀기' : '이어 풀기'}
-                                  <ChevronRight className="w-4 h-4" />
+                                  <ChevronRight className="w-3.5 h-3.5" />
                                 </Link>
                               )}
                             </div>
                           </div>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     ) : (
-                      <div className="px-6 py-8 text-center">
+                      <div className="px-5 py-12 text-center">
                         <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl mb-3">
                           <Brain className="w-6 h-6 text-gray-400" />
                         </div>
-                        <p className="text-sm text-slate-500 mb-4">
+                        <p className="text-xs text-slate-500 mb-4">
                           아직 생성된 문제 세션이 없습니다
                         </p>
                         {isAssessmentCompleted ? (
                           <Link
                             href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-sm"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-xs"
                           >
-                            <Brain className="w-4 h-4" />
+                            <Brain className="w-3.5 h-3.5" />
                             첫 문제 풀기
                           </Link>
                         ) : (
-                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 font-medium rounded-lg text-sm">
-                            <Brain className="w-4 h-4 opacity-50" />
+                          <div className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 font-medium rounded-lg text-xs">
+                            <Brain className="w-3.5 h-3.5 opacity-50" />
                             평가 필요
                           </div>
                         )}
