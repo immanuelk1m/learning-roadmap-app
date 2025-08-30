@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
+import { Check, ArrowRight, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { assessmentLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
@@ -24,116 +24,149 @@ interface AlbumStyleKnowledgeAssessmentProps {
   documentId: string
 }
 
-// 재귀적 노드 아이템 컴포넌트
-interface NodeItemProps {
+// 노드 카드 컴포넌트
+interface NodeCardProps {
   node: KnowledgeNode
-  nodes: KnowledgeNode[]
+  isSelected: boolean
+  hasChildren: boolean
+  isExpanded: boolean
+  onToggleSelection: () => void
+  onToggleExpansion: () => void
+}
+
+function NodeCard({ 
+  node, 
+  isSelected, 
+  hasChildren,
+  isExpanded,
+  onToggleSelection,
+  onToggleExpansion
+}: NodeCardProps) {
+  return (
+    <div 
+      className={`relative bg-white rounded-xl border-2 transition-all cursor-pointer hover:shadow-lg ${
+        isExpanded ? 'border-blue-500 shadow-lg scale-105' : 'border-gray-200 hover:border-gray-300'
+      }`}
+      onClick={hasChildren ? onToggleExpansion : onToggleSelection}
+    >
+      <div className="p-4">
+        <div className="flex flex-col gap-3">
+          {/* 체크 표시 */}
+          <div className="flex items-start justify-between">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              isSelected ? 'bg-emerald-500' : 'bg-gray-200'
+            }`}>
+              <Check className="w-5 h-5 text-white" />
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleSelection()
+              }}
+              className="p-1.5 rounded hover:bg-gray-100"
+              title={isSelected ? '알고 있음 해제' : '알고 있음 표시'}
+            >
+              <Check className={`w-4 h-4 ${
+                isSelected ? 'text-emerald-500' : 'text-gray-400'
+              }`} />
+            </button>
+          </div>
+
+          {/* 노드 정보 */}
+          <div>
+            <h3 className="font-semibold text-gray-900 text-sm">
+              {node.name}
+            </h3>
+            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+              {node.description}
+            </p>
+          </div>
+
+          {/* 하위 개념 표시 */}
+          {hasChildren && (
+            <div className="flex items-center gap-1 text-xs text-blue-600 font-medium">
+              <span>하위 개념 보기</span>
+              <ArrowRight className={`w-3 h-3 transition-transform ${
+                isExpanded ? 'rotate-90' : ''
+              }`} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 하위 노드 그룹 컴포넌트
+interface ChildGroupProps {
+  children: KnowledgeNode[]
   selectedNodes: Set<string>
   expandedNodes: Set<string>
   onToggleSelection: (nodeId: string) => void
   onToggleExpansion: (nodeId: string) => void
-  depth: number
+  allNodes: KnowledgeNode[]
 }
 
-function NodeItem({ 
-  node, 
-  nodes, 
+function ChildGroup({ 
+  children, 
   selectedNodes, 
-  expandedNodes, 
-  onToggleSelection, 
+  expandedNodes,
+  onToggleSelection,
   onToggleExpansion,
-  depth 
-}: NodeItemProps) {
-  const childNodes = nodes
-    .filter(n => n.parent_id === node.id)
-    .sort((a, b) => (a.position || 0) - (b.position || 0))
-  
-  const hasChildren = childNodes.length > 0
-  const isExpanded = expandedNodes.has(node.id)
-  const isSelected = selectedNodes.has(node.id)
-
+  allNodes
+}: ChildGroupProps) {
   return (
-    <div className="w-full">
-      {/* 노드 카드 */}
-      <div 
-        className="w-full mb-3"
-        style={{ paddingLeft: `${depth * 24}px` }}
-      >
-        <div className="bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
-          <div className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3 flex-1">
-                {/* 확장 버튼 */}
-                {hasChildren && (
-                  <button
-                    onClick={() => onToggleExpansion(node.id)}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors mt-0.5"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-500" />
-                    )}
-                  </button>
+    <div className="relative">
+      {/* 연결선 */}
+      <div className="absolute -left-4 top-1/2 w-4 h-0.5 bg-blue-400"></div>
+      
+      {/* 하위 노드 컨테이너 */}
+      <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+        <div className="grid grid-cols-1 gap-2">
+          {children.map(child => {
+            const childChildren = allNodes.filter(n => n.parent_id === child.id)
+            const hasGrandChildren = childChildren.length > 0
+            const isChildExpanded = expandedNodes.has(child.id)
+            
+            return (
+              <div key={child.id} className="flex items-center gap-2">
+                <NodeCard
+                  node={child}
+                  isSelected={selectedNodes.has(child.id)}
+                  hasChildren={hasGrandChildren}
+                  isExpanded={isChildExpanded}
+                  onToggleSelection={() => onToggleSelection(child.id)}
+                  onToggleExpansion={() => onToggleExpansion(child.id)}
+                />
+                
+                {/* Level 3 노드들 */}
+                {isChildExpanded && hasGrandChildren && (
+                  <div className="flex items-center gap-2 animate-slideIn">
+                    <div className="w-0.5 h-full bg-blue-300"></div>
+                    <div className="bg-purple-50 rounded-lg p-2 border border-purple-200">
+                      <div className="flex flex-wrap gap-2">
+                        {childChildren.map(grandChild => (
+                          <button
+                            key={grandChild.id}
+                            onClick={() => onToggleSelection(grandChild.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              selectedNodes.has(grandChild.id)
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-white border border-gray-200 text-gray-700 hover:border-gray-300'
+                            }`}
+                            title={grandChild.description}
+                          >
+                            {grandChild.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 )}
-                {!hasChildren && (
-                  <div className="w-7" /> 
-                )}
-
-                {/* 체크 아이콘 */}
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  isSelected ? 'bg-emerald-500' : 'bg-gray-200'
-                }`}>
-                  <Check className="w-5 h-5 text-white" />
-                </div>
-
-                {/* 노드 정보 */}
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">
-                    {node.name}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {node.description}
-                  </p>
-                  {hasChildren && (
-                    <p className="text-xs text-blue-600 mt-2 font-medium">
-                      {childNodes.length}개 하위 개념
-                    </p>
-                  )}
-                </div>
               </div>
-
-              {/* 선택 버튼 */}
-              <button
-                onClick={() => onToggleSelection(node.id)}
-                className="ml-2 p-2 rounded hover:bg-gray-100"
-                title={isSelected ? '알고 있음 해제' : '알고 있음 표시'}
-              >
-                <Check className={`w-5 h-5 ${
-                  isSelected ? 'text-emerald-500' : 'text-gray-400'
-                }`} />
-              </button>
-            </div>
-          </div>
+            )
+          })}
         </div>
-      </div>
-
-      {/* 자식 노드들 - 애니메이션 적용 */}
-      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-        isExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
-      }`}>
-        {isExpanded && childNodes.map(childNode => (
-          <NodeItem
-            key={childNode.id}
-            node={childNode}
-            nodes={nodes}
-            selectedNodes={selectedNodes}
-            expandedNodes={expandedNodes}
-            onToggleSelection={onToggleSelection}
-            onToggleExpansion={onToggleExpansion}
-            depth={depth + 1}
-          />
-        ))}
       </div>
     </div>
   )
@@ -306,8 +339,59 @@ export default function AlbumStyleKnowledgeAssessment({
     }
   }
 
+  // 렌더링할 요소들 생성 (평면적 구조)
+  const renderElements = useMemo(() => {
+    const elements: any[] = []
+    
+    level1Nodes.forEach((node, index) => {
+      // Level 1 노드 추가
+      elements.push({
+        type: 'node',
+        node,
+        key: node.id
+      })
+      
+      // 확장된 경우 하위 노드 그룹 추가
+      if (expandedNodes.has(node.id)) {
+        const children = nodes
+          .filter(n => n.parent_id === node.id)
+          .sort((a, b) => (a.position || 0) - (b.position || 0))
+        
+        if (children.length > 0) {
+          elements.push({
+            type: 'childGroup',
+            children,
+            key: `${node.id}-children`,
+            parentId: node.id
+          })
+        }
+      }
+    })
+    
+    return elements
+  }, [level1Nodes, nodes, expandedNodes])
+
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-7xl mx-auto">
+      <style jsx global>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-20px);
+            width: 0;
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+            width: auto;
+          }
+        }
+        
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out forwards;
+        }
+      `}</style>
+
       {/* 헤더 */}
       <div className="mb-8 text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-3">
@@ -318,20 +402,43 @@ export default function AlbumStyleKnowledgeAssessment({
         </p>
       </div>
 
-      {/* 노드 트리 */}
+      {/* 앨범 형태 노드 그리드 */}
       <div className="mb-8">
-        {level1Nodes.map(node => (
-          <NodeItem
-            key={node.id}
-            node={node}
-            nodes={nodes}
-            selectedNodes={selectedNodes}
-            expandedNodes={expandedNodes}
-            onToggleSelection={toggleNodeSelection}
-            onToggleExpansion={toggleNodeExpansion}
-            depth={0}
-          />
-        ))}
+        <div className="flex flex-wrap items-start gap-4">
+          {renderElements.map(element => {
+            if (element.type === 'node') {
+              const childNodes = nodes.filter(n => n.parent_id === element.node.id)
+              const hasChildren = childNodes.length > 0
+              
+              return (
+                <div key={element.key} className="w-48">
+                  <NodeCard
+                    node={element.node}
+                    isSelected={selectedNodes.has(element.node.id)}
+                    hasChildren={hasChildren}
+                    isExpanded={expandedNodes.has(element.node.id)}
+                    onToggleSelection={() => toggleNodeSelection(element.node.id)}
+                    onToggleExpansion={() => toggleNodeExpansion(element.node.id)}
+                  />
+                </div>
+              )
+            } else if (element.type === 'childGroup') {
+              return (
+                <div key={element.key} className="animate-slideIn">
+                  <ChildGroup
+                    children={element.children}
+                    selectedNodes={selectedNodes}
+                    expandedNodes={expandedNodes}
+                    onToggleSelection={toggleNodeSelection}
+                    onToggleExpansion={toggleNodeExpansion}
+                    allNodes={nodes}
+                  />
+                </div>
+              )
+            }
+            return null
+          })}
+        </div>
       </div>
 
       {/* 하단 상태 바 및 제출 버튼 */}
