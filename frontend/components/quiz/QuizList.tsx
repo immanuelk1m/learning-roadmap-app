@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Clock, CheckCircle } from 'lucide-react'
+import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Clock, CheckCircle, Sparkles, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import DeleteQuizButton from './DeleteQuizButton'
 
@@ -56,6 +56,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
     trueFalse: false
   })
   const [generating, setGenerating] = useState(false)
+  const [generatingForDoc, setGeneratingForDoc] = useState<{ [key: string]: boolean }>({})
   const supabase = createClient()
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -98,6 +99,51 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
       }
       return newSet
     })
+  }
+
+  const handleGenerateSmartQuiz = async (documentId: string) => {
+    setGeneratingForDoc(prev => ({ ...prev, [documentId]: true }))
+    
+    try {
+      const response = await fetch('/api/quiz/generate-smart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ documentId })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate smart quiz')
+      }
+
+      const result = await response.json()
+      console.log('Smart quiz generated:', result)
+      
+      // Show success message
+      alert(`${result.message || '맞춤형 문제가 생성되었습니다!'}`)
+      
+      // Refresh quiz sessions to show the new quiz
+      const { data: sessions, error } = await supabase
+        .from('quiz_sessions')
+        .select('*')
+        .eq('document_id', documentId)
+        .eq('user_id', FIXED_USER_ID)
+        .order('created_at', { ascending: false })
+      
+      if (!error && sessions) {
+        setQuizSessions(prev => ({
+          ...prev,
+          [documentId]: sessions
+        }))
+      }
+    } catch (error: any) {
+      console.error('Failed to generate smart quiz:', error)
+      alert(error.message || '문제 생성 중 오류가 발생했습니다.')
+    } finally {
+      setGeneratingForDoc(prev => ({ ...prev, [documentId]: false }))
+    }
   }
 
   const handleGenerateQuiz = async () => {
@@ -381,6 +427,35 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Smart Quiz Generation Button */}
+                  {isAssessmentCompleted && (
+                    <div className="border-t border-slate-100 p-4">
+                      <button
+                        onClick={() => handleGenerateSmartQuiz(doc.id)}
+                        disabled={generatingForDoc[doc.id]}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 
+                                   border-2 border-dashed border-slate-300 rounded-lg
+                                   hover:border-emerald-500 hover:bg-emerald-50 
+                                   transition-all duration-200 group
+                                   disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {generatingForDoc[doc.id] ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
+                            <span className="text-sm text-slate-600">AI가 분석 중...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                            <span className="text-sm font-medium text-slate-600 group-hover:text-emerald-600 transition-colors">
+                              딱 맞는 문제 생성 +
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
