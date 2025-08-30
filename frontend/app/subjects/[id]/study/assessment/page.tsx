@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import OXKnowledgeAssessment from '@/components/study/OXKnowledgeAssessment'
+import AlbumStyleKnowledgeAssessment from '@/components/study/AlbumStyleKnowledgeAssessment'
 import { assessmentLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
 
@@ -262,18 +262,8 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
       </div>
 
       {/* Assessment Component */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            학습 전 배경지식 체크
-          </h2>
-          <p className="text-gray-600">
-            각 개념을 알고 있는지 선택하여 지식을 평가합니다.
-            '알고 있음'을 선택하면 해당 개념을 아는 것으로, '모름'을 선택하면 모르는 것으로 기록됩니다.
-          </p>
-        </div>
-
-        <OXKnowledgeAssessment
+      <div className="px-4 py-8">
+        <AlbumStyleKnowledgeAssessment
           nodes={knowledgeNodes}
           subjectId={id}
           documentId={documentId}
