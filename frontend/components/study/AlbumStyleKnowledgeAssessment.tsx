@@ -13,6 +13,7 @@ interface KnowledgeNode {
   name: string
   description: string
   level: number
+  position?: number
   prerequisites: string[]
   parent_id: string | null
 }
@@ -41,7 +42,7 @@ export default function AlbumStyleKnowledgeAssessment({
 
   // Level 1 노드들만 필터링
   const level1Nodes = useMemo(() => 
-    nodes.filter(node => node.level === 1).sort((a, b) => a.position - b.position),
+    nodes.filter(node => node.level === 1).sort((a, b) => (a.position || 0) - (b.position || 0)),
     [nodes]
   )
 

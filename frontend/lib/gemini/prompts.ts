@@ -9,6 +9,12 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
 4. 최대 20개 노드, 3단계 깊이
 5. 모든 설명은 한국어로 작성
 
+**계층 구조 설정 규칙 (매우 중요):**
+- level 1 노드: parent_id는 반드시 null (최상위 개념)
+- level 2 노드: parent_id는 해당 노드가 속한 level 1 노드의 id
+- level 3 노드: parent_id는 해당 노드가 속한 level 2 노드의 id
+- parent_id는 직접적인 부모 관계만 표현 (논리적 계층 구조)
+
 **좋은 예시 (반드시 한국어 사용):**
 - name: "PER", description: "주가수익비율, 주가를 주당순이익으로 나눈 지표"
 - name: "한계효용", description: "추가 1단위 소비시 증가하는 만족도"
@@ -21,16 +27,40 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
 - "투자의 이해는 투자를 이해하는 것"
 - name: "Interest Rate", description: "The cost of borrowing money" (영어 사용 금지)
 
-**JSON 형식:**
+**JSON 형식 (올바른 계층 구조 예시):**
 {
   "nodes": [
     {
       "id": "node_1",
       "parent_id": null,
-      "name": "구체적 개념명/용어 (한국어로 작성)",
-      "description": "핵심 공식이나 계산법 (반드시 한국어로 설명)",
-      "level": 0,
+      "name": "통계학",
+      "description": "데이터를 수집, 분석, 해석하는 학문",
+      "level": 1,
       "prerequisites": []
+    },
+    {
+      "id": "node_2",
+      "parent_id": "node_1",
+      "name": "기술통계",
+      "description": "데이터의 특성을 요약하는 통계 방법",
+      "level": 2,
+      "prerequisites": ["node_1"]
+    },
+    {
+      "id": "node_3",
+      "parent_id": "node_2",
+      "name": "평균",
+      "description": "모든 값의 합을 개수로 나눈 값",
+      "level": 3,
+      "prerequisites": ["node_2"]
+    },
+    {
+      "id": "node_4",
+      "parent_id": "node_1",
+      "name": "추론통계",
+      "description": "표본에서 모집단을 추정하는 통계 방법",
+      "level": 2,
+      "prerequisites": ["node_1"]
     }
   ]
 }`

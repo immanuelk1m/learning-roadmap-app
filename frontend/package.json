@@ -8,7 +8,8 @@
     "build:prod": "next build",
     "start": "next start",
     "lint": "next lint",
-    "migrate:quiz-nodes": "tsx scripts/migrate-quiz-nodes.ts"
+    "migrate:quiz-nodes": "tsx scripts/migrate-quiz-nodes.ts",
+    "migrate:knowledge-nodes": "tsx scripts/migrate-knowledge-nodes.ts"
   },
   "dependencies": {
     "@google/genai": "^1.9.0",

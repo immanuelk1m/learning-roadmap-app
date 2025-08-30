@@ -670,154 +670,165 @@ export async function POST(
           }
         })
         
-        // Prepare all nodes data for batch insert
-        const nodesData = deduplicatedNodes.map((node, i) => ({
-          document_id: id,
-          user_id: FIXED_USER_ID, // Add user_id field
-          subject_id: document.subject_id, // Add subject_id from document
-          parent_id: null, // Will be updated in second pass
-          name: node.name,
-          description: node.description || '',
-          level: node.level || 0,
-          position: node.originalIndex,
-          prerequisites: node.prerequisites || [],
-        }))
+        // Sort nodes by level to ensure parent nodes are inserted first
+        const sortedNodes = [...deduplicatedNodes].sort((a, b) => {
+          const levelA = a.level || 0
+          const levelB = b.level || 0
+          if (levelA !== levelB) return levelA - levelB
+          return a.originalIndex - b.originalIndex
+        })
         
-        supabaseLogger.info('📦 Performing batch insert of knowledge nodes', {
+        supabaseLogger.info('🔄 Sorting nodes by level for proper hierarchy', {
           correlationId,
           documentId: id,
           metadata: {
-            batchSize: nodesData.length,
-            dataSize: `${(JSON.stringify(nodesData).length / 1024).toFixed(2)} KB`,
-            operation: 'INSERT',
-            table: 'knowledge_nodes'
+            totalNodes: sortedNodes.length,
+            levelDistribution: sortedNodes.reduce((acc, node) => {
+              const level = node.level || 0
+              acc[level] = (acc[level] || 0) + 1
+              return acc
+            }, {} as Record<number, number>)
           }
         })
         
-        // Batch insert all nodes at once
-        const batchTimer = supabaseLogger.startTimer()
-        const { data: savedNodes, error: batchError } = await supabase
-          .from('knowledge_nodes')
-          .insert(nodesData)
-          .select()
+        // Process and insert nodes level by level
+        const insertedNodes: any[] = []
+        const levelGroups = sortedNodes.reduce((acc, node) => {
+          const level = node.level || 0
+          if (!acc[level]) acc[level] = []
+          acc[level].push(node)
+          return acc
+        }, {} as Record<number, any[]>)
         
-        const batchDuration = batchTimer()
+        const levels = Object.keys(levelGroups).map(Number).sort((a, b) => a - b)
         
-        if (batchError) {
-          supabaseLogger.error('Batch insert of knowledge nodes failed', {
+        for (const level of levels) {
+          const levelNodes = levelGroups[level]
+          
+          supabaseLogger.info(`📊 Processing level ${level} nodes`, {
             correlationId,
             documentId: id,
-            error: batchError,
-            duration: batchDuration,
             metadata: {
-              errorCode: batchError.code,
-              errorDetails: batchError.details,
-              attemptedCount: nodesData.length
+              level,
+              nodeCount: levelNodes.length,
+              nodeNames: levelNodes.map((n: any) => n.name)
             }
           })
-          throw new Error(`Failed to batch insert knowledge nodes: ${batchError.message}`)
-        }
-        
-        supabaseLogger.info('✅ Batch insert of knowledge nodes successful', {
-          correlationId,
-          documentId: id,
-          duration: batchDuration,
-          metadata: {
-            insertedCount: savedNodes?.length || 0,
-            insertSpeed: `${((nodesData.length / (batchDuration / 1000))).toFixed(2)} nodes/sec`,
-            averageTimePerNode: `${(batchDuration / nodesData.length).toFixed(2)} ms`,
-            phase: 'nodes_inserted'
-          }
-        })
-        
-        // Build ID mapping
-        if (savedNodes) {
-          savedNodes.forEach((savedNode, i) => {
-            if (deduplicatedNodes[i]?.id && savedNode.id) {
-              idMapping[deduplicatedNodes[i].id] = savedNode.id
-            }
-          })
-        }
-        
-        // Second pass: Batch update parent_id references
-        const parentUpdates = []
-        for (const node of deduplicatedNodes) {
-          if (node.parent_id && node.id && idMapping[node.id]) {
-            const actualNodeId = idMapping[node.id]
-            const actualParentId = idMapping[node.parent_id]
-            
-            if (actualParentId) {
-              parentUpdates.push({
-                id: actualNodeId,
-                parent_id: actualParentId
+          
+          // Prepare nodes data for current level
+          const nodesData = levelNodes.map((node: any) => {
+            // Find parent_id from idMapping for level 2+ nodes
+            let actualParentId = null
+            if (level > 1 && node.parent_id && idMapping[node.parent_id]) {
+              actualParentId = idMapping[node.parent_id]
+              supabaseLogger.info(`🔗 Mapping parent for node: ${node.name}`, {
+                correlationId,
+                documentId: id,
+                metadata: {
+                  nodeName: node.name,
+                  tempParentId: node.parent_id,
+                  actualParentId,
+                  level
+                }
               })
             }
-          }
-        }
-        
-        if (parentUpdates.length > 0) {
-          supabaseLogger.info('🔗 Batch updating parent-child relationships', {
-            correlationId,
-            documentId: id,
-            metadata: {
-              updateCount: parentUpdates.length,
-              uniqueParents: [...new Set(parentUpdates.map(u => u.parent_id))].length,
-              operation: 'UPDATE parent_id',
-              phase: 'relationship_mapping'
+            
+            return {
+              document_id: id,
+              user_id: FIXED_USER_ID,
+              subject_id: document.subject_id,
+              parent_id: actualParentId,
+              name: node.name,
+              description: node.description || '',
+              level: node.level || 0,
+              position: node.originalIndex,
+              prerequisites: node.prerequisites || [],
             }
           })
           
-          const updateTimer = supabaseLogger.startTimer()
+          supabaseLogger.info(`📦 Inserting level ${level} nodes`, {
+            correlationId,
+            documentId: id,
+            metadata: {
+              level,
+              batchSize: nodesData.length,
+              dataSize: `${(JSON.stringify(nodesData).length / 1024).toFixed(2)} KB`,
+              operation: 'INSERT',
+              table: 'knowledge_nodes'
+            }
+          })
           
-          // Use upsert for batch update - much faster than individual updates
-          const { error: updateError } = await supabase
+          // Insert nodes for current level
+          const batchTimer = supabaseLogger.startTimer()
+          const { data: savedNodes, error: batchError } = await supabase
             .from('knowledge_nodes')
-            .upsert(
-              parentUpdates.map(update => ({
-                id: update.id,
-                parent_id: update.parent_id,
-                // Include required fields to avoid null overwrites
-                document_id: id,
-                user_id: FIXED_USER_ID,
-                subject_id: document.subject_id
-              })),
-              { 
-                onConflict: 'id',
-                ignoreDuplicates: false 
-              }
-            )
+            .insert(nodesData)
+            .select()
           
-          const updateDuration = updateTimer()
+          const batchDuration = batchTimer()
           
-          if (updateError) {
-            supabaseLogger.error('Batch update of parent relationships failed', {
+          if (batchError) {
+            supabaseLogger.error(`Failed to insert level ${level} nodes`, {
               correlationId,
               documentId: id,
-              error: updateError,
-              duration: updateDuration,
+              error: batchError,
+              duration: batchDuration,
               metadata: {
-                errorCode: updateError.code,
-                errorDetails: updateError.details,
-                attemptedCount: parentUpdates.length
+                level,
+                errorCode: batchError.code,
+                errorDetails: batchError.details,
+                attemptedCount: nodesData.length
               }
             })
-          } else {
-            supabaseLogger.info('✅ Batch update of parent relationships successful', {
-              correlationId,
-              documentId: id,
-              duration: updateDuration,
-              metadata: {
-                updatedCount: parentUpdates.length,
-                updateSpeed: `${((parentUpdates.length / (updateDuration / 1000))).toFixed(2)} updates/sec`,
-                averageTimePerUpdate: `${(updateDuration / parentUpdates.length).toFixed(2)} ms`,
-                phase: 'relationships_established',
-                treeDepth: Math.max(...nodes.map((n: any) => n.level || 0)) + 1
+            throw new Error(`Failed to insert level ${level} knowledge nodes: ${batchError.message}`)
+          }
+          
+          supabaseLogger.info(`✅ Level ${level} nodes inserted successfully`, {
+            correlationId,
+            documentId: id,
+            duration: batchDuration,
+            metadata: {
+              level,
+              insertedCount: savedNodes?.length || 0,
+              insertSpeed: `${((nodesData.length / (batchDuration / 1000))).toFixed(2)} nodes/sec`,
+              averageTimePerNode: `${(batchDuration / nodesData.length).toFixed(2)} ms`
+            }
+          })
+          
+          // Build ID mapping for current level nodes
+          if (savedNodes) {
+            savedNodes.forEach((savedNode, i) => {
+              const originalNode = levelNodes[i]
+              if (originalNode?.id && savedNode.id) {
+                idMapping[originalNode.id] = savedNode.id
+                supabaseLogger.info(`📌 ID mapped: ${originalNode.id} -> ${savedNode.id}`, {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    nodeName: savedNode.name,
+                    level: savedNode.level,
+                    parentId: savedNode.parent_id
+                  }
+                })
               }
             })
+            insertedNodes.push(...savedNodes)
           }
         }
         
-        return { idMapping, savedNodes }
+        // Log final hierarchy structure
+        supabaseLogger.info('🌳 Final knowledge tree structure', {
+          correlationId,
+          documentId: id,
+          metadata: {
+            totalNodes: insertedNodes.length,
+            treeDepth: Math.max(...nodes.map((n: any) => n.level || 0)),
+            nodesWithParents: insertedNodes.filter(n => n.parent_id).length,
+            orphanNodes: insertedNodes.filter(n => !n.parent_id && n.level > 1).length
+          }
+        })
+        
+        return { idMapping, savedNodes: insertedNodes }
       }
 
       // Ensure combinedData.nodes exists and is an array
