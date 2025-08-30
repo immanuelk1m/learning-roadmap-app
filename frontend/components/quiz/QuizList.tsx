@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft } from 'lucide-react'
+import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Clock, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import DeleteQuizButton from './DeleteQuizButton'
 
@@ -25,6 +25,16 @@ interface Document {
   }
 }
 
+interface QuizSession {
+  id: string
+  document_id: string
+  created_at: string
+  status: 'in_progress' | 'completed' | 'abandoned'
+  total_questions: number
+  quiz_type: 'practice' | 'assessment' | 'missed_questions'
+  time_completed?: string
+}
+
 interface QuizListProps {
   subjectId: string
   documents: Document[]
@@ -34,6 +44,7 @@ type DifficultyLevel = 'very_easy' | 'easy' | 'normal' | 'hard' | 'very_hard'
 
 export default function QuizList({ subjectId, documents }: QuizListProps) {
   const [quizDocuments, setQuizDocuments] = useState<Document[]>([])
+  const [quizSessions, setQuizSessions] = useState<{ [key: string]: QuizSession[] }>({})
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<'view' | 'generate'>('view')
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
@@ -46,12 +57,35 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
   })
   const [generating, setGenerating] = useState(false)
   const supabase = createClient()
+  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   useEffect(() => {
-    // Filter documents that have quiz_generation_status
-    const docsWithQuiz = documents.filter(doc => doc.quiz_generation_status?.generated && doc.status === 'completed')
-    setQuizDocuments(docsWithQuiz)
-    setLoading(false)
+    const fetchQuizData = async () => {
+      // Filter documents that have quiz_generation_status
+      const docsWithQuiz = documents.filter(doc => doc.quiz_generation_status?.generated && doc.status === 'completed')
+      setQuizDocuments(docsWithQuiz)
+      
+      // Fetch quiz sessions for each document
+      const sessionsMap: { [key: string]: QuizSession[] } = {}
+      
+      for (const doc of docsWithQuiz) {
+        const { data: sessions, error } = await supabase
+          .from('quiz_sessions')
+          .select('*')
+          .eq('document_id', doc.id)
+          .eq('user_id', FIXED_USER_ID)
+          .order('created_at', { ascending: false })
+        
+        if (!error && sessions) {
+          sessionsMap[doc.id] = sessions
+        }
+      }
+      
+      setQuizSessions(sessionsMap)
+      setLoading(false)
+    }
+    
+    fetchQuizData()
   }, [documents])
 
   const toggleDocumentSelection = (docId: string) => {
@@ -124,6 +158,12 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
     )
   }
 
+  const formatSessionName = (doc: Document, session: QuizSession, index: number) => {
+    const docTitle = doc.title.replace(/\.pdf$/i, '')
+    const sessionNumber = index + 1
+    return `${docTitle}_${sessionNumber}차_문제`
+  }
+
   // View mode - show existing quizzes
   if (mode === 'view') {
     if (quizDocuments.length === 0) {
@@ -180,7 +220,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                 생성된 문제집
               </h2>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-orange-100 text-orange-800">
-                {quizDocuments.length}개
+                {quizDocuments.length}개 문서
               </span>
             </div>
             <button
@@ -193,123 +233,132 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           </div>
         </div>
 
-      {/* Quiz Grid */}
-      <div className="p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {quizDocuments.map((doc) => {
-            const questionCount = doc.quiz_generation_status?.count || 0
-            const isAssessmentCompleted = doc.assessment_completed || false
-            
-            return (
-              <div
-                key={doc.id}
-                className={`group relative bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full flex flex-col ${
-                  isAssessmentCompleted 
-                    ? 'hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-300/30 hover:border-emerald-300/80 hover:bg-white' 
-                    : 'opacity-75 hover:opacity-90'
-                } ring-1 ring-white/20`}
-              >
-                {/* Preview Area - Similar to DocumentList */}
-                <div className="relative h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
-                  {/* Animated Background */}
-                  <div className="absolute inset-0 opacity-30">
-                    <div className="absolute inset-0 bg-[radial-gradient(at_30%_30%,rgba(251,146,60,0.1),transparent_50%)]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(at_70%_70%,rgba(245,158,11,0.08),transparent_50%)]" />
-                  </div>
-                  
-                  {/* Floating Icon */}
-                  <div className="relative z-10">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-[#2f332f] rounded-2xl transform rotate-6 opacity-20 group-hover:rotate-12 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-[#2f332f] rounded-2xl transform -rotate-6 opacity-30 group-hover:-rotate-12 transition-transform duration-500" />
-                      <div className="relative w-16 h-16 bg-[#2f332f] rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                        <Brain className="w-8 h-8 text-white" />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Delete Button */}
-                  <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <DeleteQuizButton
-                      documentId={doc.id}
-                      documentTitle={doc.title}
-                      onDeleteSuccess={handleQuizDeleted}
-                    />
-                  </div>
-                  
-                  {/* Question Count Badge */}
-                  <div className="absolute top-4 right-4 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-xl text-xs font-bold shadow-lg ring-1 ring-white/30 group-hover:scale-105 transition-transform duration-300">
-                    <span className="text-emerald-600">{questionCount}개 문제</span>
-                  </div>
-                </div>
-
-                {/* Content Area */}
-                <div className="p-5 flex-1 flex flex-col">
-                  <div className="mb-3">
-                    <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors duration-300 line-clamp-2 leading-tight">
-                      {doc.title}
-                    </h3>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <Calendar className="w-4 h-4" />
-                        <span className="font-medium">
-                          {new Date(doc.created_at).toLocaleDateString('ko-KR', {
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quiz Type Badges */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {isAssessmentCompleted && (
-                      <div className="inline-flex items-center px-2.5 py-1 bg-gray-50 text-emerald-700 rounded-lg text-xs font-semibold border border-gray-200">
-                        <Check className="w-3 h-3 mr-1" />
-                        평가 기반
-                      </div>
-                    )}
-                    <div className="inline-flex items-center px-2 py-1 bg-gray-100 text-emerald-600 rounded-lg text-xs font-medium">
-                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></div>
-                      객관식
-                    </div>
-                  </div>
-
-                  {/* Action Button */}
-                  <div className="mt-auto">
-                    {isAssessmentCompleted ? (
-                      <Link
-                        href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
-                        className="group/btn relative flex items-center justify-center gap-2 w-full p-3 bg-[#2f332f] text-[#2ce477] font-semibold rounded-xl no-underline transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/30 hover:scale-105 overflow-hidden text-sm"
-                      >
-                        {/* Button Background Animation */}
-                        <div className="absolute inset-0 bg-gray-900 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left" />
-                        
-                        {/* Button Content */}
-                        <div className="relative flex items-center gap-2">
-                          <Brain className="w-4 h-4" />
-                          <span>문제 풀기</span>
+        {/* Quiz Table */}
+        <div className="p-8">
+          <div className="space-y-8">
+            {quizDocuments.map((doc) => {
+              const questionCount = doc.quiz_generation_status?.count || 0
+              const isAssessmentCompleted = doc.assessment_completed || false
+              const sessions = quizSessions[doc.id] || []
+              
+              return (
+                <div key={doc.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  {/* Document Header */}
+                  <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#2f332f] rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-white" />
                         </div>
-                        
-                        {/* Shimmer Effect */}
-                        <div className="absolute inset-0 -skew-x-12 bg-white/10 opacity-0 group-hover/btn:opacity-10" />
-                      </Link>
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900">
+                            {doc.title.replace(/\.pdf$/i, '')}
+                          </h3>
+                          <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
+                            <span>{questionCount}개 문제</span>
+                            {isAssessmentCompleted && (
+                              <span className="inline-flex items-center gap-1 text-emerald-600">
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                평가 완료
+                              </span>
+                            )}
+                            <span className="text-slate-400">
+                              {new Date(doc.created_at).toLocaleDateString('ko-KR')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <DeleteQuizButton
+                          documentId={doc.id}
+                          documentTitle={doc.title}
+                          onDeleteSuccess={handleQuizDeleted}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Quiz Sessions List */}
+                  <div className="divide-y divide-slate-100">
+                    {sessions.length > 0 ? (
+                      sessions.map((session, index) => (
+                        <div key={session.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <Brain className="w-4 h-4 text-gray-600" />
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-medium text-slate-900">
+                                  {formatSessionName(doc, session, index)}
+                                </h4>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {new Date(session.created_at).toLocaleDateString('ko-KR')}
+                                  </span>
+                                  <span>
+                                    {session.total_questions}개 문제
+                                  </span>
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium ${
+                                    session.status === 'completed' 
+                                      ? 'bg-green-100 text-green-700'
+                                      : session.status === 'in_progress'
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {session.status === 'completed' ? '완료' : 
+                                     session.status === 'in_progress' ? '진행 중' : '중단됨'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isAssessmentCompleted && (
+                                <Link
+                                  href={`/subjects/${subjectId}/quiz?doc=${doc.id}&session=${session.id}`}
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-sm"
+                                >
+                                  {session.status === 'completed' ? '다시 풀기' : '이어 풀기'}
+                                  <ChevronRight className="w-4 h-4" />
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
                     ) : (
-                      <div className="relative flex items-center justify-center gap-2 w-full p-3 bg-slate-100 text-slate-600 font-medium rounded-xl border border-slate-200 text-sm">
-                        <Brain className="w-4 h-4 opacity-50" />
-                        <span>평가 필요</span>
+                      <div className="px-6 py-8 text-center">
+                        <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl mb-3">
+                          <Brain className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-slate-500 mb-4">
+                          아직 생성된 문제 세션이 없습니다
+                        </p>
+                        {isAssessmentCompleted ? (
+                          <Link
+                            href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-sm"
+                          >
+                            <Brain className="w-4 h-4" />
+                            첫 문제 풀기
+                          </Link>
+                        ) : (
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 font-medium rounded-lg text-sm">
+                            <Brain className="w-4 h-4 opacity-50" />
+                            평가 필요
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
   }
 
   // Generate mode - create new quiz
