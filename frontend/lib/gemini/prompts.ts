@@ -389,10 +389,10 @@ export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 
 - **prerequisites**: 이 페이지를 이해하기 위한 선수 지식
 - **learning_objectives**: 이 페이지에서 반드시 이해해야 할 목표
 
-### 4. 전체 문서 요약
-- 문서 전체의 학습 목표
-- 권장 학습 순서 (필요시)
-- 1000자 이내의 전체 요약
+### 4. 생성 금지 사항
+- "문서 요약", "전체 요약" 같은 제목이나 섹션 생성 금지
+- overall_summary 필드에는 간단한 설명만 포함
+- 페이지별 해설에 집중
 
 ## 출력 형식
 
@@ -412,6 +412,6 @@ export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 
       "learning_objectives": ["GenAI 도입과 실제 변혁의 차이 이해", "Pilot-to-Production 과제 파악"]
     }
   ],
-  "overall_summary": "전체 문서 요약...",
+  "overall_summary": "페이지별 맞춤 학습 가이드",
   "learning_path": ["추천 학습 순서"] // 선택사항
 }`
