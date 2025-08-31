@@ -36,6 +36,7 @@ export default function StudyPageClient({
   const [activeMobileTab, setActiveMobileTab] = useState<'pdf' | 'knowledge' | 'guide'>('pdf')
   const [isLoadingStatus, setIsLoadingStatus] = useState(false)
   const [hasCompletedOXAssessment, setHasCompletedOXAssessment] = useState(false)
+  const [isStartingQuiz, setIsStartingQuiz] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -73,14 +74,38 @@ export default function StudyPageClient({
     }
   }
 
-  const handleQuizButton = () => {
-    if (isLoadingStatus) {
-      toast('평가 상태를 확인하는 중입니다...')
+  const handleQuizButton = async () => {
+    if (isLoadingStatus || isStartingQuiz) {
+      toast('잠시만 기다려주세요...')
       return
     }
 
-    // 항상 퀴즈 페이지로 직접 이동
-    router.push(`/subjects/${subjectId}/quiz?doc=${documentId}`)
+    setIsStartingQuiz(true)
+    
+    try {
+      // 가장 최근에 생성된 quiz_set 조회
+      const { data: quizSet, error } = await supabase
+        .from('quiz_sets')
+        .select('id')
+        .eq('document_id', documentId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (error || !quizSet) {
+        toast.error('퀴즈를 찾을 수 없습니다. 먼저 퀴즈를 생성해주세요.')
+        console.error('Quiz set not found:', error)
+        return
+      }
+      
+      // quiz 페이지로 이동 (quiz_set_id를 파라미터로 전달)
+      router.push(`/subjects/${subjectId}/quiz?doc=${documentId}&set=${quizSet.id}`)
+    } catch (error) {
+      console.error('Error starting quiz:', error)
+      toast.error('퀴즈를 시작할 수 없습니다.')
+    } finally {
+      setIsStartingQuiz(false)
+    }
   }
 
   if (!document) {
@@ -245,15 +270,15 @@ export default function StudyPageClient({
           {/* Floating Quiz Button for Mobile */}
           <button
             onClick={handleQuizButton}
-            disabled={isLoadingStatus}
+            disabled={isLoadingStatus || isStartingQuiz}
             className="absolute bottom-4 right-4 inline-flex items-center px-4 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:shadow-xl text-sm font-medium disabled:bg-blue-400 disabled:cursor-not-allowed z-10"
           >
-            {isLoadingStatus ? (
+            {(isLoadingStatus || isStartingQuiz) ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Sparkles className="h-4 w-4 mr-2" />
             )}
-            {isLoadingStatus ? '로딩 중...' : '배경지식 체크'}
+            {isStartingQuiz ? '퀴즈 시작 중...' : isLoadingStatus ? '로딩 중...' : '배경지식 체크'}
           </button>
         </div>
       </div>
