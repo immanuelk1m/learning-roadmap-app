@@ -143,20 +143,15 @@ export async function POST(request: NextRequest) {
 
 **문서:** ${document.title}
 
-**이미 알고 있는 개념 (${knownConcepts.length}개, understanding_level >= 70):**
-${knownConcepts.map(c => {
-  const level = levelMap.get(c.id) || 0
-  return `- ${c.name} (이해도: ${level}%): ${c.description}`
-}).join('\n')}
+**이미 알고 있는 개념 (${knownConcepts.length}개):**
+${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
 
-**학습이 필요한 개념 (${unknownConcepts.length}개, understanding_level < 70):**
-${unknownConcepts.map(c => {
-  const level = levelMap.get(c.id) || 0
-  return `- ${c.name} (이해도: ${level}%): ${c.description}
-  필요한 선수 지식: ${c.prerequisites.length > 0 ? c.prerequisites.join(', ') : '없음'}`
-}).join('\n\n')}
+**학습이 필요한 개념 (${unknownConcepts.length}개):**
+${unknownConcepts.map(c => `- ${c.name}: ${c.description}
+  필요한 선수 지식: ${c.prerequisites.length > 0 ? c.prerequisites.join(', ') : '없음'}`).join('\n\n')}
 
 학습자의 현재 상태를 고려하여 맞춤형 학습 퀵노트를 생성하세요. 이미 알고 있는 개념을 활용하여 모르는 개념을 설명하고, 효과적인 학습 전략을 제시하세요.
+중요: 생성된 퀵노트 본문에는 이해도 퍼센트 수치를 포함하지 마세요.
 ` : `
 ## 학습자 프로필 분석
 
