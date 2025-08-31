@@ -361,7 +361,7 @@ export default function AlbumStyleKnowledgeAssessment({
             {(isSubmitting || isGeneratingStudyGuide) && (
               <Loader2 className="w-4 h-4 animate-spin" />
             )}
-            평가 완료하고 학습 시작
+            {selectedNodes.size === 0 ? '전부 다 모르겠어요!' : '평가 완료하고 학습 시작'}
           </button>
         </div>
       </div>
