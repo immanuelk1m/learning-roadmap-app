@@ -719,15 +719,38 @@ export async function POST(
           const nodesData = levelNodes.map((node: any) => {
             // Find parent_id from idMapping for level 2+ nodes
             let actualParentId = null
-            if (level > 1 && node.parent_id && idMapping[node.parent_id]) {
-              actualParentId = idMapping[node.parent_id]
-              supabaseLogger.info(`🔗 Mapping parent for node: ${node.name}`, {
+            if (level > 1 && node.parent_id) {
+              if (idMapping[node.parent_id]) {
+                actualParentId = idMapping[node.parent_id]
+                supabaseLogger.info(`🔗 Mapping parent for node: ${node.name}`, {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    nodeName: node.name,
+                    tempParentId: node.parent_id,
+                    actualParentId,
+                    level
+                  }
+                })
+              } else {
+                supabaseLogger.warn(`⚠️ Parent ID not found in mapping for node: ${node.name}`, {
+                  correlationId,
+                  documentId: id,
+                  metadata: {
+                    nodeName: node.name,
+                    tempParentId: node.parent_id,
+                    level,
+                    availableIds: Object.keys(idMapping)
+                  }
+                })
+              }
+            } else if (level === 1 && node.parent_id !== null) {
+              supabaseLogger.warn(`⚠️ Level 1 node has non-null parent_id: ${node.name}`, {
                 correlationId,
                 documentId: id,
                 metadata: {
                   nodeName: node.name,
-                  tempParentId: node.parent_id,
-                  actualParentId,
+                  parentId: node.parent_id,
                   level
                 }
               })
