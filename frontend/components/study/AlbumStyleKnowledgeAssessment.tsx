@@ -30,6 +30,7 @@ interface NodeCardProps {
   isSelected: boolean
   hasChildren: boolean
   isExpanded: boolean
+  isSelectable: boolean
   onToggleSelection: () => void
   onToggleExpansion: () => void
   level: number
@@ -40,6 +41,7 @@ function NodeCard({
   isSelected, 
   hasChildren,
   isExpanded,
+  isSelectable,
   onToggleSelection,
   onToggleExpansion,
   level
@@ -47,11 +49,13 @@ function NodeCard({
   // 모든 레벨 카드 크기 통일
   const sizeClass = 'w-48'
   
-  // 테두리 색상 결정: 선택됨 = emerald, 확장됨 = blue, 기본 = gray
+  // 테두리 색상 결정: 선택됨 = emerald, 확장됨 = blue, 선택 불가 = red, 기본 = gray
   const borderClass = isSelected 
     ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50' 
     : isExpanded 
     ? 'border-blue-500 shadow-xl ring-2 ring-blue-500/50' 
+    : !isSelectable && level > 1
+    ? 'border-red-200 hover:border-red-300'
     : 'border-gray-200 hover:border-gray-400'
   
   // 배경색 추가로 더 뚜렷하게
@@ -59,14 +63,21 @@ function NodeCard({
     ? 'bg-emerald-50' 
     : isExpanded 
     ? 'bg-blue-50' 
+    : !isSelectable && level > 1
+    ? 'bg-red-50/50'
     : 'bg-white'
+  
+  // 커서 스타일
+  const cursorClass = !isSelectable && level > 1 && !hasChildren
+    ? 'cursor-not-allowed'
+    : 'cursor-pointer'
   
   return (
     <div 
       className={`${sizeClass} animate-slideIn`}
     >
       <div 
-        className={`relative ${bgClass} rounded-xl border-3 transition-all cursor-pointer hover:shadow-lg h-full ${borderClass}`}
+        className={`relative ${bgClass} rounded-xl border-3 transition-all ${cursorClass} hover:shadow-lg h-full ${borderClass}`}
         onClick={hasChildren ? onToggleExpansion : onToggleSelection}
       >
         <div className="p-5">
@@ -79,6 +90,11 @@ function NodeCard({
               <p className="text-sm text-gray-500 mt-2 line-clamp-3">
                 {node.description}
               </p>
+              {!isSelectable && level > 1 && !hasChildren && (
+                <p className="text-xs text-red-500 mt-2 font-medium">
+                  ⚠️ 상위 개념을 먼저 선택해주세요
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -110,13 +126,40 @@ export default function AlbumStyleKnowledgeAssessment({
   )
 
   const toggleNodeSelection = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId)
+    if (!node) return
+
     setSelectedNodes(prev => {
       const newSet = new Set(prev)
+      
       if (newSet.has(nodeId)) {
+        // 노드 선택 해제 시 자식 노드들도 함께 해제
         newSet.delete(nodeId)
+        
+        // 직접 자식 노드들 찾기 (Level 2)
+        const childNodes = nodes.filter(n => n.parent_id === nodeId)
+        childNodes.forEach(child => {
+          newSet.delete(child.id)
+          
+          // 손자 노드들 찾기 (Level 3)
+          const grandchildNodes = nodes.filter(n => n.parent_id === child.id)
+          grandchildNodes.forEach(grandchild => {
+            newSet.delete(grandchild.id)
+          })
+        })
       } else {
+        // 노드 선택 시 부모 노드가 선택되어 있는지 확인
+        if (node.level > 1) {
+          const parentNode = nodes.find(n => n.id === node.parent_id)
+          if (parentNode && !prev.has(parentNode.id)) {
+            // 부모 노드가 선택되지 않았으면 선택 불가
+            toast.error(`먼저 상위 개념 "${parentNode.name}"을(를) 선택해주세요`)
+            return prev
+          }
+        }
         newSet.add(nodeId)
       }
+      
       return newSet
     })
   }
@@ -334,6 +377,13 @@ export default function AlbumStyleKnowledgeAssessment({
             const childNodes = nodes.filter(n => n.parent_id === node.id)
             const hasChildren = childNodes.length > 0
             
+            // 부모 노드 선택 여부 확인
+            let isSelectable = true
+            if (node.level > 1) {
+              const parentNode = nodes.find(n => n.id === node.parent_id)
+              isSelectable = parentNode ? selectedNodes.has(parentNode.id) : false
+            }
+            
             return (
               <NodeCard
                 key={key}
@@ -341,6 +391,7 @@ export default function AlbumStyleKnowledgeAssessment({
                 isSelected={selectedNodes.has(node.id)}
                 hasChildren={hasChildren}
                 isExpanded={expandedNodes.has(node.id)}
+                isSelectable={isSelectable}
                 onToggleSelection={() => toggleNodeSelection(node.id)}
                 onToggleExpansion={() => toggleNodeExpansion(node.id)}
                 level={node.level}
