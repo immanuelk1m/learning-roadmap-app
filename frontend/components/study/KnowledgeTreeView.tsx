@@ -180,8 +180,8 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
                   </div>
                   {/* Status indicator */}
                   <div className={`ml-4 px-3 py-1 rounded-full text-xs font-medium ${
-                    status === 'known' ? 'bg-green-600 text-white' :
-                    'bg-red-600 text-white'
+                    status === 'known' ? 'bg-green-500 text-white' :
+                    'bg-red-500 text-white'
                   }`}>
                     {status === 'known' ? '✓ 아는 개념' : '✗ 모르는 개념'}
                   </div>
