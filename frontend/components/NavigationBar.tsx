@@ -21,46 +21,77 @@ export default function NavigationBar() {
 
   return (
     <div className="fixed bg-white h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-200">
-      <div className="max-w-[1440px] mx-auto h-full px-4 md:px-0 flex items-center relative">
-        {/* Mobile: Hamburger button (left) */}
-        <button
-          type="button"
-          aria-label="메뉴 열기"
-          className="md:hidden w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700"
-          onClick={() => setIsOpen(true)}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </button>
+      <div className="max-w-[1440px] mx-auto h-full px-4 md:px-6">
+        {/* Desktop Layout - 3단 구조 */}
+        <div className="hidden md:flex h-full items-center justify-between">
+          {/* Left Section: Logo + Welcome */}
+          <div className="flex items-center gap-4 flex-shrink-0">
+            <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+            <div className="w-px h-5 bg-gray-300" />
+            <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+          </div>
 
-        {/* Mobile: Center logo (absolute) / Desktop: Left logo + welcome */}
-        <div className="absolute left-1/2 transform -translate-x-1/2 md:relative md:left-0 md:transform-none md:flex-initial flex items-center justify-center md:justify-start">
-          <div className="flex items-center gap-[13px] flex-shrink-0">
-            <div className="text-[#212529] text-[17.398px] font-semibold">Commit</div>
-            <div className="hidden md:block w-px h-[9.5px] border-l border-gray-300" />
-            <div className="hidden md:block text-[#94aac0] text-[12px] font-normal max-w-[120px] sm:max-w-[200px] truncate ml-4 pl-2">환영합니다, Taehee님</div>
+          {/* Center Section: Navigation */}
+          <nav className="flex items-center gap-12">
+            <Link 
+              href="/" 
+              className={`text-[16px] font-semibold transition-colors ${
+                pathname === '/' ? 'text-[#212529]' : 'text-[#94aac0] hover:text-[#212529]'
+              }`}
+            >
+              Main
+            </Link>
+            <Link 
+              href="/subjects" 
+              className={`text-[16px] font-semibold transition-colors ${
+                pathname === '/subjects' || pathname.startsWith('/subjects/') 
+                  ? 'text-[#212529]' 
+                  : 'text-[#94aac0] hover:text-[#212529]'
+              }`}
+            >
+              My Course
+            </Link>
+            <Link 
+              href="/mypage" 
+              className={`text-[16px] font-semibold transition-colors ${
+                pathname === '/mypage' ? 'text-[#212529]' : 'text-[#94aac0] hover:text-[#212529]'
+              }`}
+            >
+              마이페이지
+            </Link>
+          </nav>
+
+          {/* Right Section: Profile */}
+          <div className="w-[50px] h-[50px] rounded-[10px] border border-[#e5e5e5] overflow-hidden bg-white flex-shrink-0 flex items-center justify-center">
+            <Image 
+              src="/logo.png"
+              alt="Logo"
+              width={48}
+              height={48}
+              className="object-contain"
+            />
           </div>
         </div>
 
-        {/* Desktop: Center navigation */}
-        <div className="hidden md:flex flex-1 items-center justify-center">
-          <div className="flex items-center gap-6 md:gap-[60px] overflow-x-auto whitespace-nowrap">
-            <Link href="/" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/' ? 'text-[#212529]' : 'text-[#94aac0]'}`}>Main</Link>
-            <Link href="/subjects" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/subjects' || pathname.startsWith('/subjects/') ? 'text-[#212529]' : 'text-[#94aac0]'}`}>My Course</Link>
-            <Link href="/mypage" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/mypage' ? 'text-[#212529]' : 'text-[#94aac0]'}`}>마이페이지</Link>
-          </div>
-        </div>
+        {/* Mobile Layout */}
+        <div className="flex md:hidden h-full items-center justify-between">
+          {/* Left: Hamburger Menu */}
+          <button
+            type="button"
+            aria-label="메뉴 열기"
+            className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700"
+            onClick={() => setIsOpen(true)}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
 
-        {/* Desktop: Logo */}
-        <div className="hidden md:block w-[50px] h-[50px] rounded-[10px] border border-[#e5e5e5] overflow-hidden bg-white flex-shrink-0 flex items-center justify-center">
-          <Image 
-            src="/logo.png"
-            alt="Logo"
-            width={48}
-            height={48}
-            className="object-contain"
-          />
+          {/* Center: Logo */}
+          <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+
+          {/* Right: Placeholder for balance */}
+          <div className="w-10 h-10" />
         </div>
       </div>
 
