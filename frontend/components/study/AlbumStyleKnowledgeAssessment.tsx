@@ -49,17 +49,24 @@ function NodeCard({
   
   // 테두리 색상 결정: 선택됨 = emerald, 확장됨 = blue, 기본 = gray
   const borderClass = isSelected 
-    ? 'border-emerald-500 shadow-lg' 
+    ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50' 
     : isExpanded 
-    ? 'border-blue-500 shadow-lg' 
-    : 'border-gray-200 hover:border-gray-300'
+    ? 'border-blue-500 shadow-xl ring-2 ring-blue-500/50' 
+    : 'border-gray-200 hover:border-gray-400'
+  
+  // 배경색 추가로 더 뚜렷하게
+  const bgClass = isSelected 
+    ? 'bg-emerald-50' 
+    : isExpanded 
+    ? 'bg-blue-50' 
+    : 'bg-white'
   
   return (
     <div 
       className={`${sizeClass} animate-slideIn`}
     >
       <div 
-        className={`relative bg-white rounded-xl border-2 transition-all cursor-pointer hover:shadow-lg h-full ${borderClass}`}
+        className={`relative ${bgClass} rounded-xl border-3 transition-all cursor-pointer hover:shadow-lg h-full ${borderClass}`}
         onClick={hasChildren ? onToggleExpansion : onToggleSelection}
       >
         <div className="p-5">
