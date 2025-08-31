@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Check, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { assessmentLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
@@ -47,35 +47,29 @@ function NodeCard({
   // 모든 레벨 카드 크기 통일
   const sizeClass = 'w-48'
   
+  // 테두리 색상 결정: 선택됨 = emerald, 확장됨 = blue, 기본 = gray
+  const borderClass = isSelected 
+    ? 'border-emerald-500 shadow-lg' 
+    : isExpanded 
+    ? 'border-blue-500 shadow-lg' 
+    : 'border-gray-200 hover:border-gray-300'
+  
   return (
     <div 
       className={`${sizeClass} animate-slideIn`}
     >
       <div 
-        className={`relative bg-white rounded-xl border-2 transition-all cursor-pointer hover:shadow-lg h-full ${
-          isExpanded ? 'border-blue-500 shadow-lg' : 'border-gray-200 hover:border-gray-300'
-        }`}
+        className={`relative bg-white rounded-xl border-2 transition-all cursor-pointer hover:shadow-lg h-full ${borderClass}`}
         onClick={hasChildren ? onToggleExpansion : onToggleSelection}
       >
-        <div className="p-4">
+        <div className="p-5">
           <div className="flex flex-col gap-3">
-            {/* 체크 표시 */}
-            <div className="flex items-start">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-                isSelected ? 'bg-emerald-500' : 'bg-gray-200'
-              }`}>
-                <Check className={`w-5 h-5 ${
-                  isSelected ? 'text-white' : 'text-gray-400'
-                }`} />
-              </div>
-            </div>
-
             {/* 노드 정보 */}
             <div>
-              <h3 className="font-semibold text-gray-900 text-sm">
+              <h3 className="font-semibold text-gray-900 text-base">
                 {node.name}
               </h3>
-              <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+              <p className="text-sm text-gray-500 mt-2 line-clamp-3">
                 {node.description}
               </p>
             </div>
