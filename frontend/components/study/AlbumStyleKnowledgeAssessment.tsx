@@ -44,8 +44,8 @@ function NodeCard({
   onToggleExpansion,
   level
 }: NodeCardProps) {
-  // 레벨에 따라 카드 크기 조정
-  const sizeClass = level === 1 ? 'w-48' : level === 2 ? 'w-44' : 'w-40'
+  // 모든 레벨 카드 크기 통일
+  const sizeClass = 'w-48'
   
   return (
     <div 
@@ -60,24 +60,14 @@ function NodeCard({
         <div className="p-4">
           <div className="flex flex-col gap-3">
             {/* 체크 표시 */}
-            <div className="flex items-start justify-between">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+            <div className="flex items-start">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                 isSelected ? 'bg-emerald-500' : 'bg-gray-200'
               }`}>
-                <Check className="w-5 h-5 text-white" />
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleSelection()
-                }}
-                className="p-1.5 rounded hover:bg-gray-100"
-                title={isSelected ? '알고 있음 해제' : '알고 있음 표시'}
-              >
-                <Check className={`w-4 h-4 ${
-                  isSelected ? 'text-emerald-500' : 'text-gray-400'
+                <Check className={`w-5 h-5 ${
+                  isSelected ? 'text-white' : 'text-gray-400'
                 }`} />
-              </button>
+              </div>
             </div>
 
             {/* 노드 정보 */}
@@ -88,11 +78,6 @@ function NodeCard({
               <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                 {node.description}
               </p>
-              {hasChildren && (
-                <p className="text-xs text-blue-600 mt-2">
-                  {isExpanded ? '클릭하여 닫기' : '클릭하여 펼치기'}
-                </p>
-              )}
             </div>
           </div>
         </div>
