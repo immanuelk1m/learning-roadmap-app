@@ -48,8 +48,7 @@ export default function NavigationBar() {
           <div className="flex items-center gap-6 md:gap-[60px] overflow-x-auto whitespace-nowrap">
             <Link href="/" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/' ? 'text-[#212529]' : 'text-[#94aac0]'}`}>Main</Link>
             <Link href="/subjects" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/subjects' || pathname.startsWith('/subjects/') ? 'text-[#212529]' : 'text-[#94aac0]'}`}>My Course</Link>
-            <Link href="/progress" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/progress' ? 'text-[#212529]' : 'text-[#94aac0]'}`}>자료별 진행률</Link>
-            <Link href="/commits" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/commits' ? 'text-[#212529]' : 'text-[#94aac0]'}`}>내커밋 한눈에 보기</Link>
+            <Link href="/mypage" className={`text-[15px] md:text-[17.398px] font-semibold cursor-pointer ${pathname === '/mypage' ? 'text-[#212529]' : 'text-[#94aac0]'}`}>마이페이지</Link>
           </div>
         </div>
 
@@ -94,8 +93,7 @@ export default function NavigationBar() {
         <nav className="p-4 flex flex-col gap-3">
           <Link onClick={() => setIsOpen(false)} href="/" className={`py-2 px-2 rounded-md ${pathname === '/' ? 'text-[#212529] font-semibold' : 'text-[#94aac0]'}`}>Main</Link>
           <Link onClick={() => setIsOpen(false)} href="/subjects" className={`py-2 px-2 rounded-md ${pathname === '/subjects' || pathname.startsWith('/subjects/') ? 'text-[#212529] font-semibold' : 'text-[#94aac0]'}`}>My Course</Link>
-          <Link onClick={() => setIsOpen(false)} href="/progress" className={`py-2 px-2 rounded-md ${pathname === '/progress' ? 'text-[#212529] font-semibold' : 'text-[#94aac0]'}`}>자료별 진행률</Link>
-          <Link onClick={() => setIsOpen(false)} href="/commits" className={`py-2 px-2 rounded-md ${pathname === '/commits' ? 'text-[#212529] font-semibold' : 'text-[#94aac0]'}`}>내커밋 한눈에 보기</Link>
+          <Link onClick={() => setIsOpen(false)} href="/mypage" className={`py-2 px-2 rounded-md ${pathname === '/mypage' ? 'text-[#212529] font-semibold' : 'text-[#94aac0]'}`}>마이페이지</Link>
         </nav>
       </aside>
     </div>
