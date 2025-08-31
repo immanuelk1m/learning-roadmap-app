@@ -234,9 +234,7 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
       { documentId, responseType: 'study_guide_pages' }
     )
     
-    // Create overall summary from page data
-    const overallSummary = studyGuideData.overall_summary || 
-      `${document.title}에 대한 페이지별 맞춤 퀵노트입니다. 총 ${studyGuideData.total_pages}페이지로 구성되어 있습니다.`
+    // Page data is now stored in study_guide_pages table only
 
     // Check if study guide already exists
     const { data: existingGuide } = await supabase
@@ -260,12 +258,10 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
       const { data, error } = await supabase
         .from('study_guides')
         .update({
-          content: overallSummary,
           known_concepts: knownConcepts.map(c => c.id),
           unknown_concepts: unknownConcepts.map(c => c.id),
           document_title: studyGuideData.document_title,
           total_pages: studyGuideData.total_pages,
-          overall_summary: overallSummary,
           generation_method: 'pages',
           updated_at: new Date().toISOString()
         })
@@ -282,12 +278,10 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
         .insert({
           user_id: userId,
           document_id: documentId,
-          content: overallSummary,
           known_concepts: knownConcepts.map(c => c.id),
           unknown_concepts: unknownConcepts.map(c => c.id),
           document_title: studyGuideData.document_title,
           total_pages: studyGuideData.total_pages,
-          overall_summary: overallSummary,
           generation_method: 'pages'
         })
         .select()
