@@ -352,14 +352,7 @@ export default function AlbumStyleKnowledgeAssessment({
 
       {/* 하단 상태 바 및 제출 버튼 */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            {selectedNodes.size > 0 && (
-              <span className="text-gray-500">
-                {selectedNodes.size}개 개념을 알고 있는 것으로 표시했습니다
-              </span>
-            )}
-          </div>
+        <div className="max-w-4xl mx-auto flex items-center justify-end">
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || isGeneratingStudyGuide}
