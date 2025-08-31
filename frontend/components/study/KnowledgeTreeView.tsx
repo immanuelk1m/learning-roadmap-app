@@ -157,13 +157,6 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
                       }`}>
                         {node.name}
                       </h3>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        isRootLevel 
-                          ? 'bg-white/20 text-white/70' 
-                          : 'bg-neutral-200 text-neutral-600'
-                      }`}>
-                        Level {node.level}
-                      </span>
                     </div>
                     <p className={`text-sm mt-1 ${
                       isRootLevel ? 'text-white/90' : 'text-neutral-600'
