@@ -26,10 +26,9 @@ interface KnowledgeTreeViewProps {
 }
 
 export default function KnowledgeTreeView({ nodes, userStatus, documentId }: KnowledgeTreeViewProps) {
-  // Initialize with root nodes expanded
+  // Initialize with all nodes expanded
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
-    const rootNodes = nodes.filter(node => !node.parent_id)
-    return new Set(rootNodes.map(node => node.id))
+    return new Set(nodes.map(node => node.id))
   })
 
   // Build tree structure
