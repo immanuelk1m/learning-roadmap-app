@@ -82,28 +82,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get O/X quiz attempts for detailed feedback
-    const { data: quizAttempts, error: attemptsError } = await supabase
-      .from('quiz_attempts')
-      .select(`
-        *,
-        quiz_items!inner(
-          id,
-          question,
-          correct_answer,
-          explanation,
-          node_id
-        )
-      `)
-      .eq('user_id', userId)
-      .in('quiz_item_id', 
-        await supabase
-          .from('quiz_items')
-          .select('id')
-          .eq('document_id', documentId)
-          .eq('is_assessment', true)
-          .then(res => res.data?.map(item => item.id) || [])
-      )
+    // O/X quiz logic removed - now using direct selection assessment
 
     // Categorize concepts based on 50 threshold (matching the UI display logic)
     const levelMap = new Map(userStatus?.map(s => [s.id, s.understanding_level]) || [])
@@ -148,36 +127,15 @@ export async function POST(request: NextRequest) {
     const uploadedFile = await uploadFileToGemini(pdfBlob, 'application/pdf')
     console.log('PDF uploaded to Gemini:', uploadedFile.uri)
 
-    // Prepare O/X quiz results for Gemini
-    const incorrectQuizzes = quizAttempts?.filter(attempt => !attempt.is_correct) || []
-    const correctQuizzes = quizAttempts?.filter(attempt => attempt.is_correct) || []
-    
-    const oxQuizContext = incorrectQuizzes.length > 0 ? `
+    // Direct selection assessment context
+    const assessmentContext = `
+## 학습 전 배경지식 체크 결과
 
-## O/X 평가 결과 분석
+학습자가 직접 선택한 배경지식 평가 결과를 바탕으로 한 맞춤형 학습 가이드입니다.
 
-**총 ${quizAttempts?.length || 0}문제 중 ${correctQuizzes.length}개 정답, ${incorrectQuizzes.length}개 오답**
-
-### 오답 문제 상세 (특별 주의 필요)
-${incorrectQuizzes.map(attempt => {
-  const nodeInfo = knowledgeNodes.find(n => n.id === attempt.quiz_items?.node_id)
-  return `
-**문제**: ${attempt.quiz_items?.question}
-- 관련 개념: ${nodeInfo?.name || '알 수 없음'}
-- 사용자 답: ${attempt.user_answer}
-- 정답: ${attempt.quiz_items?.correct_answer}
-- 해설: ${attempt.quiz_items?.explanation || ''}
+**중요**: 학습자가 "모르겠다"고 체크한 개념들을 중점적으로 설명하고,
+이미 알고 있는 개념들을 활용하여 새로운 개념을 쉽게 이해할 수 있도록 연결해주세요.
 `
-}).join('\n')}
-
-### 정답 문제 (간단 복습)
-${correctQuizzes.slice(0, 5).map(attempt => 
-  `- ${attempt.quiz_items?.question} (정답: ${attempt.quiz_items?.correct_answer})`
-).join('\n')}
-
-**중요**: 각 페이지 해설 시, 오답 문제와 관련된 내용이 나오면 특별히 강조하고, 
-왜 틀렸는지 상세히 설명하며, 올바른 이해를 위한 추가 예시를 제공하세요.
-` : ''
 
     // Generate study guide using Gemini
     const studyGuideContext = unknownConcepts.length > 0 ? `
@@ -211,9 +169,19 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
 이제 더 깊이 있는 이해와 실제 활용을 위한 심화 학습 가이드를 제공합니다.
 `
 
-    const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}${oxQuizContext}`
+    const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}${assessmentContext}`
 
-    const result = await geminiStudyGuidePageModel.generateContent({
+    // Add retry logic for Gemini API calls
+    let result
+    let retryCount = 0
+    const maxRetries = 3
+    const retryDelays = [2000, 5000, 10000] // Exponential backoff
+    
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`Attempting Gemini API call (attempt ${retryCount + 1}/${maxRetries})...`)
+        
+        result = await geminiStudyGuidePageModel.generateContent({
       contents: [
         {
           parts: [
@@ -229,7 +197,30 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
           ],
         },
       ],
-    })
+        })
+        
+        // If successful, break the loop
+        console.log('Gemini API call successful')
+        break
+      } catch (error: any) {
+        console.error(`Gemini API call failed (attempt ${retryCount + 1}):`, error.message)
+        
+        // Check if it's a 503 error (model overloaded)
+        if (error.status === 503 && retryCount < maxRetries - 1) {
+          const delay = retryDelays[retryCount]
+          console.log(`Waiting ${delay}ms before retry...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          retryCount++
+        } else {
+          // If not 503 or max retries reached, throw the error
+          throw error
+        }
+      }
+    }
+    
+    if (!result) {
+      throw new Error('Failed to generate study guide after multiple attempts')
+    }
     
     const response = result.text || ''
     

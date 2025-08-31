@@ -295,9 +295,7 @@ ${documentNodes.map((node) => `- ID: ${node.id}
                 .from('quiz_items')
                 .insert({
                   document_id: document.id,
-                  user_id: FIXED_USER_ID, // Add user_id - this was missing!
-                  subject_id: document.subject_id, // Also add subject_id for consistency
-                  node_id: nodeId, // Add the matched node ID
+                  node_id: nodeId, // Optional - can be null if no matching node found
                   question: question.question,
                   question_type: questionType,
                   options: question.options || [],
@@ -306,7 +304,7 @@ ${documentNodes.map((node) => `- ID: ${node.id}
                   explanation: question.explanation,
                   source_quote: question.source_quote,
                   difficulty: question.difficulty || 'medium',
-                  is_assessment: false, // This is the key fix - explicitly set for quiz practice
+                  is_assessment: false, // This is for practice quiz, not assessment
                   template: question.template || null,
                   blanks: question.blanks || null,
                   left_items: question.left_items || null,
