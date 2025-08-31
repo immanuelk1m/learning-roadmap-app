@@ -89,11 +89,11 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
         unknown: 'bg-red-50 border-red-300 text-red-900'
       }
 
-      // Root level nodes get stronger styling
+      // Root level nodes get same styling as other levels
       if (isRootLevel) {
         return {
-          known: 'bg-green-500 border-green-600 text-white',
-          unknown: 'bg-red-500 border-red-600 text-white'
+          known: 'bg-green-50 border-green-300 text-green-900',
+          unknown: 'bg-red-50 border-red-300 text-red-900'
         }
       }
 
@@ -126,11 +126,7 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
           {hasChildren && (
             <button
               onClick={() => toggleExpand(node.id)}
-              className={`mr-3 mt-0.5 p-1 rounded-full transition-colors ${
-                isRootLevel 
-                  ? 'text-white/70 hover:text-white hover:bg-white/10' 
-                  : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
-              }`}
+              className={`mr-3 mt-0.5 p-1 rounded-full transition-colors text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100`}
             >
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4" />
@@ -142,9 +138,7 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
           {!hasChildren && <div className="w-8" />}
 
           {/* Level indicator */}
-          <div className={`mr-3 mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
-            isRootLevel ? 'bg-white/50' : 'bg-neutral-400'
-          }`}></div>
+          <div className={`mr-3 mt-1 w-2 h-2 rounded-full flex-shrink-0 bg-neutral-400`}></div>
 
           <div className="flex-1">
             <div className="flex items-start justify-between">
@@ -158,15 +152,11 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
                         {node.name}
                       </h3>
                     </div>
-                    <p className={`text-sm mt-1 ${
-                      isRootLevel ? 'text-white/90' : 'text-neutral-600'
-                    }`}>
+                    <p className={`text-sm mt-1 text-neutral-600`}>
                       {node.description}
                     </p>
                     {node.prerequisites.length > 0 && (
-                      <p className={`text-xs mt-2 ${
-                        isRootLevel ? 'text-white/70' : 'text-neutral-500'
-                      }`}>
+                      <p className={`text-xs mt-2 text-neutral-500`}>
                         선수 지식: {node.prerequisites.join(', ')}
                       </p>
                     )}
