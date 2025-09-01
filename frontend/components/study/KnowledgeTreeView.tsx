@@ -154,11 +154,6 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
                     <p className={`text-sm mt-1 text-neutral-600`}>
                       {node.description}
                     </p>
-                    {node.prerequisites.length > 0 && (
-                      <p className={`text-xs mt-2 text-neutral-500`}>
-                        선수 지식: {node.prerequisites.join(', ')}
-                      </p>
-                    )}
                   </div>
                   {/* Status indicator */}
                   <div className={`ml-4 px-3 py-1 rounded-full text-xs font-medium ${
