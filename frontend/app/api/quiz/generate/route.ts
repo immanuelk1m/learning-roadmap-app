@@ -32,16 +32,15 @@ export async function POST(request: NextRequest) {
       .select('*')
       .in('id', nodeIds)
 
-    // Get user's weak points
-    const { data: userStatus } = await supabase
-      .from('user_knowledge_status')
+    // Get user's weak points based on understanding level
+    const { data: userNodes } = await supabase
+      .from('knowledge_nodes')
       .select('*')
       .eq('user_id', FIXED_USER_ID)
-      .in('node_id', nodeIds)
-      .in('status', ['unknown', 'unclear'])
+      .in('id', nodeIds)
 
-    const weakNodes = nodes?.filter(node => 
-      userStatus?.some(status => status.node_id === node.id)
+    const weakNodes = userNodes?.filter(node => 
+      node.understanding_level !== null && node.understanding_level < 70
     ) || []
 
     // Get file content from storage
@@ -70,7 +69,7 @@ ${QUIZ_GENERATION_PROMPT}
 ${weakNodes.map((node, index) => `
 ${index + 1}. **${node.name}**
    - 설명: ${node.description}
-   - 선수 지식: ${node.prerequisites?.length > 0 ? node.prerequisites.join(', ') : '없음'}
+   - 선수 지식: ${node.prerequisites && node.prerequisites.length > 0 ? node.prerequisites.join(', ') : '없음'}
    - 난이도 수준: ${node.level === 0 ? '기초' : node.level === 1 ? '중급' : '고급'}`).join('\n')}
 
 ## 문제 생성 지침
@@ -121,6 +120,28 @@ ${index + 1}. **${node.name}**
       { documentId, responseType: 'quiz_generation' }
     )
 
+    // Create a quiz set first
+    const { data: quizSet, error: quizSetError } = await supabase
+      .from('quiz_sets')
+      .insert({
+        document_id: documentId,
+        name: `자동 생성 문제집 - ${new Date().toLocaleDateString('ko-KR')}`,
+        description: `AI가 생성한 ${quizData.questions.length}개 문제`,
+        question_count: quizData.questions.length,
+        generation_method: 'auto',
+        status: 'active'
+      })
+      .select()
+      .single()
+
+    if (quizSetError || !quizSet) {
+      console.error('Error creating quiz set:', quizSetError)
+      return NextResponse.json(
+        { error: 'Failed to create quiz set' },
+        { status: 500 }
+      )
+    }
+
     // Save quiz items to database
     const quizItems = await Promise.all(
       quizData.questions.map(async (question) => {
@@ -128,12 +149,13 @@ ${index + 1}. **${node.name}**
           question.source_quote.toLowerCase().includes(node.name.toLowerCase())
         )
 
-        const { data } = await supabase
+        const { data: quizItem } = await supabase
           .from('quiz_items')
           .insert({
             document_id: documentId,
-            node_id: targetNode?.id || null,
+            quiz_set_id: quizSet.id,
             question: question.question,
+            question_type: 'multiple_choice',
             options: question.options,
             correct_answer: question.correct_answer,
             explanation: question.explanation,
@@ -143,11 +165,26 @@ ${index + 1}. **${node.name}**
           .select()
           .single()
 
-        return data
+        // If there's a target node, create the relationship
+        if (quizItem && targetNode) {
+          await supabase
+            .from('quiz_item_nodes')
+            .insert({
+              quiz_item_id: quizItem.id,
+              node_id: targetNode.id,
+              is_primary: true,
+              relevance_score: 100
+            })
+        }
+
+        return quizItem
       })
     )
 
-    return NextResponse.json({ questions: quizItems })
+    return NextResponse.json({ 
+      quiz_set_id: quizSet.id,
+      questions: quizItems 
+    })
   } catch (error: any) {
     console.error('Quiz generation error:', error)
     return NextResponse.json(

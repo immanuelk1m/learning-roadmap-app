@@ -95,8 +95,13 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
         })
       }
       
-      prevDocumentsRef.current = data
-      setDocuments(data)
+      // Ensure status is never null
+      const normalizedData = data.map(doc => ({
+        ...doc,
+        status: doc.status || 'pending'
+      }))
+      prevDocumentsRef.current = normalizedData
+      setDocuments(normalizedData)
       setIsInitialLoading(false)
       
       // Check if we need to start or stop polling

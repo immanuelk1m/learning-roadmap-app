@@ -60,7 +60,19 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
       console.error('[SubjectDetailPage] Error refreshing documents:', error)
     } else if (data) {
       console.log('[SubjectDetailPage] Refreshed documents:', data.length)
-      setDocuments(data)
+      // Ensure status is never null and quiz_generation_status is properly typed
+      const normalizedDocs = data.map(doc => ({
+        ...doc,
+        status: doc.status || 'pending',
+        quiz_generation_status: doc.quiz_generation_status as { 
+          generated: boolean; 
+          count: number; 
+          last_attempt?: string;
+          practice_count?: number;
+          assessment_count?: number;
+        } | undefined
+      }))
+      setDocuments(normalizedDocs)
     }
   }
 

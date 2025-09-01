@@ -62,11 +62,11 @@ export async function POST(
 
     // Identify weak nodes (understanding_level < 70)
     const weakNodes = assessmentResults?.filter(
-      result => result.understanding_level < 70
+      result => result.understanding_level !== null && result.understanding_level < 70
     ) || []
     
     const strongNodes = assessmentResults?.filter(
-      result => result.understanding_level >= 70
+      result => result.understanding_level !== null && result.understanding_level >= 70
     ) || []
 
     console.log('Assessment analysis:', {
@@ -95,10 +95,10 @@ export async function POST(
 
     // Prepare assessment data for both generations
     const assessmentData = {
-      weakNodeIds: weakNodes.map(node => node.node_id),
-      strongNodeIds: strongNodes.map(node => node.node_id),
+      weakNodeIds: weakNodes.map(node => node.id),
+      strongNodeIds: strongNodes.map(node => node.id),
       assessmentResults: assessmentResults?.map(result => ({
-        nodeId: result.node_id,
+        nodeId: result.id,
         understandingLevel: result.understanding_level,
         assessmentMethod: result.assessment_method
       })) || []

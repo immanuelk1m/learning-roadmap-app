@@ -78,7 +78,9 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           .order('created_at', { ascending: false })
         
         if (!error && sessions) {
-          sessionsMap[doc.id] = sessions
+          // Filter out sessions with null document_id
+          const validSessions = sessions.filter(s => s.document_id !== null) as QuizSession[]
+          sessionsMap[doc.id] = validSessions
         }
       }
       
@@ -133,9 +135,11 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
         .order('created_at', { ascending: false })
       
       if (!error && sessions) {
+        // Filter out sessions with null document_id
+        const validSessions = sessions.filter(s => s.document_id !== null) as QuizSession[]
         setQuizSessions(prev => ({
           ...prev,
-          [documentId]: sessions
+          [documentId]: validSessions
         }))
       }
     } catch (error: any) {

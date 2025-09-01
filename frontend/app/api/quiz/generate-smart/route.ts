@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           id: node.id,
           name: node.name,
           understanding_level: node.understanding_level,
-          weight: node.understanding_level < 30 ? 3 : node.understanding_level < 50 ? 2 : 1
+          weight: (node.understanding_level ?? 0) < 30 ? 3 : (node.understanding_level ?? 0) < 50 ? 2 : 1
         })),
         status: 'active'
       })
@@ -109,8 +109,8 @@ ${EXTENDED_QUIZ_GENERATION_PROMPT}
 ${weakNodes.map((node, index) => `
 ${index + 1}. **${node.name}** (ID: ${node.id})
    - 설명: ${node.description}
-   - 현재 이해도: ${node.understanding_level}%
-   - 가중치: ${node.understanding_level < 30 ? '높음(3)' : node.understanding_level < 50 ? '중간(2)' : '낮음(1)'}`).join('\n')}
+   - 현재 이해도: ${node.understanding_level ?? 0}%
+   - 가중치: ${(node.understanding_level ?? 0) < 30 ? '높음(3)' : (node.understanding_level ?? 0) < 50 ? '중간(2)' : '낮음(1)'}`).join('\n')}
 
 ## 문제 생성 지침
 

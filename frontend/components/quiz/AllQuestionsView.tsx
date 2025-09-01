@@ -198,7 +198,13 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
       // Load quiz questions (not assessment ones) - handle both false and null values
       const { data: quizData, error: quizError } = await supabase
         .from('quiz_items')
-        .select('*')
+        .select(`
+          *,
+          quiz_item_nodes!inner (
+            node_id,
+            is_primary
+          )
+        `)
         .eq('document_id', documentId)
         .or('is_assessment.eq.false,is_assessment.is.null')
         .order('created_at', { ascending: true })
@@ -221,7 +227,12 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
         console.error('Error loading nodes:', nodeError)
       }
 
-      setQuestions(quizData || [])
+      // Map quiz data to include node_id from the relationship
+      const mappedQuestions = (quizData || []).map(item => ({
+        ...item,
+        node_id: item.quiz_item_nodes?.[0]?.node_id || null
+      }))
+      setQuestions(mappedQuestions as ExtendedQuizQuestion[])
       setNodes(nodeData || [])
       
       // Load or create session after questions are loaded
@@ -375,10 +386,10 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
       
       // Get current status for this node
       const { data: currentStatus } = await supabase
-        .from('user_knowledge_status')
+        .from('knowledge_nodes')
         .select('understanding_level, review_count')
         .eq('user_id', FIXED_USER_ID)
-        .eq('node_id', question.node_id)
+        .eq('id', question.node_id)
         .single()
 
       const currentLevel = currentStatus?.understanding_level || 0
@@ -406,15 +417,16 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
 
       // Update the node's understanding level
       await supabase
-        .from('user_knowledge_status')
-        .upsert({
-          user_id: FIXED_USER_ID,
-          node_id: question.node_id,
+        .from('knowledge_nodes')
+        .update({
           understanding_level: newLevel,
           assessment_method: 'quiz',
           last_reviewed: new Date().toISOString(),
-          review_count: (currentStatus?.review_count || 0) + 1
+          review_count: (currentStatus?.review_count || 0) + 1,
+          updated_at: new Date().toISOString()
         })
+        .eq('id', question.node_id)
+        .eq('user_id', FIXED_USER_ID)
     }
 
     setKnowledgeUpdates({ improved, declined })

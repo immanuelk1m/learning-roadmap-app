@@ -41,8 +41,6 @@ export default function RecentDocuments() {
             id,
             title,
             status,
-            processing_status,
-            processing_error,
             created_at,
             subject_id,
             subjects (
@@ -65,9 +63,9 @@ export default function RecentDocuments() {
           const transformedDocs = documentsData.map(doc => ({
             id: doc.id,
             title: doc.title,
-            status: doc.status,
-            processing_status: doc.processing_status,
-            processing_error: doc.processing_error,
+            status: doc.status || 'pending',
+            processing_status: undefined,
+            processing_error: undefined,
             created_at: doc.created_at,
             subject_id: doc.subject_id,
             subject: doc.subjects as any

@@ -59,12 +59,11 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
         .from('quiz_items')
         .select('*')
         .eq('document_id', documentId)
-        .in('node_id', nodeIds)
         .in('question_type', ['multiple_choice', 'true_false', 'short_answer', 'fill_in_blank', 'matching'])
         .limit(8)
 
       if (data && data.length > 0) {
-        setQuestions(data)
+        setQuestions(data as ExtendedQuizQuestion[])
       }
     } catch (error) {
       console.error('Error loading quiz:', error)
@@ -100,10 +99,10 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
 
   const updateKnowledgeStatus = async (nodeId: string, isCorrect: boolean) => {
     const { data: currentStatus } = await supabase
-      .from('user_knowledge_status')
+      .from('knowledge_nodes')
       .select('understanding_level')
       .eq('user_id', FIXED_USER_ID)
-      .eq('node_id', nodeId)
+      .eq('id', nodeId)
       .single()
 
     let newLevel = currentStatus?.understanding_level || 50
@@ -115,15 +114,14 @@ export default function ExtendedQuizView({ documentId, nodeIds, subjectId }: Ext
     }
 
     await supabase
-      .from('user_knowledge_status')
-      .upsert({
-        user_id: FIXED_USER_ID,
-        node_id: nodeId,
+      .from('knowledge_nodes')
+      .update({
         understanding_level: newLevel,
-        status: newLevel >= 80 ? 'known' : newLevel >= 50 ? 'unclear' : 'unknown',
         assessment_method: 'quiz',
         updated_at: new Date().toISOString()
       })
+      .eq('id', nodeId)
+      .eq('user_id', FIXED_USER_ID)
   }
 
   const handleNext = () => {

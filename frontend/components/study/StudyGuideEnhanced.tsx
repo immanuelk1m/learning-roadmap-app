@@ -77,7 +77,19 @@ export default function StudyGuideEnhanced({ documentId, userId }: StudyGuidePro
       }
 
       if (guide) {
-        setStudyGuide(guide)
+        // Normalize guide data to match StudyGuideData type
+        const normalizedGuide = {
+          ...guide,
+          content: '', // Content is stored in pages
+          known_concepts: guide.known_concepts || [],
+          unknown_concepts: guide.unknown_concepts || [],
+          generation_method: (guide.generation_method === 'pages' || guide.generation_method === 'legacy') 
+            ? guide.generation_method as 'pages' | 'legacy'
+            : undefined,
+          document_title: guide.document_title || undefined,
+          total_pages: guide.total_pages || undefined
+        }
+        setStudyGuide(normalizedGuide)
         
         // If it's a page-based guide, load the pages
         if (guide.generation_method === 'pages') {
@@ -90,7 +102,21 @@ export default function StudyGuideEnhanced({ documentId, userId }: StudyGuidePro
           if (pagesError) {
             console.error('Error loading study guide pages:', pagesError)
           } else if (pages) {
-            setStudyGuidePages(pages)
+            // Normalize pages data to match StudyGuidePage type
+            const normalizedPages = pages.map(page => ({
+              ...page,
+              page_title: page.page_title || '',
+              key_concepts: page.key_concepts || [],
+              prerequisites: page.prerequisites || [],
+              learning_objectives: page.learning_objectives || [],
+              difficulty_level: (page.difficulty_level === 'easy' || page.difficulty_level === 'medium' || page.difficulty_level === 'hard')
+                ? page.difficulty_level as 'easy' | 'medium' | 'hard'
+                : undefined,
+              original_content: page.original_content || undefined,
+              created_at: page.created_at || undefined,
+              updated_at: page.updated_at || undefined
+            }))
+            setStudyGuidePages(normalizedPages as StudyGuidePage[])
           }
         }
       }

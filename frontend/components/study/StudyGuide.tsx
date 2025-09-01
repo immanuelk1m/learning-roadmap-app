@@ -89,13 +89,33 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
       if (data) {
         // Sort pages by page_number if they exist
         if (data.study_guide_pages) {
-          data.study_guide_pages.sort((a: StudyGuidePage, b: StudyGuidePage) => 
+          data.study_guide_pages.sort((a, b) => 
             a.page_number - b.page_number
           )
         }
       }
 
-      setStudyGuide(data)
+      // Add content field for compatibility and ensure arrays are not null
+      const studyGuideWithContent = data ? {
+        ...data,
+        content: '', // Content is now in study_guide_pages
+        known_concepts: data.known_concepts || [],
+        unknown_concepts: data.unknown_concepts || [],
+        generation_method: (data.generation_method === 'pages' || data.generation_method === 'legacy') 
+          ? data.generation_method as 'pages' | 'legacy'
+          : undefined,
+        document_title: data.document_title || undefined,
+        total_pages: data.total_pages || undefined,
+        study_guide_pages: data.study_guide_pages?.map(page => ({
+          ...page,
+          page_title: page.page_title || '',
+          key_concepts: page.key_concepts || [],
+          prerequisites: page.prerequisites || [],
+          learning_objectives: page.learning_objectives || [],
+          difficulty_level: page.difficulty_level || undefined
+        })) || []
+      } : null
+      setStudyGuide(studyGuideWithContent as StudyGuideData | null)
     } catch (err: any) {
       console.error('Error loading study guide:', err)
       setError({
@@ -286,12 +306,6 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
           <p className="text-gray-600 mb-6">
             학습 전 배경지식 체크 결과를 바탕으로 개인 맞춤 퀵노트를 생성해보세요.
           </p>
-          <button
-            onClick={() => generateStudyGuide(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            페이지별 퀵노트 생성하기
-          </button>
         </div>
       </div>
     )

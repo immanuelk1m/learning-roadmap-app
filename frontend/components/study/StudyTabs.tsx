@@ -65,10 +65,10 @@ export default function StudyTabs({
 
       // Check if user has assessment records
       const { data: assessments } = await supabase
-        .from('user_knowledge_status')
+        .from('knowledge_nodes')
         .select('*')
         .eq('user_id', FIXED_USER_ID)
-        .in('node_id', nodeIds)
+        .in('id', nodeIds)
 
       console.log('[StudyTabs] User assessments:', assessments?.length || 0)
 

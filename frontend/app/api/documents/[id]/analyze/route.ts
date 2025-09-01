@@ -159,7 +159,7 @@ export async function POST(
         metadata: {
           title: document.title,
           filePath: document.file_path,
-          fileSize: `${(document.file_size / (1024 * 1024)).toFixed(2)} MB`,
+          fileSize: document.file_size ? `${(document.file_size / (1024 * 1024)).toFixed(2)} MB` : 'Unknown',
           status: document.status
         }
       })
@@ -178,9 +178,9 @@ export async function POST(
           progress: 20,
           filePath: document.file_path,
           fileSize: document.file_size,
-          fileSizeMB: `${(document.file_size / (1024 * 1024)).toFixed(2)} MB`,
+          fileSizeMB: document.file_size ? `${(document.file_size / (1024 * 1024)).toFixed(2)} MB` : 'Unknown',
           maxRetries,
-          estimatedTime: document.file_size > 10 * 1024 * 1024 ? 'May take longer for large file' : 'Should be quick'
+          estimatedTime: document.file_size && document.file_size > 10 * 1024 * 1024 ? 'May take longer for large file' : 'Should be quick'
         }
       })
       
@@ -975,9 +975,9 @@ export async function POST(
         },
         metrics: {
           fileSize: document.file_size,
-          fileSizeMB: `${(document.file_size / (1024 * 1024)).toFixed(2)} MB`,
+          fileSizeMB: document.file_size ? `${(document.file_size / (1024 * 1024)).toFixed(2)} MB` : 'Unknown',
           nodeCount: combinedData.nodes.length,
-          processingSpeed: `${(document.file_size / 1024 / 1024 / (totalDuration / 1000)).toFixed(2)} MB/s`,
+          processingSpeed: document.file_size ? `${(document.file_size / 1024 / 1024 / (totalDuration / 1000)).toFixed(2)} MB/s` : 'N/A',
           nodesPerSecond: `${(combinedData.nodes.length / (totalDuration / 1000)).toFixed(2)} nodes/s`
         }
       }

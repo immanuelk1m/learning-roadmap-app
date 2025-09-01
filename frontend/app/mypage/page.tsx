@@ -202,12 +202,12 @@ export default function MyPage() {
           type: 'document' as const,
           date: doc.updated_at
         })) || []),
-        ...(recentQuizzes.data?.map(quiz => ({
+        ...(recentQuizzes.data?.filter(quiz => quiz.created_at).map(quiz => ({
           id: quiz.id,
           title: '퀴즈 세션',
           type: 'quiz' as const,
-          date: quiz.created_at,
-          status: quiz.status
+          date: quiz.created_at!,
+          status: quiz.status || undefined
         })) || []),
         ...(recentGuides.data?.map(guide => ({
           id: guide.id,
