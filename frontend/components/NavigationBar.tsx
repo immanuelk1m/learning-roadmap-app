@@ -31,17 +31,21 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
         <div className="max-w-[1200px] mx-auto h-full px-4 md:px-6">
           {/* Desktop Layout */}
           <div className="hidden md:flex h-full items-center justify-between">
-            {/* Left Section: Hamburger Menu */}
-            <button
-              type="button"
-              aria-label="메뉴 열기"
-              className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
-              onClick={() => setIsOpen(true)}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
+            {/* Left Section: Hamburger Menu - Hide when drawer is open */}
+            {!isOpen ? (
+              <button
+                type="button"
+                aria-label="메뉴 열기"
+                className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(true)}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            ) : (
+              <div className="w-10 h-10" />
+            )}
 
             {/* Right Section: Logo + Welcome */}
             <div className="flex items-center gap-4">
@@ -53,17 +57,21 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
 
           {/* Mobile Layout */}
           <div className="flex md:hidden h-full items-center justify-between">
-            {/* Left: Hamburger Menu */}
-            <button
-              type="button"
-              aria-label="메뉴 열기"
-              className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700"
-              onClick={() => setIsOpen(true)}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
+            {/* Left: Hamburger Menu - Hide when drawer is open */}
+            {!isOpen ? (
+              <button
+                type="button"
+                aria-label="메뉴 열기"
+                className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700"
+                onClick={() => setIsOpen(true)}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            ) : (
+              <div className="w-10 h-10" />
+            )}
 
             {/* Right: Logo */}
             <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
