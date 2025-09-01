@@ -49,20 +49,19 @@ function NodeCard({
   // 모든 레벨 카드 크기 통일
   const sizeClass = 'w-48'
   
-  // 초록색 하나로 통일, 진하기로 구분
-  // 선택됨 = 진한 초록, 확장됨 = 연한 초록, 기본 = 회색
+  // 모든 상태를 진한 초록색으로 통일
   const borderClass = isSelected 
-    ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50'  // 진한 초록
+    ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50'  // 선택됨
     : isExpanded 
-    ? 'border-emerald-200 shadow-lg ring-1 ring-emerald-200/30'  // 연한 초록
-    : 'border-gray-200 hover:border-gray-400'
+    ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50'  // 확장됨
+    : 'border-gray-200 hover:border-gray-400'  // 기본
   
-  // 배경색도 초록색 진하기로 구분
+  // 배경색도 모두 진한 초록색으로 통일
   const bgClass = isSelected 
-    ? 'bg-emerald-50'  // 진한 초록 배경
+    ? 'bg-emerald-50'  // 선택됨
     : isExpanded 
-    ? 'bg-emerald-50/30'  // 아주 연한 초록 배경
-    : 'bg-white'
+    ? 'bg-emerald-50'  // 확장됨
+    : 'bg-white'  // 기본
   
   // 커서 스타일
   const cursorClass = 'cursor-pointer'
