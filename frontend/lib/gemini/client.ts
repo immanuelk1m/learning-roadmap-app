@@ -145,9 +145,9 @@ export const geminiQuizModel = {
 export const geminiCombinedModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Combined API Call ===')
-    console.log('Model: gemini-2.5-flash-lite')
-    console.log('Temperature: 0.2')
-    console.log('Max output tokens: 12000')
+    console.log('Model: gemini-2.5-flash')
+    console.log('Temperature: 0.3')
+    console.log('Max output tokens: 16384')
     console.log('Response type: JSON with combined schema')
     
     try {
@@ -155,11 +155,11 @@ export const geminiCombinedModel = {
       const startTime = Date.now()
       
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash-lite',
+        model: 'gemini-2.5-flash',
         contents: input.contents,
         config: {
-          temperature: 0.5, // Lower for consistency
-          maxOutputTokens: 12000, // Reduced for lite model
+          temperature: 0.3, // Lower for consistency
+          maxOutputTokens: 16384, // Increased for better response
           responseMimeType: "application/json",
           responseSchema: knowledgeTreeWithOXSchema,
           systemInstruction: "You are an expert curriculum designer and assessment creator for Korean university students. CRITICAL: Always respond in Korean language. All node names and descriptions MUST be in Korean. English abbreviations (like GDP, AI, API) can be used in names but descriptions must be fully in Korean. Never use English sentences or explanations. 모든 응답은 한국어로 작성하세요.",
