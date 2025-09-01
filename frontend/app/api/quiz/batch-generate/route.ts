@@ -231,6 +231,43 @@ ${documentNodes.map((node) => `- ID: ${node.id}
       if (quizData.questions && Array.isArray(quizData.questions)) {
         console.log(`[DEBUG] Starting to save ${quizData.questions.length} questions for document ${document.id}`)
         
+        // Create quiz_set first
+        const { data: quizSet, error: quizSetError } = await supabase
+          .from('quiz_sets')
+          .insert({
+            document_id: document.id,
+            name: `${document.title} 연습 문제`,
+            description: assessmentData ? '평가 기반 맞춤형 연습 문제' : '자동 생성된 연습 문제 세트',
+            question_count: quizData.questions.length,
+            generation_method: 'auto',
+            difficulty_distribution: {
+              easy: quizData.questions.filter((q: any) => q.difficulty === 'easy').length,
+              medium: quizData.questions.filter((q: any) => q.difficulty === 'medium').length,
+              hard: quizData.questions.filter((q: any) => q.difficulty === 'hard').length
+            },
+            node_focus: assessmentData ? {
+              weak_nodes: assessmentData.weakNodeIds?.length || 0,
+              strong_nodes: assessmentData.strongNodeIds?.length || 0
+            } : null,
+            status: 'active'
+          })
+          .select()
+          .single()
+        
+        if (quizSetError || !quizSet) {
+          console.error(`[DEBUG] Failed to create quiz_set for document ${document.id}:`, {
+            error: quizSetError?.message,
+            code: quizSetError?.code
+          })
+          continue
+        }
+        
+        console.log(`[DEBUG] Created quiz_set for document ${document.id}:`, {
+          quizSetId: quizSet.id,
+          name: quizSet.name,
+          questionCount: quizSet.question_count
+        })
+        
         const quizItems = await Promise.all(
           quizData.questions.map(async (question: any, index: number) => {
             console.log(`[DEBUG] Processing question ${index + 1}/${quizData.questions.length}:`, {
@@ -294,6 +331,7 @@ ${documentNodes.map((node) => `- ID: ${node.id}
               const { data, error } = await supabase
                 .from('quiz_items')
                 .insert({
+                  quiz_set_id: quizSet.id, // Required - links to the quiz set
                   document_id: document.id,
                   node_id: nodeId, // Optional - can be null if no matching node found
                   question: question.question,

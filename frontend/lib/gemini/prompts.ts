@@ -25,24 +25,27 @@ export const KNOWLEDGE_TREE_PROMPT = `대한민국 고등학교 1학년 학생�
 - 문서에서 반복적으로 언급되는 개념
 - 다른 개념의 기초가 되는 내용
 
-**🚨 parent_id 설정 규칙 - 절대적으로 반드시 준수 🚨**
+**🚨 계층 구조 설정 규칙 - 절대적으로 반드시 준수 🚨**
 이 규칙을 따르지 않으면 시스템이 작동하지 않습니다!
+
+**중요: 실제 ID는 데이터베이스가 자동 생성합니다. temp_id와 parent_id로 계층 구조를 표현하세요.**
 
 1. **Level 1 노드 (최상위 개념)**
    - parent_id: null (절대 다른 값 불가)
-   - 예: {"id": "node_1", "parent_id": null, "level": 1}
+   - 예: {"temp_id": "node_1", "parent_id": null, "level": 1}
 
 2. **Level 2 노드 (중간 개념)**
-   - parent_id: 반드시 상위 Level 1 노드의 id
-   - ❌ 잘못된 예: {"id": "node_5", "parent_id": null, "level": 2}
-   - ✅ 올바른 예: {"id": "node_5", "parent_id": "node_1", "level": 2}
+   - parent_id: 반드시 상위 Level 1 노드의 temp_id
+   - ❌ 잘못된 예: {"temp_id": "node_5", "parent_id": null, "level": 2}
+   - ✅ 올바른 예: {"temp_id": "node_5", "parent_id": "node_1", "level": 2}
 
 3. **Level 3 노드 (세부 개념)**
-   - parent_id: 반드시 상위 Level 2 노드의 id
-   - ❌ 잘못된 예: {"id": "node_8", "parent_id": null, "level": 3}
-   - ✅ 올바른 예: {"id": "node_8", "parent_id": "node_5", "level": 3}
+   - parent_id: 반드시 상위 Level 2 노드의 temp_id
+   - ❌ 잘못된 예: {"temp_id": "node_8", "parent_id": null, "level": 3}
+   - ✅ 올바른 예: {"temp_id": "node_8", "parent_id": "node_5", "level": 3}
 
 **⚠️ 경고: parent_id가 null인 노드는 Level 1만 가능합니다! ⚠️**
+**⚠️ 경고: 실제 id 필드를 절대 생성하지 마세요! ⚠️**
 
 **parent_id 작성 단계별 가이드:**
 1단계: Level 1 노드들을 먼저 생성 (parent_id: null)
@@ -355,7 +358,7 @@ export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 �
 3. **균형성**: 너무 쉽거나 어려운 문제만 내지 않기
 4. **명확성**: 모든 문제는 명확하고 혼동의 여지가 없어야 함
 5. **교육적 가치**: 틀려도 학습이 일어나는 문제
-6. **node_id**: 관련 개념 노드가 제공된 경우 반드시 포함
+6. **node_name**: 관련 개념 노드 이름 (매칭용)
 
 학습자의 이해도를 정확히 평가하고 학습 동기를 높일 수 있는 다양하고 흥미로운 문제를 생성하세요.`
 
