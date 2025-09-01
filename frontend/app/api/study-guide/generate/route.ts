@@ -217,9 +217,15 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
       throw new Error('Failed to generate study guide after multiple attempts')
     }
     
+    // Gemini API response structure handling - result.text is a getter property
     const response = result.text || ''
     
     if (!response) {
+      console.error('Failed to extract text from Gemini response. Result structure:', {
+        hasText: 'text' in result,
+        textType: typeof result.text,
+        resultKeys: Object.keys(result)
+      })
       throw new Error('Empty response from Gemini API')
     }
     
