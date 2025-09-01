@@ -89,9 +89,11 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
                 >
                   {/* 상단 헤더 */}
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-[11px] bg-[rgba(255,255,255,0.2)] px-2 py-1 rounded-[4px]">
-                      {statusLabel}
-                    </span>
+                    {progress > 0 && (
+                      <span className="text-[11px] bg-[rgba(255,255,255,0.2)] px-2 py-1 rounded-[4px]">
+                        {statusLabel}
+                      </span>
+                    )}
                     {subject.documents_processing > 0 && (
                       <span className="text-[10px] bg-[rgba(255,255,255,0.3)] px-2 py-1 rounded-[4px] animate-pulse">
                         처리중
@@ -125,21 +127,6 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
                       {subject.exam_date && (
                         <span>D-{Math.ceil((new Date(subject.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}</span>
                       )}
-                    </div>
-                    <div className="flex gap-2 text-[10px]">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                          <path fillRule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-1a1 1 0 100-2h1a4 4 0 014 4v6a4 4 0 01-4 4H6a4 4 0 01-4-4V7a4 4 0 014-4z" clipRule="evenodd" />
-                        </svg>
-                        <span>{subject.total_documents}개 문서</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span>{subject.incomplete_nodes}개 미완료</span>
-                      </div>
                     </div>
                   </div>
                 </div>
