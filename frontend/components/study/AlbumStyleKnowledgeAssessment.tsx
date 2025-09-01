@@ -393,16 +393,29 @@ export default function AlbumStyleKnowledgeAssessment({
       {/* 하단 상태 바 및 제출 버튼 */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg">
         <div className="max-w-4xl mx-auto flex items-center justify-end">
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting || isGeneratingStudyGuide}
-            className="px-6 py-2.5 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {(isSubmitting || isGeneratingStudyGuide) && (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            )}
-            {selectedNodes.size === 0 ? '전부 다 모르겠어요!' : '평가 완료하고 학습 시작'}
-          </button>
+          {selectedNodes.size === 0 ? (
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || isGeneratingStudyGuide}
+              className="px-6 py-2.5 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {(isSubmitting || isGeneratingStudyGuide) && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              전부 다 모르겠어요!
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || isGeneratingStudyGuide}
+              className="px-6 py-2.5 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {(isSubmitting || isGeneratingStudyGuide) && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              평가 완료하고 학습 시작
+            </button>
+          )}
         </div>
       </div>
 
