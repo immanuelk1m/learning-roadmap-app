@@ -240,7 +240,6 @@ export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 �
       "explanation": "해설",
       "source_quote": "PDF 원문",
       "difficulty": "easy|medium|hard",
-      "node_id": "관련 개념 노드 ID (제공된 경우)",
       "node_name": "관련 개념 노드 이름"
     },
     {
@@ -250,7 +249,6 @@ export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 �
       "explanation": "해설",
       "source_quote": "PDF 원문",
       "difficulty": "easy|medium|hard",
-      "node_id": "관련 개념 노드 ID (제공된 경우)",
       "node_name": "관련 개념 노드 이름"
     },
     {
@@ -261,7 +259,6 @@ export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 �
       "explanation": "해설",
       "source_quote": "PDF 원문",
       "difficulty": "easy|medium|hard",
-      "node_id": "관련 개념 노드 ID (제공된 경우)",
       "node_name": "관련 개념 노드 이름"
     },
     {
@@ -278,7 +275,6 @@ export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 �
       "explanation": "해설",
       "source_quote": "PDF 원문",
       "difficulty": "easy|medium|hard",
-      "node_id": "관련 개념 노드 ID (제공된 경우)",
       "node_name": "관련 개념 노드 이름"
     },
     {
@@ -295,7 +291,6 @@ export const EXTENDED_QUIZ_GENERATION_PROMPT = `당신은 다양한 유형의 �
       "explanation": "해설",
       "source_quote": "PDF 원문",
       "difficulty": "easy|medium|hard",
-      "node_id": "관련 개념 노드 ID (제공된 경우)",
       "node_name": "관련 개념 노드 이름"
     }
   ]
