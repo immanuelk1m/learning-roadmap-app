@@ -202,49 +202,6 @@ export const geminiOXQuizModel = {
   }
 }
 
-// Study Guide Generation Model configuration
-export const geminiStudyGuideModel = {
-  generateContent: async (input: any) => {
-    console.log('=== Gemini Study Guide API Call ===')
-    console.log('Model: gemini-2.5-flash')
-    console.log('Temperature: 0.6')
-    console.log('Max output tokens: 32768')
-    console.log('Response type: JSON with simplified schema')
-    
-    try {
-      console.log('Sending study guide request to Gemini API...')
-      const startTime = Date.now()
-      
-      const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: input.contents,
-        config: {
-          temperature: 0.6,
-          maxOutputTokens: 32768, // Increased for comprehensive content
-          responseMimeType: "application/json",
-          responseSchema: studyGuideSchema,
-          systemInstruction: "You are an expert educational content creator for Korean university students. Create comprehensive but concise study guides with clear structure. Follow the JSON schema strictly. Keep sections under 1000 characters and limit key points to 5 per section. Always write in Korean.",
-        },
-      })
-      
-      const endTime = Date.now()
-      console.log(`Gemini Study Guide API call completed in ${endTime - startTime}ms`)
-      
-      if (!result) {
-        console.error('Gemini Study Guide API returned null result')
-        throw new Error('Gemini Study Guide API returned null result')
-      }
-      
-      return result
-    } catch (error: any) {
-      console.error('=== Gemini Study Guide API Error ===')
-      console.error('Error type:', error.constructor.name)
-      console.error('Error message:', error.message)
-      console.error('Error details:', error)
-      throw error
-    }
-  }
-}
 
 // Basic model for general use
 export const geminiModel = {
@@ -284,7 +241,7 @@ export const geminiStudyGuidePageModel = {
     console.log('=== Gemini Study Guide Page API Call ===')
     console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.7')
-    console.log('Max output tokens: 32768')
+    console.log('Max output tokens: 65500')
     console.log('Response type: JSON with page-by-page schema')
     
     try {
@@ -296,7 +253,7 @@ export const geminiStudyGuidePageModel = {
         contents: input.contents,
         config: {
           temperature: 0.7,
-          maxOutputTokens: 32768,
+          maxOutputTokens: 65500,
           responseMimeType: "application/json",
           responseSchema: studyGuidePageSchema,
           systemInstruction: "You are an expert educational content creator for Korean university students. Analyze PDF documents page by page and create detailed, customized explanations for each page based on the student's knowledge level. Always write in Korean. Focus on clarity and educational value.",
