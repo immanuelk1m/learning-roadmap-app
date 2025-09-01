@@ -237,7 +237,7 @@ ${documentNodes.map((node) => `- ID: ${node.id}
           .insert({
             document_id: document.id,
             name: `${document.title} 연습 문제`,
-            description: assessmentData ? '평가 기반 맞춤형 연습 문제' : '자동 생성된 연습 문제 세트',
+            description: userAssessmentData ? '평가 기반 맞춤형 연습 문제' : '자동 생성된 연습 문제 세트',
             question_count: quizData.questions.length,
             generation_method: 'auto',
             difficulty_distribution: {
@@ -245,9 +245,9 @@ ${documentNodes.map((node) => `- ID: ${node.id}
               medium: quizData.questions.filter((q: any) => q.difficulty === 'medium').length,
               hard: quizData.questions.filter((q: any) => q.difficulty === 'hard').length
             },
-            node_focus: assessmentData ? {
-              weak_nodes: assessmentData.weakNodeIds?.length || 0,
-              strong_nodes: assessmentData.strongNodeIds?.length || 0
+            node_focus: userAssessmentData ? {
+              weak_nodes: userAssessmentData.weakNodeIds?.length || 0,
+              strong_nodes: userAssessmentData.strongNodeIds?.length || 0
             } : null,
             status: 'active'
           })
