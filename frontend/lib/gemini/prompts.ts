@@ -9,11 +9,18 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
 4. 최대 20개 노드, 3단계 깊이
 5. 모든 설명은 한국어로 작성
 
-**계층 구조 설정 규칙 (매우 중요):**
+**계층 구조 설정 규칙 (매우 중요 - 반드시 준수):**
 - level 1 노드: parent_id는 반드시 null (최상위 개념)
-- level 2 노드: parent_id는 해당 노드가 속한 level 1 노드의 id
-- level 3 노드: parent_id는 해당 노드가 속한 level 2 노드의 id
+- level 2 노드: parent_id는 반드시 해당 노드가 속한 level 1 노드의 id를 정확히 지정
+- level 3 노드: parent_id는 반드시 해당 노드가 속한 level 2 노드의 id를 정확히 지정
 - parent_id는 직접적인 부모 관계만 표현 (논리적 계층 구조)
+- 모든 level 2, 3 노드는 반드시 parent_id를 가져야 함 (null 불가)
+
+**parent_id 작성 규칙:**
+- level 1 노드를 생성한 후, 해당 노드의 id (예: "node_1")를 기억
+- level 2 노드 생성 시, 관련된 level 1 노드의 id를 parent_id로 지정
+- level 3 노드 생성 시, 관련된 level 2 노드의 id를 parent_id로 지정
+- 예: level 2의 "기술통계"는 level 1의 "통계학"(node_1)의 하위 개념이므로 parent_id: "node_1"
 
 **좋은 예시 (반드시 한국어 사용):**
 - name: "PER", description: "주가수익비율, 주가를 주당순이익으로 나눈 지표"
@@ -27,7 +34,7 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
 - "투자의 이해는 투자를 이해하는 것"
 - name: "Interest Rate", description: "The cost of borrowing money" (영어 사용 금지)
 
-**JSON 형식 (올바른 계층 구조 예시):**
+**올바른 계층 구조 JSON 형식 (반드시 이 형식을 따를 것):**
 {
   "nodes": [
     {
@@ -44,7 +51,7 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
       "name": "기술통계",
       "description": "데이터의 특성을 요약하는 통계 방법",
       "level": 2,
-      "prerequisites": ["node_1"]
+      "prerequisites": ["통계학"]
     },
     {
       "id": "node_3",
@@ -52,18 +59,39 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
       "name": "평균",
       "description": "모든 값의 합을 개수로 나눈 값",
       "level": 3,
-      "prerequisites": ["node_2"]
+      "prerequisites": ["기술통계"]
     },
     {
       "id": "node_4",
+      "parent_id": "node_2",
+      "name": "중앙값",
+      "description": "데이터를 크기순으로 정렬했을 때 중앙에 위치한 값",
+      "level": 3,
+      "prerequisites": ["기술통계"]
+    },
+    {
+      "id": "node_5",
       "parent_id": "node_1",
       "name": "추론통계",
       "description": "표본에서 모집단을 추정하는 통계 방법",
       "level": 2,
-      "prerequisites": ["node_1"]
+      "prerequisites": ["통계학"]
+    },
+    {
+      "id": "node_6",
+      "parent_id": "node_5",
+      "name": "가설검정",
+      "description": "통계적 유의성을 판단하는 방법",
+      "level": 3,
+      "prerequisites": ["추론통계"]
     }
   ]
-}`
+}
+
+**반드시 확인:**
+- 모든 level 2 노드는 특정 level 1 노드의 id를 parent_id로 가져야 함
+- 모든 level 3 노드는 특정 level 2 노드의 id를 parent_id로 가져야 함
+- parent_id가 null인 것은 level 1 노드뿐임`
 
 
 export const QUIZ_GENERATION_PROMPT = `당신은 모든 문제의 근거를 명확히 제시하는 꼼꼼한 대학교 시험 출제위원입니다.
