@@ -72,7 +72,17 @@ function NodeCard({
     >
       <div 
         className={`relative ${bgClass} rounded-xl border-3 transition-all ${cursorClass} hover:shadow-lg h-full ${borderClass}`}
-        onClick={hasChildren ? onToggleExpansion : onToggleSelection}
+        onClick={() => {
+          if (hasChildren) {
+            onToggleExpansion()
+            // Level 1 노드는 확장과 동시에 선택도 가능
+            if (level === 1) {
+              onToggleSelection()
+            }
+          } else {
+            onToggleSelection()
+          }
+        }}
       >
         <div className="p-5">
           <div className="flex flex-col gap-3">
