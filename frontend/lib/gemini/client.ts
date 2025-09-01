@@ -239,7 +239,7 @@ export const geminiExtendedQuizModel = {
 export const geminiStudyGuidePageModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Study Guide Page API Call ===')
-    console.log('Model: gemini-2.5-flash')
+    console.log('Model: gemini-2.5-pro')
     console.log('Temperature: 0.7')
     console.log('Max output tokens: 65500')
     console.log('Response type: JSON with page-by-page schema')
@@ -249,7 +249,7 @@ export const geminiStudyGuidePageModel = {
       const startTime = Date.now()
       
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         contents: input.contents,
         config: {
           temperature: 0.7,
