@@ -23,8 +23,8 @@ export default function DocumentStatus({ initialStatus }: DocumentStatusProps) {
       case 'processing':
         return {
           icon: null,
-          text: '분석 중',
-          className: 'text-blue-600 bg-blue-50',
+          text: '',
+          className: '',
         }
       case 'completed':
         return {
@@ -48,6 +48,11 @@ export default function DocumentStatus({ initialStatus }: DocumentStatusProps) {
   }
 
   const { icon, text, className } = getStatusDisplay()
+
+  // processing 상태일 때는 아무것도 렌더링하지 않음
+  if (status === 'processing') {
+    return null
+  }
 
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
