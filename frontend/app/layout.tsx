@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
+'use client'
+
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import NavigationBar from "@/components/NavigationBar";
+import { useState } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,24 +16,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "AI PDF 학습 서비스",
-  description: "AI 기반 PDF 학습 서비스 - 대학생을 위한 스마트 학습 플랫폼",
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   return (
     <html lang="ko">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen text-[15px] overflow-x-hidden`}
       >
         <ToastProvider>
-          <NavigationBar />
-          <div className="pt-[65px] min-h-[calc(100vh-65px)]">
+          <NavigationBar isOpen={isDrawerOpen} setIsOpen={setIsDrawerOpen} />
+          <div 
+            className={`pt-[65px] min-h-[calc(100vh-65px)] transition-transform duration-300 ${
+              isDrawerOpen ? 'translate-x-72' : 'translate-x-0'
+            }`}
+          >
             {children}
           </div>
         </ToastProvider>
