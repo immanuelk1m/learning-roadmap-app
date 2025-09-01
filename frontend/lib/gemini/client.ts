@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema, studyGuidePageSchema, knowledgeTreeWithOXSchema } from './schemas'
 
 if (!process.env.GEMINI_API_KEY) {
@@ -12,7 +12,7 @@ console.log(`API Key present: ${process.env.GEMINI_API_KEY ? 'Yes' : 'No'}`)
 console.log(`API Key length: ${process.env.GEMINI_API_KEY?.length || 0} characters`)
 console.log(`API Key starts with: ${process.env.GEMINI_API_KEY?.substring(0, 6)}...`)
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 // Export the initialized AI instance for direct use
 export { genAI }
@@ -27,11 +27,9 @@ export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'app
   
   try {
     // Upload file using File API
-    const uploadResult = await genAI.files.upload({
-      file: fileData,
-      config: {
-        mimeType: mimeType
-      }
+    const uploadResult = await genAI.uploadFile(fileData, {
+      mimeType: mimeType,
+      displayName: `upload_${Date.now()}.pdf`
     })
     
     console.log(`File uploaded in ${Date.now() - startTime}ms`)
@@ -47,7 +45,7 @@ export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'app
       
       // Get updated file status
       if (file.name) {
-        file = await genAI.files.get({ name: file.name })
+        file = await genAI.getFile(file.name)
       } else {
         throw new Error('File name is missing from upload result')
       }
@@ -75,7 +73,7 @@ export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'app
 export const geminiKnowledgeTreeModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Knowledge Tree API Call ===')
-    console.log('Model: gemini-2.5-flash')
+    console.log('Model: gemini-2.0-flash-exp')
     console.log('Temperature: 0.3')
     console.log('Max output tokens: 16384')
     console.log('Response type: JSON with schema validation')
@@ -84,17 +82,18 @@ export const geminiKnowledgeTreeModel = {
       console.log('Sending request to Gemini API...')
       const startTime = Date.now()
       
-      const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: input.contents,
-        config: {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 16384,
           responseMimeType: "application/json",
           responseSchema: knowledgeTreeSchema,
-          systemInstruction: "You are an expert curriculum designer for Korean university students. Always respond in Korean language. Analyze educational content and create structured knowledge trees.",
         },
+        systemInstruction: "You are an expert curriculum designer for Korean university students. Always respond in Korean language. Analyze educational content and create structured knowledge trees.",
       })
+      
+      const result = await model.generateContent(input.contents)
       
       const endTime = Date.now()
       console.log(`Gemini API call completed in ${endTime - startTime}ms`)
@@ -127,17 +126,18 @@ export const geminiKnowledgeTreeModel = {
 // Quiz Generation Model configuration
 export const geminiQuizModel = {
   generateContent: async (input: any) => {
-    return genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: input.contents,
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
         temperature: 0.5,
         maxOutputTokens: 16384,
         responseMimeType: "application/json",
         responseSchema: quizSchema,
-        systemInstruction: "You are an expert quiz creator for Korean university students. Always create questions, options, and explanations in Korean language. Focus on testing understanding rather than memorization.",
       },
+      systemInstruction: "You are an expert quiz creator for Korean university students. Always create questions, options, and explanations in Korean language. Focus on testing understanding rather than memorization.",
     })
+    
+    return model.generateContent(input.contents)
   }
 }
 
@@ -145,7 +145,7 @@ export const geminiQuizModel = {
 export const geminiCombinedModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Combined API Call ===')
-    console.log('Model: gemini-2.5-flash')
+    console.log('Model: gemini-2.0-flash-exp')
     console.log('Temperature: 0.3')
     console.log('Max output tokens: 16384')
     console.log('Response type: JSON with combined schema')
@@ -154,17 +154,18 @@ export const geminiCombinedModel = {
       console.log('Sending combined request to Gemini API...')
       const startTime = Date.now()
       
-      const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: input.contents,
-        config: {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: {
           temperature: 0.3, // Lower for consistency
           maxOutputTokens: 16384, // Increased for better response
           responseMimeType: "application/json",
           responseSchema: knowledgeTreeWithOXSchema,
-          systemInstruction: "You are an expert curriculum designer and assessment creator for Korean university students. CRITICAL: Always respond in Korean language. All node names and descriptions MUST be in Korean. English abbreviations (like GDP, AI, API) can be used in names but descriptions must be fully in Korean. Never use English sentences or explanations. 모든 응답은 한국어로 작성하세요.",
         },
+        systemInstruction: "You are an expert curriculum designer and assessment creator for Korean university students. CRITICAL: Always respond in Korean language. All node names and descriptions MUST be in Korean. English abbreviations (like GDP, AI, API) can be used in names but descriptions must be fully in Korean. Never use English sentences or explanations. 모든 응답은 한국어로 작성하세요.",
       })
+      
+      const result = await model.generateContent(input.contents)
       
       const endTime = Date.now()
       console.log(`Gemini Combined API call completed in ${endTime - startTime}ms`)
@@ -188,16 +189,18 @@ export const geminiCombinedModel = {
 // O/X Quiz Generation Model configuration (keep for backward compatibility)
 export const geminiOXQuizModel = {
   generateContent: async (input: any) => {
-    return genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: input.contents,
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
         temperature: 0.4,
         maxOutputTokens: 16384, // Increased to prevent truncation
         responseMimeType: "application/json",
         responseSchema: oxQuizSchema,
-        systemInstruction: "You are an expert assessment creator for Korean university students. Create O/X (True/False) questions to evaluate student understanding of concepts. Always write questions and explanations in Korean.",
       },
+      systemInstruction: "You are an expert assessment creator for Korean university students. Create O/X (True/False) questions to evaluate student understanding of concepts. Always write questions and explanations in Korean.",
+    })
+    
+    return model.generateContent(input.contents)
     })
   }
 }
@@ -206,32 +209,34 @@ export const geminiOXQuizModel = {
 // Basic model for general use
 export const geminiModel = {
   generateContent: async (input: any) => {
-    return genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: input.contents || input,
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 16384,
-        systemInstruction: "You are a helpful AI assistant for Korean students. Always respond in Korean language unless specifically asked otherwise.",
       },
+      systemInstruction: "You are a helpful AI assistant for Korean students. Always respond in Korean language unless specifically asked otherwise.",
     })
+    
+    return model.generateContent(input.contents || input)
   }
 }
 
 // Extended Quiz Generation Model configuration
 export const geminiExtendedQuizModel = {
   generateContent: async (input: any) => {
-    return genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: input.contents,
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
         temperature: 0.6,
         maxOutputTokens: 16384,
         responseMimeType: "application/json",
         responseSchema: extendedQuizSchema,
-        systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
       },
+      systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
     })
+    
+    return model.generateContent(input.contents)
   }
 }
 
@@ -239,7 +244,7 @@ export const geminiExtendedQuizModel = {
 export const geminiStudyGuidePageModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Study Guide Page API Call ===')
-    console.log('Model: gemini-2.5-flash')
+    console.log('Model: gemini-2.0-flash-exp')
     console.log('Temperature: 0.7')
     console.log('Max output tokens: 50000')
     console.log('Response type: JSON with page-by-page schema')
@@ -248,17 +253,18 @@ export const geminiStudyGuidePageModel = {
       console.log('Sending page-based study guide request to Gemini API...')
       const startTime = Date.now()
       
-      const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: input.contents,
-        config: {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 50000,
           responseMimeType: "application/json",
           responseSchema: studyGuidePageSchema,
-          systemInstruction: "You are an expert educational content creator for Korean university students. Analyze PDF documents page by page and create detailed, customized explanations for each page based on the student's knowledge level. Always write in Korean. Focus on clarity and educational value.",
         },
+        systemInstruction: "You are an expert educational content creator for Korean university students. Analyze PDF documents page by page and create detailed, customized explanations for each page based on the student's knowledge level. Always write in Korean. Focus on clarity and educational value.",
       })
+      
+      const result = await model.generateContent(input.contents)
       
       const endTime = Date.now()
       console.log(`Gemini Page Study Guide API call completed in ${endTime - startTime}ms`)
