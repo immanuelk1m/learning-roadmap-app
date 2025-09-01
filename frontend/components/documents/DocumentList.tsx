@@ -469,25 +469,11 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                     </span>
                   </div>
                   
-                  {doc.page_count && (
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span className="font-medium">{doc.page_count}p</span>
-                    </div>
-                  )}
                 </div>
               </div>
               
               {/* Enhanced Metadata Pills */}
               <div className="flex flex-wrap gap-2 mb-4">
-                {doc.page_count && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100/80 rounded-lg text-xs font-medium text-slate-600">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    {doc.page_count} 페이지
-                  </div>
-                )}
                 {/* Show error message for failed documents */}
                 {(doc.status === 'failed' || doc.status === 'error') && (
                   <div className="w-full px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
