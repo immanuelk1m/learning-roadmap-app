@@ -73,7 +73,7 @@ export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'app
 export const geminiKnowledgeTreeModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Knowledge Tree API Call ===')
-    console.log('Model: gemini-2.0-flash-exp')
+    console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.3')
     console.log('Max output tokens: 16384')
     console.log('Response type: JSON with schema validation')
@@ -83,7 +83,7 @@ export const geminiKnowledgeTreeModel = {
       const startTime = Date.now()
       
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 16384,
@@ -145,7 +145,7 @@ export const geminiQuizModel = {
 export const geminiCombinedModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Combined API Call ===')
-    console.log('Model: gemini-2.0-flash-exp')
+    console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.3')
     console.log('Max output tokens: 16384')
     console.log('Response type: JSON with combined schema')
@@ -155,7 +155,7 @@ export const geminiCombinedModel = {
       const startTime = Date.now()
       
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         generationConfig: {
           temperature: 0.3, // Lower for consistency
           maxOutputTokens: 16384, // Increased for better response
@@ -244,7 +244,7 @@ export const geminiExtendedQuizModel = {
 export const geminiStudyGuidePageModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Study Guide Page API Call ===')
-    console.log('Model: gemini-2.0-flash-exp')
+    console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.7')
     console.log('Max output tokens: 50000')
     console.log('Response type: JSON with page-by-page schema')
@@ -254,7 +254,7 @@ export const geminiStudyGuidePageModel = {
       const startTime = Date.now()
       
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 50000,
