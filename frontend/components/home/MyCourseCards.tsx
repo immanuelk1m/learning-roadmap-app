@@ -42,11 +42,9 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
       <div className="flex justify-between items-center mb-4 flex-shrink-0">
         <div>
           <h2 className="text-[16px] font-semibold">My Course</h2>
-          <p className="text-[13px] text-gray-600">
-            {topSubjects.length > 0 
-              ? '진행 중인 과목들입니다.' 
-              : '새로운 과목을 추가해보세요.'}
-          </p>
+          {topSubjects.length === 0 && (
+            <p className="text-[13px] text-gray-600">새로운 과목을 추가해보세요.</p>
+          )}
         </div>
       </div>
 
