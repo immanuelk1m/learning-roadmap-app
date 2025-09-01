@@ -53,9 +53,9 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
   }
   
   return (
-    <div className="bg-white rounded-[5px] px-5 py-[20px] flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-[10px] px-5 py-5 flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden shadow-sm">
       <div className="flex justify-between items-center mb-4 flex-shrink-0 min-w-0">
-        <h2 className="text-[17px] font-bold">자료별 진행도</h2>
+        <h2 className="text-[16px] font-semibold">자료별 진행도</h2>
         <div className="flex gap-3">
           <button 
             onClick={() => setSortBy('progress')}
@@ -79,7 +79,7 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
       </div>
 
       <div 
-        className="border-t border-gray-200 pt-3 overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-0"
+        className="border-t border-gray-100 pt-3 overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-0"
         style={{ scrollbarGutter: 'stable both-edges' }}
       >
         {sortedDocuments.length === 0 ? (

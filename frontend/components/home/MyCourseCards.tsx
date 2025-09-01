@@ -38,10 +38,10 @@ export default function MyCourseCards({ subjects }: MyCourseCardsProps) {
   }
   
   return (
-    <div className="h-full bg-white rounded-[5px] shadow-lg p-5 flex flex-col min-h-0 overflow-hidden">
+    <div className="h-full bg-white border border-gray-200 rounded-[10px] shadow-sm p-5 flex flex-col min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-4 flex-shrink-0">
         <div>
-          <h2 className="text-[15px] font-bold">My Course</h2>
+          <h2 className="text-[16px] font-semibold">My Course</h2>
           <p className="text-[13px] text-gray-600">
             {topSubjects.length > 0 
               ? '진행 중인 과목들입니다.' 

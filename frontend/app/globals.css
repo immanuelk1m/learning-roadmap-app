@@ -132,6 +132,7 @@
 
 html, body {
   height: 100%;
+  overflow-x: hidden; /* Prevent global horizontal scrolling */
 }
 
 body {

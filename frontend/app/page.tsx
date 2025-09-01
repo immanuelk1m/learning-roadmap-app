@@ -93,20 +93,22 @@ export default function HomePage() {
   return (
     <main className="bg-[var(--color-background)] w-full min-h-full flex flex-col">
       {/* Main Content Container */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col flex-1">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col flex-1">
         {/* Main Content - 반응형 레이아웃 */}
-        <div className="pt-4 pb-[10px] flex-1 flex flex-col lg:flex-row gap-6">
+        <div className="py-6 lg:py-8 flex-1 flex flex-col lg:flex-row lg:items-stretch gap-8 min-h-0">
           {/* Left Column */}
-          <div className="flex-1 lg:max-w-[400px] flex flex-col">
-            {/* Today's Recommendation */}
-            <TodayRecommendation subjects={subjects} />
+          <div className="lg:w-[320px] lg:flex-none flex flex-col gap-4 min-h-0 h-full">
+            <div className="lg:sticky lg:top-[85px] flex flex-col gap-4 min-h-0 h-full">
+              {/* Today's Recommendation */}
+              <TodayRecommendation subjects={subjects} />
 
-            {/* Document Progress List */}
-            <DocumentProgressList documents={documents} />
+              {/* Document Progress List */}
+              <DocumentProgressList documents={documents} />
+            </div>
           </div>
 
           {/* Right Column */}
-          <div className="flex-1 flex flex-col gap-4">
+          <div className="flex-1 flex flex-col gap-6 min-w-0 min-h-0">
             {/* My Course Section - 반응형 비율 */}
             <div className="flex-[1.7] min-h-[300px]">
               <MyCourseCards subjects={subjects} />

@@ -20,8 +20,8 @@ export default function NavigationBar() {
   }, [isOpen])
 
   return (
-    <div className="fixed bg-white h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-200">
-      <div className="max-w-[1440px] mx-auto h-full px-4 md:px-6">
+    <div className="fixed bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-100">
+      <div className="max-w-[1200px] mx-auto h-full px-4 md:px-6">
         {/* Desktop Layout - 3단 구조 */}
         <div className="hidden md:flex h-full items-center justify-between">
           {/* Left Section: Logo + Welcome */}
@@ -62,12 +62,12 @@ export default function NavigationBar() {
           </nav>
 
           {/* Right Section: Profile */}
-          <div className="w-[50px] h-[50px] rounded-[10px] border border-[#e5e5e5] overflow-hidden bg-white flex-shrink-0 flex items-center justify-center">
+          <div className="w-[40px] h-[40px] rounded-[10px] border border-gray-200 overflow-hidden bg-white flex-shrink-0 flex items-center justify-center">
             <Image 
               src="/logo.png"
               alt="Logo"
-              width={48}
-              height={48}
+              width={40}
+              height={40}
               className="object-contain"
             />
           </div>

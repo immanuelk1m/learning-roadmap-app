@@ -97,9 +97,9 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
     : 0
   
   return (
-    <div className="flex-1 bg-white rounded-[5px] p-5 flex flex-col min-h-[200px]">
+    <div className="flex-1 bg-white border border-gray-200 rounded-[10px] p-5 flex flex-col min-h-[200px] shadow-sm">
       <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-[17px] font-bold text-[#212529]">학습활동 기록</h2>
+        <h2 className="text-[16px] font-semibold text-[#212529]">학습활동 기록</h2>
         <button
           onClick={() => router.push('/commits')}
           className="text-[11px] text-gray-600 hover:text-gray-800 px-3 py-1 rounded-md border border-gray-300 hover:border-gray-400 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
@@ -133,7 +133,7 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
             
             {/* 활동 그리드 */}
             <div 
-              className="grid grid-flow-col gap-[3px] p-2 bg-gray-50 rounded"
+              className="grid grid-flow-col gap-[3px] p-2 bg-gray-50 rounded border border-gray-100"
               style={{
                 gridTemplateRows: 'repeat(7, 12px)',
                 gridTemplateColumns: 'repeat(52, 12px)'
@@ -148,10 +148,10 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
                 return (
                   <div
                     key={i}
-                    className="w-[12px] h-[12px] rounded-[2px] transition-all hover:ring-2 hover:ring-gray-400 hover:ring-offset-1"
+                    className="w-[12px] h-[12px] rounded-[2px] transition-all hover:ring-2 hover:ring-gray-300 hover:ring-offset-1"
                     style={{
                       backgroundColor: hasActivity ? color : 'transparent',
-                      border: hasActivity ? 'none' : '1px dashed #d0d0d0'
+                      border: hasActivity ? 'none' : '1px dashed #e2e8f0'
                     }}
                     title={hasActivity 
                       ? `${item.date}: ${item.activity!.quiz_count}개 문제, 정답률 ${item.activity!.correct_rate}%`
