@@ -74,10 +74,10 @@ export default function NavigationBar() {
       {/* Drawer Panel */}
       <aside
         className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{ zIndex: 12000 }}
+        style={{ zIndex: 12000, backgroundColor: '#ffffff' }}
         aria-label="네비게이션 메뉴"
       >
-        <div className="h-[65px] flex items-center justify-between px-4 border-b">
+        <div className="h-[65px] flex items-center justify-between px-4 border-b border-gray-200 bg-white">
           <span className="text-[#212529] font-semibold text-lg">메뉴</span>
           <button
             className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
@@ -90,7 +90,7 @@ export default function NavigationBar() {
           </button>
         </div>
         
-        <nav className="p-4 flex flex-col gap-2">
+        <nav className="p-4 flex flex-col gap-2 bg-white">
           <Link 
             onClick={() => setIsOpen(false)} 
             href="/" 
