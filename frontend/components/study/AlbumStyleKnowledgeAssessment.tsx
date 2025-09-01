@@ -49,13 +49,11 @@ function NodeCard({
   // 모든 레벨 카드 크기 통일
   const sizeClass = 'w-48'
   
-  // 테두리 색상 결정: 선택됨 = emerald, 확장됨 = blue, 선택 불가 = red, 기본 = gray
+  // 테두리 색상 결정: 선택됨 = emerald, 확장됨 = blue, 기본 = gray
   const borderClass = isSelected 
     ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50' 
     : isExpanded 
     ? 'border-blue-500 shadow-xl ring-2 ring-blue-500/50' 
-    : !isSelectable && level > 1
-    ? 'border-red-200 hover:border-red-300'
     : 'border-gray-200 hover:border-gray-400'
   
   // 배경색 추가로 더 뚜렷하게
@@ -63,14 +61,10 @@ function NodeCard({
     ? 'bg-emerald-50' 
     : isExpanded 
     ? 'bg-blue-50' 
-    : !isSelectable && level > 1
-    ? 'bg-red-50/50'
     : 'bg-white'
   
   // 커서 스타일
-  const cursorClass = !isSelectable && level > 1 && !hasChildren
-    ? 'cursor-not-allowed'
-    : 'cursor-pointer'
+  const cursorClass = 'cursor-pointer'
   
   return (
     <div 
@@ -90,11 +84,6 @@ function NodeCard({
               <p className="text-sm text-gray-500 mt-2 line-clamp-3">
                 {node.description}
               </p>
-              {!isSelectable && level > 1 && !hasChildren && (
-                <p className="text-xs text-red-500 mt-2 font-medium">
-                  ⚠️ 상위 개념을 먼저 선택해주세요
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -148,12 +137,12 @@ export default function AlbumStyleKnowledgeAssessment({
           })
         })
       } else {
-        // 노드 선택 시 부모 노드가 선택되어 있는지 확인
+        // 노드 선택 시 부모 노드가 선택되거나 확장되어 있는지 확인
         if (node.level > 1) {
           const parentNode = nodes.find(n => n.id === node.parent_id)
-          if (parentNode && !prev.has(parentNode.id)) {
-            // 부모 노드가 선택되지 않았으면 선택 불가
-            toast.error(`먼저 상위 개념 "${parentNode.name}"을(를) 선택해주세요`)
+          if (parentNode && !prev.has(parentNode.id) && !expandedNodes.has(parentNode.id)) {
+            // 부모 노드가 선택되거나 확장되지 않았으면 선택 불가
+            toast.error(`먼저 상위 개념 "${parentNode.name}"을(를) 클릭해주세요`)
             return prev
           }
         }
@@ -377,11 +366,11 @@ export default function AlbumStyleKnowledgeAssessment({
             const childNodes = nodes.filter(n => n.parent_id === node.id)
             const hasChildren = childNodes.length > 0
             
-            // 부모 노드 선택 여부 확인
+            // 부모 노드 선택 여부 확인 - 부모가 선택되거나 확장된 경우 모두 선택 가능
             let isSelectable = true
             if (node.level > 1) {
               const parentNode = nodes.find(n => n.id === node.parent_id)
-              isSelectable = parentNode ? selectedNodes.has(parentNode.id) : false
+              isSelectable = parentNode ? (selectedNodes.has(parentNode.id) || expandedNodes.has(parentNode.id)) : false
             }
             
             return (
