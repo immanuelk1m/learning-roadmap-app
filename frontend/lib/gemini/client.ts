@@ -239,9 +239,9 @@ export const geminiExtendedQuizModel = {
 export const geminiStudyGuidePageModel = {
   generateContent: async (input: any) => {
     console.log('=== Gemini Study Guide Page API Call ===')
-    console.log('Model: gemini-2.5-pro')
+    console.log('Model: gemini-2.5-flash')
     console.log('Temperature: 0.7')
-    console.log('Max output tokens: 65500')
+    console.log('Max output tokens: 50000')
     console.log('Response type: JSON with page-by-page schema')
     
     try {
@@ -249,11 +249,11 @@ export const geminiStudyGuidePageModel = {
       const startTime = Date.now()
       
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: input.contents,
         config: {
           temperature: 0.7,
-          maxOutputTokens: 65500,
+          maxOutputTokens: 50000,
           responseMimeType: "application/json",
           responseSchema: studyGuidePageSchema,
           systemInstruction: "You are an expert educational content creator for Korean university students. Analyze PDF documents page by page and create detailed, customized explanations for each page based on the student's knowledge level. Always write in Korean. Focus on clarity and educational value.",
