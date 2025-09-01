@@ -22,7 +22,7 @@ export default function DocumentStatus({ initialStatus }: DocumentStatusProps) {
         }
       case 'processing':
         return {
-          icon: <Loader2 className="h-4 w-4 animate-spin" />,
+          icon: null,
           text: '분석 중',
           className: 'text-blue-600 bg-blue-50',
         }
