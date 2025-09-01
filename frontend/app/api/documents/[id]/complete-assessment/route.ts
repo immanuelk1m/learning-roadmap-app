@@ -248,10 +248,16 @@ export async function POST(
     })
 
     // Check for critical failures
+    let hasQuizQuestions = false
+    if (parallelPromises[1].status === 'fulfilled' && parallelPromises[1].value.success) {
+      const quizResult = (parallelPromises[1].value as any).result
+      hasQuizQuestions = quizResult?.questionsGenerated > 0
+    }
+
     if (!parallelResults.studyGuide.success && !parallelResults.practiceQuiz.success) {
       console.error('🚨 CRITICAL: Both study guide and practice quiz generation failed!')
-    } else if (!parallelResults.practiceQuiz.success) {
-      console.error('⚠️ WARNING: Practice quiz generation failed. User may see loading screen.')
+    } else if (!parallelResults.practiceQuiz.success || !hasQuizQuestions) {
+      console.error('⚠️ WARNING: Practice quiz generation failed or no questions created. User may see loading screen.')
     } else if (!parallelResults.studyGuide.success) {
       console.error('⚠️ WARNING: Study guide generation failed. User will have limited study materials.')
     }
@@ -264,7 +270,8 @@ export async function POST(
         weakNodes: weakNodes.length,
         strongNodes: strongNodes.length,
         studyGuideGenerated: parallelResults.studyGuide.success,
-        quizGenerated: parallelResults.practiceQuiz.success,
+        quizGenerated: parallelResults.practiceQuiz.success && hasQuizQuestions,
+        hasQuizQuestions,
         parallelDuration: `${parallelDuration}ms`
       }
     })

@@ -341,10 +341,18 @@ export default function OXKnowledgeAssessment({
             error: errorText
           })
         } else {
+          const result = await response.json()
           assessmentLogger.info('Assessment completed and study guide generated successfully', {
             correlationId,
-            documentId
+            documentId,
+            stats: result.stats
           })
+          
+          // Check if quiz generation failed
+          if (!result.stats?.hasQuizQuestions) {
+            console.warn('퀴즈 생성 실패 - 퀴즈 없이 진행합니다')
+            toast.warning('퀴즈 생성에 실패했습니다. 학습 가이드만 이용하실 수 있습니다.')
+          }
         }
       } catch (error: any) {
         console.warn('Error completing assessment:', error)
