@@ -356,12 +356,7 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                   {documents.filter(doc => doc.status === 'completed').length}개 완료
                 </span>
               )}
-              {isPollingActive && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-emerald-600">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-2"></div>
-                  실시간 업데이트 중
-                </span>
-              )}
+              {/* Removed realtime updating chip as requested */}
             </div>
           </div>
           
