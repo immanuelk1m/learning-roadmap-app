@@ -382,10 +382,10 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
       {documents.map((doc) => {
         console.log(`[DocumentList] Rendering document: ${doc.title}, status: ${doc.status}`)
         const statusColors = {
-          pending: { bg: '#FEF3C7', text: '#92400E', icon: '⏳' },
-          processing: { bg: '#DBEAFE', text: '#1E40AF', icon: '⚙️' },
-          completed: { bg: '#D1FAE5', text: '#065F46', icon: '✓' },
-          failed: { bg: '#FEE2E2', text: '#991B1B', icon: '✗' }
+          pending: { bg: '#FEF3C7', text: '#92400E' },
+          processing: { bg: '#DBEAFE', text: '#1E40AF' },
+          completed: { bg: '#D1FAE5', text: '#065F46' },
+          failed: { bg: '#FEE2E2', text: '#991B1B' }
         }
         const status = statusColors[doc.status as keyof typeof statusColors] || statusColors.pending
         
@@ -421,7 +421,6 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
                   color: status.text
                 }}
               >
-                <span className="text-sm">{status.icon}</span>
                 <DocumentStatus 
                   documentId={doc.id} 
                   initialStatus={doc.status}
