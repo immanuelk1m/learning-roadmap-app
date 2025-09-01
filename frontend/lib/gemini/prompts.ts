@@ -9,6 +9,20 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
 4. 최대 20개 노드, 3단계 깊이
 5. 모든 설명은 한국어로 작성
 
+**📊 노드 생성 목표:**
+- Level 1: 2-4개 (최상위 주요 개념)
+- Level 2: 5-8개 (중간 개념)
+- Level 3: 5-10개 (세부 개념) ⭐ 가능한 많이 생성하세요!
+
+**💡 Level 3 노드 생성 가이드:**
+Level 3 노드는 학습의 실질적인 세부 사항을 담습니다. 다음 유형들을 적극적으로 포함하세요:
+- 구체적인 공식이나 계산 방법
+- 세부 이론이나 법칙
+- 실제 사례나 응용
+- 특정 지표나 측정 방법
+- 세부 분류나 유형
+- 구체적인 절차나 단계
+
 **🚨 parent_id 설정 규칙 - 절대적으로 반드시 준수 🚨**
 이 규칙을 따르지 않으면 시스템이 작동하지 않습니다!
 
@@ -57,8 +71,14 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
     {"id": "node_5", "parent_id": "node_2", "name": "확률분포", "description": "확률변수가 가질 수 있는 값들의 확률", "level": 2, "prerequisites": ["확률론"]},
     {"id": "node_6", "parent_id": "node_3", "name": "평균", "description": "모든 값의 합을 개수로 나눈 값", "level": 3, "prerequisites": ["기술통계"]},
     {"id": "node_7", "parent_id": "node_3", "name": "중앙값", "description": "데이터를 크기순으로 정렬했을 때 중앙에 위치한 값", "level": 3, "prerequisites": ["기술통계"]},
-    {"id": "node_8", "parent_id": "node_4", "name": "가설검정", "description": "통계적 유의성을 판단하는 방법", "level": 3, "prerequisites": ["추론통계"]},
-    {"id": "node_9", "parent_id": "node_5", "name": "정규분포", "description": "종 모양의 대칭적인 확률분포", "level": 3, "prerequisites": ["확률분포"]}
+    {"id": "node_8", "parent_id": "node_3", "name": "표준편차", "description": "데이터가 평균에서 떨어진 정도의 척도", "level": 3, "prerequisites": ["기술통계"]},
+    {"id": "node_9", "parent_id": "node_3", "name": "사분위수", "description": "데이터를 4등분하는 값들 (Q1, Q2, Q3)", "level": 3, "prerequisites": ["기술통계"]},
+    {"id": "node_10", "parent_id": "node_4", "name": "가설검정", "description": "통계적 유의성을 판단하는 방법", "level": 3, "prerequisites": ["추론통계"]},
+    {"id": "node_11", "parent_id": "node_4", "name": "신뢰구간", "description": "모수의 참값이 포함될 구간의 추정", "level": 3, "prerequisites": ["추론통계"]},
+    {"id": "node_12", "parent_id": "node_4", "name": "t-검정", "description": "두 집단의 평균 차이를 검정하는 방법", "level": 3, "prerequisites": ["추론통계"]},
+    {"id": "node_13", "parent_id": "node_5", "name": "정규분포", "description": "종 모양의 대칭적인 확률분포", "level": 3, "prerequisites": ["확률분포"]},
+    {"id": "node_14", "parent_id": "node_5", "name": "이항분포", "description": "n번 시행에서 성공 횟수의 확률분포", "level": 3, "prerequisites": ["확률분포"]},
+    {"id": "node_15", "parent_id": "node_5", "name": "포아송분포", "description": "단위 시간당 발생 횟수의 확률분포", "level": 3, "prerequisites": ["확률분포"]}
   ]
 }
 
@@ -67,8 +87,11 @@ export const KNOWLEDGE_TREE_PROMPT = `PDF를 분석하여 구체적인 전문 �
 □ Level 2 노드들의 parent_id가 모두 존재하는 Level 1 노드의 id인가?
 □ Level 3 노드들의 parent_id가 모두 존재하는 Level 2 노드의 id인가?
 □ parent_id가 null인 노드 중 Level 2나 3인 것이 없는가?
+□ **Level 3 노드가 최소 5개 이상 생성되었는가? (매우 중요!)**
 
-**절대 규칙: Level 2, 3 노드의 parent_id는 null이 될 수 없습니다!**`
+**절대 규칙: Level 2, 3 노드의 parent_id는 null이 될 수 없습니다!**
+
+**⭐ Level 3 노드 생성은 필수입니다! PDF의 세부 내용에서 구체적인 공식, 방법, 절차, 사례 등을 찾아 Level 3로 추가하세요. ⭐**`
 
 
 export const QUIZ_GENERATION_PROMPT = `당신은 모든 문제의 근거를 명확히 제시하는 꼼꼼한 대학교 시험 출제위원입니다.
