@@ -297,7 +297,6 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
         page_title: page.page_title,
         page_content: page.page_content,
         key_concepts: page.key_concepts || [],
-        difficulty_level: page.difficulty_level || 'medium',
         prerequisites: page.prerequisites || [],
         learning_objectives: page.learning_objectives || [],
         created_at: new Date().toISOString(),

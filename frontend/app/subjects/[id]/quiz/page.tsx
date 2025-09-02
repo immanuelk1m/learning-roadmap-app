@@ -71,28 +71,7 @@ export default async function QuizPage({ params, searchParams }: QuizPageProps) 
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Link
-                href={`/subjects/${id}/study?doc=${selectedDocumentId}`}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                학습으로 돌아가기
-              </Link>
-              <div className="border-l border-gray-300 pl-4">
-                <h1 className="text-lg font-semibold text-gray-900">{subject.name}</h1>
-                {document && (
-                  <p className="text-sm text-gray-600">연습문제 - {document.title}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Header removed: NavigationBar will show centered title on quiz page */}
 
       {!document ? (
         <div className="max-w-4xl mx-auto px-4 py-16 text-center">

@@ -198,13 +198,7 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
       // Load quiz questions (not assessment ones) - handle both false and null values
       const { data: quizData, error: quizError } = await supabase
         .from('quiz_items')
-        .select(`
-          *,
-          quiz_item_nodes!inner (
-            node_id,
-            is_primary
-          )
-        `)
+        .select('*')
         .eq('document_id', documentId)
         .or('is_assessment.eq.false,is_assessment.is.null')
         .order('created_at', { ascending: true })
@@ -228,11 +222,7 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
       }
 
       // Map quiz data to include node_id from the relationship
-      const mappedQuestions = (quizData || []).map(item => ({
-        ...item,
-        node_id: item.quiz_item_nodes?.[0]?.node_id || null
-      }))
-      setQuestions(mappedQuestions as ExtendedQuizQuestion[])
+      setQuestions((quizData || []) as ExtendedQuizQuestion[])
       setNodes(nodeData || [])
       
       // Load or create session after questions are loaded

@@ -449,11 +449,6 @@ export const studyGuidePageSchema = {
             maxItems: 10,
             description: "Key concepts covered in this page"
           },
-          difficulty_level: {
-            type: SchemaType.STRING,
-            enum: ["easy", "medium", "hard"],
-            description: "Difficulty level of the page content"
-          },
           prerequisites: {
             type: SchemaType.ARRAY,
             items: { type: SchemaType.STRING },
@@ -472,7 +467,7 @@ export const studyGuidePageSchema = {
             description: "Original PDF page text for reference (optional)"
           }
         },
-        required: ["page_number", "page_title", "page_content", "key_concepts", "difficulty_level", "prerequisites", "learning_objectives"]
+        required: ["page_number", "page_title", "page_content", "key_concepts", "prerequisites", "learning_objectives"]
       },
       description: "Array of page descriptions"
     },

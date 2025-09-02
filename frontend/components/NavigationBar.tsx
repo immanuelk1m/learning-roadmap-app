@@ -12,6 +12,7 @@ interface NavigationBarProps {
 export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps) {
   const pathname = usePathname()
   const isAssessmentPage = !!pathname && /^\/subjects\/[^/]+\/study\/assessment$/.test(pathname)
+  const isQuizPage = !!pathname && /^\/subjects\/[^/]+\/quiz$/.test(pathname)
 
   useEffect(() => {
     if (isOpen) {
@@ -57,9 +58,9 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           </div>
 
           {/* Center Title (Assessment page only) */}
-          {isAssessmentPage && (
+          {(isAssessmentPage || isQuizPage) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-[15px] font-semibold text-gray-900">학습 전 배경지식 체크</span>
+              <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>
             </div>
           )}
 
@@ -85,9 +86,9 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
 
             {/* Mobile Center Title (Assessment page only) */}
-            {isAssessmentPage && (
+            {(isAssessmentPage || isQuizPage) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-[15px] font-semibold text-gray-900">학습 전 배경지식 체크</span>
+                <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>
               </div>
             )}
           </div>
