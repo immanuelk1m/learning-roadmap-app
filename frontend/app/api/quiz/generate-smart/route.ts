@@ -163,7 +163,9 @@ ${index + 1}. **${node.name}** (ID: ${node.id})
       ],
     })
 
-    const response = result.text || ''
+    // Google Generative AI SDK returns a GenerateContentResult
+    // Access text via result.response.text()
+    const response = (await result.response?.text()) || ''
     
     if (!response) {
       throw new Error('Empty response from Gemini API')
