@@ -85,16 +85,11 @@ function NodeCard({
         }}
       >
         <div className="p-5">
-          <div className="flex flex-col gap-3">
-            {/* 노드 정보 */}
-            <div>
-              <h3 className="font-semibold text-gray-900 text-base">
-                {node.name}
-              </h3>
-              <p className="text-sm text-gray-500 mt-2 line-clamp-3">
-                {node.description}
-              </p>
-            </div>
+          <div className="flex flex-col gap-1">
+            {/* 노드 이름만 표시 (설명 숨김) */}
+            <h3 className="font-semibold text-gray-900 text-base">
+              {node.name}
+            </h3>
           </div>
         </div>
       </div>
@@ -371,7 +366,7 @@ export default function AlbumStyleKnowledgeAssessment({
 
       {/* 앨범 형태 노드 그리드 */}
       <div className="mb-8">
-        <div className="flex flex-wrap gap-4 justify-center px-2">
+        <div className="flex flex-wrap gap-4 justify-start px-2">
           {renderNodes.map(({ node, key }) => {
             const childNodes = nodes.filter(n => n.parent_id === node.id)
             const hasChildren = childNodes.length > 0
