@@ -28,11 +28,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 
-    // 2. Get weak nodes (understanding_level < 70) for this document
+    // 2. Get weak nodes (understanding_level < 70) for this document and user
     const { data: weakNodes, error: nodesError } = await supabase
       .from('knowledge_nodes')
       .select('*')
       .eq('document_id', documentId)
+      .eq('user_id', FIXED_USER_ID)
       .lt('understanding_level', 70)
       .order('understanding_level', { ascending: true })
       .limit(5) // Maximum 5 nodes to focus on (reduced to prevent long responses)
@@ -43,20 +44,22 @@ export async function POST(request: NextRequest) {
     }
 
     if (!weakNodes || weakNodes.length === 0) {
-      // If no weak nodes, get random nodes
-      const { data: randomNodes } = await supabase
+      // Fallback strictly based on understanding_level: pick lowest-level nodes for this user
+      const { data: lowestNodes } = await supabase
         .from('knowledge_nodes')
         .select('*')
         .eq('document_id', documentId)
+        .eq('user_id', FIXED_USER_ID)
+        .order('understanding_level', { ascending: true })
         .limit(10)
-      
-      if (!randomNodes || randomNodes.length === 0) {
+
+      if (!lowestNodes || lowestNodes.length === 0) {
         return NextResponse.json({ 
-          error: 'No knowledge nodes found for this document. Please analyze the document first.' 
+          error: 'Knowledge assessment not found for this document. Please complete assessment first.' 
         }, { status: 400 })
       }
-      
-      weakNodes.push(...randomNodes)
+
+      weakNodes.push(...lowestNodes)
     }
 
     // 3. Create a new quiz set with sequence-based name

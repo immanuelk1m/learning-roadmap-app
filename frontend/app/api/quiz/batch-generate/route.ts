@@ -143,6 +143,27 @@ ${strongNodesForDoc.slice(0, 5).map((node, idx) => `  ${idx + 1}. ${node.name}`)
 5. 이해도가 높은 개념은 복습 차원에서 소수의 도전적인 문제만 포함하세요.
 `
         }
+      } else {
+        // No explicit assessment payload provided; infer from understanding_level
+        const sortedByLevel = [...documentNodes]
+          .filter(n => typeof n.understanding_level === 'number')
+          .sort((a, b) => (a.understanding_level ?? 100) - (b.understanding_level ?? 100))
+        weakNodesForDoc = sortedByLevel.slice(0, Math.max(3, Math.min(7, Math.ceil(sortedByLevel.length * 0.3))))
+        strongNodesForDoc = sortedByLevel.slice(-3)
+
+        if (weakNodesForDoc.length > 0) {
+          focusPrompt = `
+## 이해도 기반 맞춤 지시사항
+
+**이해도 낮은 개념 (집중 필요)**:
+${weakNodesForDoc.map((node, idx) => `  ${idx + 1}. ${node.name} (이해도: ${node.understanding_level ?? 0}%)`).join('\n')}
+
+**요구사항**:
+1. 위 개념들에 전체 문제의 70% 이상을 배정하세요.
+2. 난이도는 쉬움에서 중간 위주로 구성하고, 점진적으로 상승시키세요.
+3. 각 약한 개념당 최소 2문항 이상 생성하세요.
+`
+        }
       }
 
       // Generate customized prompt
