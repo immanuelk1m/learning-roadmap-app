@@ -11,6 +11,7 @@ interface NavigationBarProps {
 
 export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps) {
   const pathname = usePathname()
+  const isAssessmentPage = !!pathname && /^\/subjects\/[^/]+\/study\/assessment$/.test(pathname)
 
   useEffect(() => {
     if (isOpen) {
@@ -28,7 +29,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       <div className={`fixed bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-100 transition-transform duration-300 ${
         isOpen ? 'translate-x-72' : 'translate-x-0'
       }`}>
-        <div className="max-w-[1200px] mx-auto h-full px-4 md:px-6">
+        <div className="relative max-w-[1200px] mx-auto h-full px-4 md:px-6">
           {/* Desktop Layout */}
           <div className="hidden md:flex h-full items-center justify-between">
             {/* Left Section: Hamburger Menu - Hide when drawer is open */}
@@ -55,8 +56,15 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             </div>
           </div>
 
+          {/* Center Title (Assessment page only) */}
+          {isAssessmentPage && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-[15px] font-semibold text-gray-900">학습 전 배경지식 체크</span>
+            </div>
+          )}
+
           {/* Mobile Layout */}
-          <div className="flex md:hidden h-full items-center justify-between">
+          <div className="relative flex md:hidden h-full items-center justify-between">
             {/* Left: Hamburger Menu - Hide when drawer is open */}
             {!isOpen ? (
               <button
@@ -75,6 +83,13 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
 
             {/* Right: Logo */}
             <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+
+            {/* Mobile Center Title (Assessment page only) */}
+            {isAssessmentPage && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-[15px] font-semibold text-gray-900">학습 전 배경지식 체크</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

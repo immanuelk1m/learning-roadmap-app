@@ -132,9 +132,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
       setGenerating(true)
       setError(null)
 
-      const endpoint = usePages 
-        ? '/api/study-guide/generate-pages'
-        : '/api/study-guide/generate'
+      const endpoint = '/api/study-guide/generate'
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -380,10 +378,10 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
               <div className="text-center py-8">
                 <p className="text-gray-500 mb-4">퀵노트 콘텐츠가 없습니다.</p>
                 <button
-                  onClick={() => generateStudyGuide(true)}
+                  onClick={() => generateStudyGuide(false)}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  페이지별 퀵노트 생성하기
+                  퀵노트 생성하기
                 </button>
               </div>
             )}

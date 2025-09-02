@@ -137,9 +137,7 @@ export default function StudyGuideEnhanced({ documentId, userId }: StudyGuidePro
       setError(null)
 
       // Determine which API to call based on user preference
-      const apiEndpoint = usePageBasedGeneration 
-        ? '/api/study-guide/generate-pages'
-        : '/api/study-guide/generate'
+      const apiEndpoint = '/api/study-guide/generate'
 
       const response = await fetch(apiEndpoint, {
         method: 'POST',
@@ -277,38 +275,6 @@ export default function StudyGuideEnhanced({ documentId, userId }: StudyGuidePro
             학습 전 배경지식 체크 결과를 바탕으로 개인 맞춤 퀵노트를 생성할 수 있습니다.
           </p>
           
-          {/* Generation method selector */}
-          <div className="mb-6 text-left">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              생성 방식 선택
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  checked={usePageBasedGeneration}
-                  onChange={() => setUsePageBasedGeneration(true)}
-                  className="mr-2"
-                />
-                <span className="text-sm">
-                  <span className="font-medium">페이지별 상세 해설</span>
-                  <span className="text-gray-500 ml-1">(권장)</span>
-                </span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  checked={!usePageBasedGeneration}
-                  onChange={() => setUsePageBasedGeneration(false)}
-                  className="mr-2"
-                />
-                <span className="text-sm">
-                  <span className="font-medium">요약형 해설</span>
-                  <span className="text-gray-500 ml-1">(기존 방식)</span>
-                </span>
-              </label>
-            </div>
-          </div>
 
           <button
             onClick={generateStudyGuide}
@@ -349,13 +315,13 @@ export default function StudyGuideEnhanced({ documentId, userId }: StudyGuidePro
               </span>
               <button
                 onClick={() => {
-                  setUsePageBasedGeneration(true)
+                  setUsePageBasedGeneration(false)
                   generateStudyGuide()
                 }}
                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
               >
                 <RefreshCw className="h-3 w-3" />
-                페이지별로 재생성
+                재생성
               </button>
             </div>
           </div>
