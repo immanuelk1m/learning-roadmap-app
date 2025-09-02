@@ -103,7 +103,7 @@ ${index + 1}. **${node.name}**
       ],
     })
 
-    const response = result.text || ''
+    const response = (await result.response?.text()) || ''
     
     if (!response) {
       throw new Error('Empty response from Gemini API')
@@ -120,12 +120,21 @@ ${index + 1}. **${node.name}**
       { documentId, responseType: 'quiz_generation' }
     )
 
-    // Create a quiz set first
+    // Create a quiz set first with sequence-based name
+    const { data: existingSets } = await supabase
+      .from('quiz_sets')
+      .select('id, created_at')
+      .eq('document_id', documentId)
+      .order('created_at', { ascending: true })
+
+    const nextSeq = (existingSets?.length || 0) + 1
+    const seqName = nextSeq === 1 ? '1차시_Exercise' : `${nextSeq}차시`
+
     const { data: quizSet, error: quizSetError } = await supabase
       .from('quiz_sets')
       .insert({
         document_id: documentId,
-        name: `자동 생성 문제집 - ${new Date().toLocaleDateString('ko-KR')}`,
+        name: seqName,
         description: `AI가 생성한 ${quizData.questions.length}개 문제`,
         question_count: quizData.questions.length,
         generation_method: 'auto',

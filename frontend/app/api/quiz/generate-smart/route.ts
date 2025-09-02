@@ -59,12 +59,21 @@ export async function POST(request: NextRequest) {
       weakNodes.push(...randomNodes)
     }
 
-    // 3. Create a new quiz set
+    // 3. Create a new quiz set with sequence-based name
+    const { data: existingSets } = await supabase
+      .from('quiz_sets')
+      .select('id, created_at')
+      .eq('document_id', documentId)
+      .order('created_at', { ascending: true })
+
+    const nextSeq = (existingSets?.length || 0) + 1
+    const seqName = nextSeq === 1 ? '1차시_Exercise' : `${nextSeq}차시`
+
     const { data: quizSet, error: quizSetError } = await supabase
       .from('quiz_sets')
       .insert({
         document_id: documentId,
-        name: `AI 맞춤 문제집 - ${new Date().toLocaleDateString('ko-KR')}`,
+        name: seqName,
         description: `Understanding level 기반 자동 생성 (약점 노드 ${weakNodes.length}개 집중)`,
         generation_method: 'smart',
         node_focus: weakNodes.map(node => ({

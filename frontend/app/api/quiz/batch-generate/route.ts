@@ -223,12 +223,21 @@ ${documentNodes.map((node) => `- ID: ${node.id}
       if (quizData.questions && Array.isArray(quizData.questions)) {
         console.log(`[DEBUG] Starting to save ${quizData.questions.length} questions for document ${document.id}`)
         
-        // Create quiz_set first
+        // Create quiz_set first with sequence-based name
+        const { data: existingSets } = await supabase
+          .from('quiz_sets')
+          .select('id, created_at')
+          .eq('document_id', document.id)
+          .order('created_at', { ascending: true })
+
+        const nextSeq = (existingSets?.length || 0) + 1
+        const seqName = nextSeq === 1 ? '1차시_Exercise' : `${nextSeq}차시`
+
         const { data: quizSet, error: quizSetError } = await supabase
           .from('quiz_sets')
           .insert({
             document_id: document.id,
-            name: `${document.title} 연습 문제`,
+            name: seqName,
             description: userAssessmentData ? '평가 기반 맞춤형 연습 문제' : '자동 생성된 연습 문제 세트',
             question_count: quizData.questions.length,
             generation_method: 'auto',
