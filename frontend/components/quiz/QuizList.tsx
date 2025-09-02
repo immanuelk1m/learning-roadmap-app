@@ -340,31 +340,32 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                     {sets.length > 0 ? (
                       <div className="divide-y divide-slate-100">
                         {sets.map((qs) => (
-                          <Link
-                            key={qs.id}
-                            href={`/subjects/${subjectId}/quiz?doc=${doc.id}&set=${qs.id}`}
-                            className="block px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer group"
-                          >
+                          <div key={qs.id} className="px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer group">
                             <div className="flex items-start gap-3">
-                              <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-gray-200 transition-colors">
-                                <Brain className="w-3.5 h-3.5 text-gray-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-slate-900 truncate group-hover:text-emerald-600 transition-colors">
-                                  {qs.name}
-                                </h4>
-                                {/* Date removed as requested */}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <DeleteQuizSetButton
-                                  quizSetId={qs.id}
-                                  quizSetName={qs.name}
-                                  onDeleted={() => window.location.reload()}
-                                />
+                              {/* Main clickable area */}
+                              <Link
+                                href={`/subjects/${subjectId}/quiz?doc=${doc.id}&set=${qs.id}`}
+                                className="flex items-start gap-3 flex-1 min-w-0"
+                              >
+                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-gray-200 transition-colors">
+                                  <Brain className="w-3.5 h-3.5 text-gray-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-slate-900 truncate group-hover:text-emerald-600 transition-colors">
+                                    {qs.name}
+                                  </h4>
+                                  {/* Date removed as requested */}
+                                </div>
                                 <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors mt-0.5" />
-                              </div>
+                              </Link>
+                              {/* Delete button kept outside Link to avoid navigation */}
+                              <DeleteQuizSetButton
+                                quizSetId={qs.id}
+                                quizSetName={qs.name}
+                                onDeleted={() => window.location.reload()}
+                              />
                             </div>
-                          </Link>
+                          </div>
                         ))}
                       </div>
                     ) : (
