@@ -18,51 +18,34 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 export { genAI }
 
 // Helper function to upload file and wait for processing
-export async function uploadFileToGemini(fileData: Blob, mimeType: string = 'application/pdf'): Promise<any> {
-  console.log('=== Uploading file to Gemini File API ===')
+// Helper function to convert a Blob to a base64 string
+async function blobToBase64(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+  return buffer.toString('base64')
+}
+
+// Updated function to prepare file data for inline inclusion in API call
+export async function prepareFileData(fileData: Blob, mimeType: string = 'application/pdf') {
+  console.log('=== Preparing file data for Gemini API ===')
   console.log(`File size: ${(fileData.size / (1024 * 1024)).toFixed(2)} MB`)
   console.log(`MIME type: ${mimeType}`)
   
   const startTime = Date.now()
   
   try {
-    // Upload file using File API
-    const uploadResult = await genAI.uploadFile(fileData, {
-      mimeType: mimeType,
-      displayName: `upload_${Date.now()}.pdf`
-    })
-    
-    console.log(`File uploaded in ${Date.now() - startTime}ms`)
-    console.log(`File name: ${uploadResult.name}`)
-    console.log(`File URI: ${uploadResult.uri}`)
-    console.log(`File state: ${uploadResult.state}`)
-    
-    // Wait for file to be processed if needed
-    let file = uploadResult
-    while (file.state === 'PROCESSING') {
-      console.log('File is still processing, waiting...')
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Get updated file status
-      if (file.name) {
-        file = await genAI.getFile(file.name)
-      } else {
-        throw new Error('File name is missing from upload result')
-      }
-    }
-    
-    if (file.state === 'FAILED') {
-      throw new Error(`File processing failed: ${file.error?.message || 'Unknown error'}`)
-    }
-    
+    const base64Data = await blobToBase64(fileData)
     const totalTime = Date.now() - startTime
-    console.log(`File ready for use in ${totalTime}ms`)
-    console.log(`Final file URI: ${file.uri}`)
-    console.log(`Final file mimeType: ${file.mimeType}`)
+    console.log(`File prepared in ${totalTime}ms`)
     
-    return file
+    return {
+      inlineData: {
+        data: base64Data,
+        mimeType,
+      },
+    }
   } catch (error: any) {
-    console.error('=== File Upload Error ===')
+    console.error('=== File Preparation Error ===')
     console.error('Error:', error.message)
     console.error('Full error:', error)
     throw error
@@ -88,7 +71,6 @@ export const geminiKnowledgeTreeModel = {
           temperature: 0.3,
           maxOutputTokens: 16384,
           responseMimeType: "application/json",
-          responseSchema: knowledgeTreeSchema,
         },
         systemInstruction: "You are an expert curriculum designer for Korean university students. Always respond in Korean language. Analyze educational content and create structured knowledge trees.",
       })
@@ -132,12 +114,11 @@ export const geminiQuizModel = {
         temperature: 0.5,
         maxOutputTokens: 16384,
         responseMimeType: "application/json",
-        responseSchema: quizSchema,
       },
       systemInstruction: "You are an expert quiz creator for Korean university students. Always create questions, options, and explanations in Korean language. Focus on testing understanding rather than memorization.",
     })
     
-    return model.generateContent(input.contents)
+    return model.generateContent(input)
   }
 }
 
@@ -160,7 +141,6 @@ export const geminiCombinedModel = {
           temperature: 0.3, // Lower for consistency
           maxOutputTokens: 16384, // Increased for better response
           responseMimeType: "application/json",
-          responseSchema: knowledgeTreeWithOXSchema,
         },
         systemInstruction: "You are an expert curriculum designer and assessment creator for Korean university students. CRITICAL: Always respond in Korean language. All node names and descriptions MUST be in Korean. English abbreviations (like GDP, AI, API) can be used in names but descriptions must be fully in Korean. Never use English sentences or explanations. 모든 응답은 한국어로 작성하세요.",
       })
@@ -195,7 +175,6 @@ export const geminiExtendedQuizModel = {
         temperature: 0.6,
         maxOutputTokens: 16384,
         responseMimeType: "application/json",
-        responseSchema: extendedQuizSchema,
       },
       systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
     })
@@ -223,12 +202,11 @@ export const geminiStudyGuidePageModel = {
           temperature: 0.7,
           maxOutputTokens: 50000,
           responseMimeType: "application/json",
-          responseSchema: studyGuidePageSchema,
         },
         systemInstruction: "You are an expert educational content creator for Korean university students. Analyze PDF documents page by page and create detailed, customized explanations for each page based on the student's knowledge level. Always write in Korean. Focus on clarity and educational value.",
       })
       
-      const result = await model.generateContent(input.contents)
+      const result = await model.generateContent(input)
       
       const endTime = Date.now()
       console.log(`Gemini Page Study Guide API call completed in ${endTime - startTime}ms`)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { geminiStudyGuidePageModel, uploadFileToGemini } from '@/lib/gemini/client'
+import { geminiStudyGuidePageModel, prepareFileData } from '@/lib/gemini/client'
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
 import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
@@ -124,8 +124,7 @@ export async function POST(request: NextRequest) {
     // Upload PDF to Gemini File API
     console.log('Uploading PDF to Gemini File API...')
     const pdfBlob = new Blob([fileData], { type: 'application/pdf' })
-    const uploadedFile = await uploadFileToGemini(pdfBlob, 'application/pdf')
-    console.log('PDF uploaded to Gemini:', uploadedFile.uri)
+    const fileDataPart = await prepareFileData(pdfBlob, 'application/pdf')
 
     // Direct selection assessment context
     const assessmentContext = `
@@ -176,23 +175,10 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
       try {
         console.log(`Attempting Gemini API call (attempt ${retryCount + 1}/${maxRetries})...`)
         
-        result = await geminiStudyGuidePageModel.generateContent({
-      contents: [
-        {
-          parts: [
-            {
-              fileData: {
-                fileUri: uploadedFile.uri,
-                mimeType: uploadedFile.mimeType || 'application/pdf',
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-        })
+        result = await geminiStudyGuidePageModel.generateContent([
+          { inlineData: fileDataPart.inlineData },
+          { text: prompt },
+        ])
         
         // If successful, break the loop
         console.log('Gemini API call successful')
@@ -218,19 +204,17 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
     }
     
     // Gemini API response structure handling - result.text is a getter property
-    const response = result.text || ''
+    const responseText = result.response.text()
     
-    if (!response) {
+    if (!responseText) {
       console.error('Failed to extract text from Gemini response. Result structure:', {
-        hasText: 'text' in result,
-        textType: typeof result.text,
-        resultKeys: Object.keys(result)
+        response: result.response
       })
       throw new Error('Empty response from Gemini API')
     }
     
     const studyGuideData = parseGeminiResponse<StudyGuidePageResponse>(
-      response,
+      responseText,
       { documentId, responseType: 'study_guide_pages' }
     )
     

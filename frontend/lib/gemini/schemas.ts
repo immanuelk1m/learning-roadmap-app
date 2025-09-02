@@ -1,4 +1,4 @@
-import { Type } from '@google/genai'
+import { SchemaType } from '@google/generative-ai'
 
 export interface KnowledgeNode {
   id: string
@@ -138,24 +138,24 @@ export interface StudyGuidePageResponse {
 // Schema for knowledge tree using the new Type enum
 // Simplified flat structure to avoid recursive schema issues
 export const knowledgeTreeSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     nodes: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          id: { type: Type.STRING },
+          id: { type: SchemaType.STRING },
           parent_id: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             nullable: true 
           },
-          name: { type: Type.STRING },
-          description: { type: Type.STRING },
-          level: { type: Type.INTEGER },
+          name: { type: SchemaType.STRING },
+          description: { type: SchemaType.STRING },
+          level: { type: SchemaType.INTEGER },
           prerequisites: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING }
           }
         },
         required: ["id", "name", "description", "level", "prerequisites"]
@@ -167,23 +167,23 @@ export const knowledgeTreeSchema = {
 
 // Schema for quiz generation using the new Type enum
 export const quizSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     questions: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          question: { type: Type.STRING },
+          question: { type: SchemaType.STRING },
           options: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING }
           },
-          correct_answer: { type: Type.STRING },
-          explanation: { type: Type.STRING },
-          source_quote: { type: Type.STRING },
+          correct_answer: { type: SchemaType.STRING },
+          explanation: { type: SchemaType.STRING },
+          source_quote: { type: SchemaType.STRING },
           difficulty: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             enum: ["easy", "medium", "hard"]
           }
         },
@@ -197,68 +197,68 @@ export const quizSchema = {
 
 // Extended schema for diverse question types
 export const extendedQuizSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     questions: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
           type: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             enum: ["multiple_choice", "true_false", "short_answer", "fill_in_blank", "matching"]
           },
-          question: { type: Type.STRING },
-          explanation: { type: Type.STRING },
-          source_quote: { type: Type.STRING },
+          question: { type: SchemaType.STRING },
+          explanation: { type: SchemaType.STRING },
+          source_quote: { type: SchemaType.STRING },
           difficulty: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             enum: ["easy", "medium", "hard"]
           },
           node_id: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             nullable: true
           },
           // Multiple choice specific
           options: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             nullable: true
           },
           correct_answer: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             nullable: true
           },
           // True/False specific
           correct_answer_bool: {
-            type: Type.BOOLEAN,
+            type: SchemaType.BOOLEAN,
             nullable: true
           },
           // Short answer specific
           acceptable_answers: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             nullable: true
           },
           hint: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             nullable: true
           },
           // Fill in the blank specific
           template: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             nullable: true
           },
           blanks: {
-            type: Type.ARRAY,
+            type: SchemaType.ARRAY,
             items: {
-              type: Type.OBJECT,
+              type: SchemaType.OBJECT,
               properties: {
-                position: { type: Type.INTEGER },
-                answer: { type: Type.STRING },
+                position: { type: SchemaType.INTEGER },
+                answer: { type: SchemaType.STRING },
                 alternatives: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
+                  type: SchemaType.ARRAY,
+                  items: { type: SchemaType.STRING },
                   nullable: true
                 }
               },
@@ -268,22 +268,22 @@ export const extendedQuizSchema = {
           },
           // Matching specific
           left_items: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             nullable: true
           },
           right_items: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             nullable: true
           },
           correct_pairs: {
-            type: Type.ARRAY,
+            type: SchemaType.ARRAY,
             items: {
-              type: Type.OBJECT,
+              type: SchemaType.OBJECT,
               properties: {
-                left_index: { type: Type.INTEGER },
-                right_index: { type: Type.INTEGER }
+                left_index: { type: SchemaType.INTEGER },
+                right_index: { type: SchemaType.INTEGER }
               },
               required: ["left_index", "right_index"]
             },
@@ -299,20 +299,20 @@ export const extendedQuizSchema = {
 
 // Schema for O/X quiz generation
 export const oxQuizSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     quiz_items: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          node_id: { type: Type.STRING },
-          question: { type: Type.STRING },
+          node_id: { type: SchemaType.STRING },
+          question: { type: SchemaType.STRING },
           correct_answer: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             enum: ["O", "X"]
           },
-          explanation: { type: Type.STRING }
+          explanation: { type: SchemaType.STRING }
         },
         required: ["node_id", "question", "correct_answer", "explanation"]
       }
@@ -323,41 +323,41 @@ export const oxQuizSchema = {
 
 // Combined schema for knowledge tree with O/X quiz
 export const knowledgeTreeWithOXSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     nodes: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          id: { type: Type.STRING },
+          id: { type: SchemaType.STRING },
           parent_id: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             nullable: true 
           },
-          name: { type: Type.STRING },
-          description: { type: Type.STRING },
-          level: { type: Type.INTEGER },
+          name: { type: SchemaType.STRING },
+          description: { type: SchemaType.STRING },
+          level: { type: SchemaType.INTEGER },
           prerequisites: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING }
           }
         },
         required: ["id", "name", "description", "level", "prerequisites"]
       }
     },
     ox_quiz: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          node_id: { type: Type.STRING },
-          question: { type: Type.STRING },
+          node_id: { type: SchemaType.STRING },
+          question: { type: SchemaType.STRING },
           correct_answer: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             enum: ["O", "X"]
           },
-          explanation: { type: Type.STRING }
+          explanation: { type: SchemaType.STRING }
         },
         required: ["node_id", "question", "correct_answer", "explanation"]
       }
@@ -368,28 +368,28 @@ export const knowledgeTreeWithOXSchema = {
 
 // Schema for study guide generation - simplified for better JSON parsing
 export const studyGuideSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     title: { 
-      type: Type.STRING,
+      type: SchemaType.STRING,
       description: "Study guide title in Korean"
     },
     sections: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
           heading: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             description: "Section heading in Korean"
           },
           content: { 
-            type: Type.STRING,
+            type: SchemaType.STRING,
             description: "Section content in Korean, maximum 1000 characters"
           },
           key_points: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             maxItems: 5,
             description: "Maximum 5 key points in Korean"
           }
@@ -400,12 +400,12 @@ export const studyGuideSchema = {
       description: "Maximum 8 sections"
     },
     summary: { 
-      type: Type.STRING,
+      type: SchemaType.STRING,
       description: "Study guide summary in Korean, maximum 500 characters"
     },
     references: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
       maxItems: 5,
       nullable: true,
       description: "Optional references, maximum 5 items"
@@ -416,58 +416,58 @@ export const studyGuideSchema = {
 
 // Schema for page-by-page study guide generation
 export const studyGuidePageSchema = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     document_title: { 
-      type: Type.STRING,
+      type: SchemaType.STRING,
       description: "Document title in Korean"
     },
     total_pages: {
-      type: Type.INTEGER,
+      type: SchemaType.INTEGER,
       description: "Total number of pages analyzed"
     },
     pages: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
           page_number: {
-            type: Type.INTEGER,
+            type: SchemaType.INTEGER,
             description: "Page number (1-indexed)"
           },
           page_title: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             description: "Title or main topic of this page in Korean"
           },
           page_content: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             description: "Customized explanation for this page based on user's knowledge level, in Korean, max 2000 characters"
           },
           key_concepts: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             maxItems: 10,
             description: "Key concepts covered in this page"
           },
           difficulty_level: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             enum: ["easy", "medium", "hard"],
             description: "Difficulty level of the page content"
           },
           prerequisites: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             maxItems: 5,
             description: "Concepts that should be understood before this page"
           },
           learning_objectives: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
             maxItems: 5,
             description: "What the student should learn from this page"
           },
           original_content: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             nullable: true,
             description: "Original PDF page text for reference (optional)"
           }
@@ -477,12 +477,12 @@ export const studyGuidePageSchema = {
       description: "Array of page descriptions"
     },
     overall_summary: {
-      type: Type.STRING,
+      type: SchemaType.STRING,
       description: "Overall summary of the document in Korean, max 1000 characters"
     },
     learning_path: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
       nullable: true,
       description: "Suggested order of pages to study (optional)"
     }

@@ -184,25 +184,17 @@ ${documentNodes.map((node) => `- ID: ${node.id}
 `
 
       // Generate quiz with Gemini
-      const result = await geminiQuizModel.generateContent({
-        contents: [
-          {
-            parts: [
-              {
-                inlineData: {
-                  mimeType: 'application/pdf',
-                  data: base64Data,
-                },
-              },
-              {
-                text: prompt,
-              },
-            ],
+      const result = await geminiQuizModel.generateContent([
+        {
+          inlineData: {
+            mimeType: 'application/pdf',
+            data: base64Data,
           },
-        ],
-      })
+        },
+        { text: prompt },
+      ])
 
-      const response = result.text || ''
+      const response = result.response.text()
       
       if (!response) {
         console.error(`Empty response from Gemini API for document ${document.id}`)
