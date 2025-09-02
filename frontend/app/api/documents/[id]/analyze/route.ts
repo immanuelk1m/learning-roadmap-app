@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { geminiCombinedModel, uploadFileToGemini } from '@/lib/gemini/client'
 import { KNOWLEDGE_TREE_PROMPT } from '@/lib/gemini/prompts'
-import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
 import { analyzeLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
+import { google } from '@ai-sdk/google'
+import { generateObject } from 'ai'
+import { z } from 'zod'
 
 // Increase timeout for the API route to handle large PDF processing
 export const maxDuration = 300 // 300 seconds (5 minutes) timeout
@@ -325,63 +326,17 @@ export async function POST(
         })
       }
 
-      // Upload file to Gemini File API instead of base64 conversion
-      analyzeLogger.info('📤 Step 2/5: Uploading PDF to Gemini File API', {
-        correlationId,
-        documentId: id,
-        metadata: {
-          step: 'gemini_upload',
-          progress: 40,
-          fileSize: fileData.size,
-          fileSizeMB: `${(fileData.size / (1024 * 1024)).toFixed(2)} MB`,
-          expectedDuration: 'Depends on file size and network speed'
-        }
-      })
-      
-      const uploadTimer = analyzeLogger.startTimer()
-      let uploadedFile
-      try {
-        uploadedFile = await uploadFileToGemini(fileData, 'application/pdf')
-      } catch (uploadError: any) {
-        analyzeLogger.error('Failed to upload file to Gemini', {
-          correlationId,
-          documentId: id,
-          error: uploadError,
-          metadata: {
-            errorMessage: uploadError.message
-          }
-        })
-        throw new Error(`Failed to upload file to Gemini: ${uploadError.message}`)
-      }
-      const uploadDuration = uploadTimer()
-      
-      analyzeLogger.info('✅ Step 2/5 Complete: File uploaded to Gemini', {
-        correlationId,
-        documentId: id,
-        duration: uploadDuration,
-        metadata: {
-          step: 'gemini_upload',
-          status: 'completed',
-          progress: 40,
-          fileUri: uploadedFile.uri,
-          fileName: uploadedFile.name,
-          mimeType: uploadedFile.mimeType,
-          uploadSpeed: `${(fileData.size / 1024 / 1024 / (uploadDuration / 1000)).toFixed(2)} MB/s`,
-          totalElapsed: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-        }
-      })
+      // Log memory usage before AI call
+      analyzeLogger.logMemoryUsage('before_ai_analysis')
 
-      // Log memory usage before Gemini call
-      analyzeLogger.logMemoryUsage('before_gemini_analysis')
-
-      // Analyze with Gemini using prompt for Knowledge Tree
-      geminiLogger.info('🤖 Step 3/4: Generating Knowledge Tree', {
+      // Analyze with Vercel AI SDK using prompt for Knowledge Tree (non-streaming)
+      geminiLogger.info('🤖 Step 2/4: Generating Knowledge Tree', {
         correlationId,
         documentId: id,
         metadata: {
           step: 'knowledge_tree_generation',
-          progress: 60,
-          model: 'gemini-2.5-flash',
+          progress: 40,
+          model: 'ai-sdk:google:gemini-2.5-flash',
           promptLength: KNOWLEDGE_TREE_PROMPT.length,
           promptTokensEstimate: Math.ceil(KNOWLEDGE_TREE_PROMPT.length / 4),
           pdfSize: fileData.size,
@@ -390,181 +345,71 @@ export async function POST(
         }
       })
       
-      let response = ''
-      let geminiDuration = 0
-      let geminiError: any = null
-      
-      // Single attempt - no automatic retries for 429 errors
-      const geminiTimer = geminiLogger.startTimer()
-      
+      // Ensure AI provider API key: fallback to GEMINI_API_KEY if needed
+      if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY
+      }
+
+      const aiTimer = geminiLogger.startTimer()
+      let combinedData: KnowledgeTreeResponse
       try {
-        geminiLogger.info(`🔄 Calling Combined Gemini API`, {
-          correlationId,
-          documentId: id,
-          metadata: {
-            model: 'gemini-2.5-flash',
-            fileUri: uploadedFile.uri
-          }
+        // Strict output schema for knowledge tree
+        const nodeSchema = z.object({
+          id: z.string(),
+          parent_id: z.string().nullable(),
+          name: z.string(),
+          description: z.string().nullable().optional(),
+          level: z.number().int().min(1),
+          prerequisites: z.array(z.string()).optional().default([]),
         })
-        
-        const result = await geminiCombinedModel.generateContent({
-            contents: [
-              {
-                parts: [
-                  {
-                    fileData: {
-                      fileUri: uploadedFile.uri,
-                      mimeType: uploadedFile.mimeType || 'application/pdf',
-                    },
-                  },
-                  {
-                    text: KNOWLEDGE_TREE_PROMPT,
-                  },
-                ],
-              },
-            ],
-          })
-        
-        geminiDuration = geminiTimer()
-        response = result.text || ''
-        
-        // Validate the response structure
-        if (response) {
-          const parsedResponse = parseGeminiResponse<KnowledgeTreeResponse>(
-            response,
-            { correlationId, documentId: id, responseType: 'combined' }
-          )
-          validateResponseStructure(
-            parsedResponse,
-            ['nodes'],
-            { correlationId, documentId: id, responseType: 'knowledge_tree' }
-          )
-          if (!Array.isArray(parsedResponse.nodes)) {
-            throw new Error('Invalid response structure: nodes is not an array')
-          }
-        }
+
+        const schema = z.object({
+          nodes: z.array(nodeSchema).min(1),
+        })
+
+        const model = google('gemini-2.5-flash')
+        const pdfBuffer = Buffer.from(await fileData.arrayBuffer())
+        const result = await generateObject({
+          model,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: KNOWLEDGE_TREE_PROMPT },
+                { type: 'file', data: pdfBuffer, mediaType: 'application/pdf' },
+              ],
+            },
+          ],
+          schema,
+        })
+
+        combinedData = result.object as KnowledgeTreeResponse
       } catch (error: any) {
-        geminiDuration = geminiTimer()
-        geminiError = error
-        
-        // Special handling for 429 errors - return user-friendly error
-        if (error.status === 429) {
-          geminiLogger.warn('🚨 Rate limit hit (429) - User action required', {
-            correlationId,
-            documentId: id,
-            metadata: {
-              errorStatus: 429,
-              errorMessage: 'API quota exceeded'
-            }
-          })
-          
-          // Update document status to indicate rate limit error
-          await supabase
-            .from('documents')
-            .update({ 
-              processing_status: 'rate_limited',
-              processing_error: 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .eq('user_id', FIXED_USER_ID)
-          
-          return NextResponse.json(
-            { 
-              error: 'API_QUOTA_EXCEEDED',
-              message: 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.',
-              retryable: true,
-              documentId: id
-            },
-            { status: 429 }
-          )
-        }
-        
-        // Special handling for 503 errors (Service Unavailable / Model Overloaded)
-        if (error.status === 503) {
-          geminiLogger.warn('🚨 Model overloaded (503) - Temporary server issue', {
-            correlationId,
-            documentId: id,
-            metadata: {
-              errorStatus: 503,
-              errorMessage: 'Model is overloaded'
-            }
-          })
-          
-          // Update document status to indicate temporary error
-          await supabase
-            .from('documents')
-            .update({ 
-              processing_status: 'model_overloaded',
-              processing_error: 'AI 모델이 일시적으로 과부하 상태입니다. 1-2분 후 다시 시도해주세요.',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .eq('user_id', FIXED_USER_ID)
-          
-          return NextResponse.json(
-            { 
-              error: 'MODEL_OVERLOADED',
-              message: 'AI 모델이 일시적으로 과부하 상태입니다. 1-2분 후 다시 시도해주세요.',
-              retryable: true,
-              documentId: id,
-              suggestedRetryDelay: 60000 // 60 seconds
-            },
-            { status: 503 }
-          )
-        }
-        
-        geminiLogger.error('⚠️ Gemini API error', {
+        const duration = aiTimer()
+        geminiLogger.error('⚠️ AI SDK generation error', {
           correlationId,
           documentId: id,
+          duration,
           error,
-          metadata: {
-            errorCode: error.code || 'UNKNOWN',
-            errorStatus: error.status || 'UNKNOWN',
-            errorDetails: error.details || error.message
-          }
+          metadata: { errorMessage: error?.message }
         })
+        throw error
       }
-      
-      if (!response) {
-        geminiLogger.error('Empty response from Gemini API', {
-          correlationId,
-          documentId: id,
-          metadata: {
-            lastError: geminiError
-          }
-        })
-        throw new Error(`Empty response from AI: ${geminiError?.message || 'Unknown error'}`)
-      }
-      
-      geminiLogger.info('✅ Step 3/5 Complete: Combined response received', {
+
+      const aiDuration = aiTimer()
+
+      geminiLogger.info('✅ Step 2/4 Complete: Knowledge tree generated', {
         correlationId,
         documentId: id,
-        duration: geminiDuration,
+        duration: aiDuration,
         metadata: {
-          step: 'combined_generation',
+          step: 'knowledge_tree_generation',
           status: 'completed',
           progress: 60,
-          responseLength: response.length,
-          responseTokensEstimate: Math.ceil(response.length / 4),
-          responsePreview: response.substring(0, 200),
-          processingSpeed: `${(fileData.size / 1024 / 1024 / (geminiDuration / 1000)).toFixed(2)} MB/s`,
+          nodeCount: combinedData.nodes.length,
           totalElapsed: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
         }
       })
-      
-      // Parse the combined response
-      const combinedData = parseGeminiResponse<KnowledgeTreeResponse>(
-        response,
-        { correlationId, documentId: id, responseType: 'combined' }
-      )
-      
-      // Validate the final structure
-      validateResponseStructure(
-        combinedData,
-        ['nodes'],
-        { correlationId, documentId: id, responseType: 'knowledge_tree' }
-      )
       
       geminiLogger.info('📊 Knowledge tree data structure analysis', {
         correlationId,
@@ -967,8 +812,8 @@ export async function POST(
         totalDuration: totalDuration,
         steps: {
           pdfDownload: 'Check logs for timing',
-          geminiUpload: uploadDuration || 0,
-          combinedGeneration: geminiDuration || 0,
+          geminiUpload: 0,
+          combinedGeneration: aiDuration || 0,
           saveNodes: nodesDuration || 0,
           saveQuiz: 'Check logs for timing',
           total: totalDuration

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI } from '@google/genai'
 import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema, studyGuidePageSchema, knowledgeTreeWithOXSchema } from './schemas'
 
 if (!process.env.GEMINI_API_KEY) {
@@ -201,7 +201,6 @@ export const geminiOXQuizModel = {
     })
     
     return model.generateContent(input.contents)
-    })
   }
 }
 
