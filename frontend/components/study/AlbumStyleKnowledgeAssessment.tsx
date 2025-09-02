@@ -49,6 +49,17 @@ function NodeCard({
   // 모든 카드 컨테이너 동일 사이즈
   const sizeClass = 'w-56 h-36'
   
+  // 제목 길이에 따라 폰트 크기 동적 조정 (카드 영역을 최대한 채움)
+  const titleFontPx = useMemo(() => {
+    const len = (node.name || '').replace(/\s+/g, '').length
+    if (len <= 6) return 22
+    if (len <= 10) return 20
+    if (len <= 14) return 18
+    if (len <= 20) return 16
+    if (len <= 28) return 14
+    return 13
+  }, [node.name])
+  
   // 모든 상태를 진한 초록색으로 통일
   const borderClass = isSelected 
     ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50'  // 선택됨
@@ -84,9 +95,12 @@ function NodeCard({
           }
         }}
       >
-        <div className="p-4 h-full flex items-center justify-center">
+        <div className="p-3 h-full flex items-center justify-center text-center">
           {/* 노드 이름만 가운데 정렬로 표시 */}
-          <h3 className="font-semibold text-gray-900 text-base text-center break-words leading-snug">
+          <h3 
+            className="font-semibold text-gray-900 break-words hyphens-auto leading-tight line-clamp-3"
+            style={{ fontSize: `${titleFontPx}px` }}
+          >
             {node.name}
           </h3>
         </div>
