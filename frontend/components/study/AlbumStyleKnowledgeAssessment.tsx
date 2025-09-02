@@ -46,8 +46,8 @@ function NodeCard({
   onToggleExpansion,
   level
 }: NodeCardProps) {
-  // 모든 레벨 카드 크기 통일
-  const sizeClass = 'w-48'
+  // 모든 카드 컨테이너 동일 사이즈
+  const sizeClass = 'w-56 h-36'
   
   // 모든 상태를 진한 초록색으로 통일
   const borderClass = isSelected 
@@ -84,13 +84,11 @@ function NodeCard({
           }
         }}
       >
-        <div className="p-5">
-          <div className="flex flex-col gap-1">
-            {/* 노드 이름만 표시 (설명 숨김) */}
-            <h3 className="font-semibold text-gray-900 text-base">
-              {node.name}
-            </h3>
-          </div>
+        <div className="p-4 h-full flex items-center justify-center">
+          {/* 노드 이름만 가운데 정렬로 표시 */}
+          <h3 className="font-semibold text-gray-900 text-base text-center break-words leading-snug">
+            {node.name}
+          </h3>
         </div>
       </div>
     </div>
