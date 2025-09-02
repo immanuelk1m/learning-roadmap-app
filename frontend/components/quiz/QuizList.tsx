@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Clock, CheckCircle, Sparkles, Loader2 } from 'lucide-react'
+import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Clock, Sparkles, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import DeleteQuizButton from './DeleteQuizButton'
 
@@ -318,15 +318,6 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                             {doc.title.replace(/\.pdf$/i, '')}
                           </h3>
                           <div className="flex flex-col gap-1 mt-1 text-xs text-slate-600">
-                            <div className="flex items-center gap-3">
-                              <span>{questionCount}개 문제</span>
-                              {isAssessmentCompleted && (
-                                <span className="inline-flex items-center gap-1 text-emerald-600">
-                                  <CheckCircle className="w-3 h-3" />
-                                  평가 완료
-                                </span>
-                              )}
-                            </div>
                             <span className="text-slate-400">
                               {new Date(doc.created_at).toLocaleDateString('ko-KR')}
                             </span>
