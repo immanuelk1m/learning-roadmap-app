@@ -123,7 +123,7 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
           
           <div className="flex gap-2">
             {/* 요일 라벨 */}
-            <div className="flex flex-col gap-[3px]">
+            <div className="flex flex-col gap-[1px]">
               {getDayLabels().map((day, i) => (
                 <div key={i} className="h-[12px] w-[20px] text-[10px] text-gray-500 flex items-center">
                   {i % 2 === 1 ? day : ''}
@@ -133,7 +133,7 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
             
             {/* 활동 그리드 */}
             <div 
-              className="grid grid-flow-col gap-[3px] p-2 bg-gray-50 rounded border border-gray-100"
+              className="grid grid-flow-col gap-[1px] p-2 bg-gray-50 rounded border border-gray-100"
               style={{
                 gridTemplateRows: 'repeat(7, 12px)',
                 gridTemplateColumns: 'repeat(52, 12px)'
@@ -148,10 +148,9 @@ export default function ActivityGraph({ activities, lastActivity }: ActivityGrap
                 return (
                   <div
                     key={i}
-                    className="w-[12px] h-[12px] rounded-[2px] transition-all hover:ring-2 hover:ring-gray-300 hover:ring-offset-1"
+                    className="w-[12px] h-[12px] rounded-[2px] transition-all hover:ring-2 hover:ring-gray-300 hover:ring-offset-1 border border-gray-200"
                     style={{
-                      backgroundColor: hasActivity ? color : 'transparent',
-                      border: hasActivity ? 'none' : '1px dashed #e2e8f0'
+                      backgroundColor: hasActivity ? color : 'transparent'
                     }}
                     title={hasActivity 
                       ? `${item.date}: ${item.activity!.quiz_count}개 문제, 정답률 ${item.activity!.correct_rate}%`

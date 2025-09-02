@@ -232,7 +232,7 @@ export default function CommitsPage() {
               
               <div className="flex gap-4">
                 {/* 요일 라벨 */}
-                <div className="flex flex-col gap-[3px]">
+                <div className="flex flex-col gap-[1px]">
                   {getDayLabels().map((day, i) => (
                     <div key={i} className="h-[16px] w-[24px] text-sm text-gray-500 flex items-center">
                       {i % 2 === 1 ? day : ''}
@@ -242,7 +242,7 @@ export default function CommitsPage() {
                 
                 {/* 활동 그리드 */}
                 <div 
-                  className="grid grid-flow-col gap-[3px] p-3 bg-gray-50 rounded-lg"
+                  className="grid grid-flow-col gap-[1px] p-3 bg-gray-50 rounded-lg"
                   style={{
                     gridTemplateRows: 'repeat(7, 16px)',
                     gridTemplateColumns: 'repeat(52, 16px)'
@@ -257,10 +257,9 @@ export default function CommitsPage() {
                     return (
                       <div
                         key={i}
-                        className="w-[16px] h-[16px] rounded-[3px] transition-all hover:ring-2 hover:ring-gray-400 hover:ring-offset-1 cursor-pointer"
+                        className="w-[16px] h-[16px] rounded-[3px] transition-all hover:ring-2 hover:ring-gray-400 hover:ring-offset-1 cursor-pointer border border-gray-200"
                         style={{
-                          backgroundColor: hasActivity ? color : 'transparent',
-                          border: hasActivity ? 'none' : '1px dashed #d0d0d0'
+                          backgroundColor: hasActivity ? color : 'transparent'
                         }}
                         title={hasActivity 
                           ? `${item.date}: ${item.activity!.quiz_count}개 문제, 정답률 ${item.activity!.correct_rate}%, 학습시간 ${Math.round(item.activity!.study_time / 60)}분`

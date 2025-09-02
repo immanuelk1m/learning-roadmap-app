@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/genai'
-import { knowledgeTreeSchema, quizSchema, oxQuizSchema, studyGuideSchema, extendedQuizSchema, studyGuidePageSchema, knowledgeTreeWithOXSchema } from './schemas'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { knowledgeTreeSchema, quizSchema, oxQuizSchema, extendedQuizSchema, studyGuidePageSchema, knowledgeTreeWithOXSchema } from './schemas'
 
 if (!process.env.GEMINI_API_KEY) {
   console.error('=== GEMINI API KEY ERROR ===')
@@ -127,7 +127,7 @@ export const geminiKnowledgeTreeModel = {
 export const geminiQuizModel = {
   generateContent: async (input: any) => {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.5,
         maxOutputTokens: 16384,
@@ -186,46 +186,11 @@ export const geminiCombinedModel = {
   }
 }
 
-// O/X Quiz Generation Model configuration (keep for backward compatibility)
-export const geminiOXQuizModel = {
-  generateContent: async (input: any) => {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 16384, // Increased to prevent truncation
-        responseMimeType: "application/json",
-        responseSchema: oxQuizSchema,
-      },
-      systemInstruction: "You are an expert assessment creator for Korean university students. Create O/X (True/False) questions to evaluate student understanding of concepts. Always write questions and explanations in Korean.",
-    })
-    
-    return model.generateContent(input.contents)
-  }
-}
-
-
-// Basic model for general use
-export const geminiModel = {
-  generateContent: async (input: any) => {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 16384,
-      },
-      systemInstruction: "You are a helpful AI assistant for Korean students. Always respond in Korean language unless specifically asked otherwise.",
-    })
-    
-    return model.generateContent(input.contents || input)
-  }
-}
-
 // Extended Quiz Generation Model configuration
 export const geminiExtendedQuizModel = {
   generateContent: async (input: any) => {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.6,
         maxOutputTokens: 16384,

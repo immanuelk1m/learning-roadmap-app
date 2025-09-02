@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Upload, FileText, X, FilePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/ToastProvider'
 import { uploadLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
+import { pdf, Document as PDFDoc, Page as PDFPage, Image as PDFImage, StyleSheet } from '@react-pdf/renderer'
 // Dynamic import for PDF.js to avoid SSR issues
 let pdfjsLib: any = null
 if (typeof window !== 'undefined') {
@@ -28,6 +29,75 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { showToast } = useToast()
+  const [pageCount, setPageCount] = useState<number | null>(null)
+  const [thumbnails, setThumbnails] = useState<{ page: number; url: string }[]>([])
+  const [selectedPages, setSelectedPages] = useState<number[]>([])
+  const [generatingPreview, setGeneratingPreview] = useState(false)
+  const pdfDocRef = useRef<any>(null)
+  const [rangeError, setRangeError] = useState<string | null>(null)
+  const [rangeInput, setRangeInput] = useState<string>('')
+
+  const MAX_SELECTABLE = 20
+
+  const styles = useMemo(() => StyleSheet.create({
+    page: { padding: 0 },
+    img: { width: '100%', height: '100%' }
+  }), [])
+
+  // Helper: parse range input like "1-12, 15, 19"
+  function parsePageRanges(input: string, total: number, limit: number): number[] {
+    const cleaned = input.replace(/~/g, '-').replace(/–/g, '-').replace(/\s+/g, '')
+    if (!cleaned) return []
+    const parts = cleaned.split(',').filter(Boolean)
+    const set = new Set<number>()
+    for (const part of parts) {
+      if (part.includes('-')) {
+        const [startStr, endStr] = part.split('-')
+        const start = Math.max(1, Math.min(total, parseInt(startStr, 10)))
+        const end = Math.max(1, Math.min(total, parseInt(endStr, 10)))
+        if (!isFinite(start) || !isFinite(end)) continue
+        const [s, e] = start <= end ? [start, end] : [end, start]
+        for (let i = s; i <= e; i++) {
+          if (set.size >= limit) break
+          set.add(i)
+        }
+      } else {
+        const n = Math.max(1, Math.min(total, parseInt(part, 10)))
+        if (isFinite(n)) {
+          if (set.size >= limit) break
+          set.add(n)
+        }
+      }
+      if (set.size >= limit) break
+    }
+    return Array.from(set).sort((a,b)=>a-b)
+  }
+
+  // Helper: format pages like [1,2,3,5,7,8] -> "1-3,5,7-8"
+  function formatPageRanges(pages: number[]): string {
+    if (!pages || pages.length === 0) return ''
+    const sorted = [...pages].sort((a,b)=>a-b)
+    const parts: string[] = []
+    let start = sorted[0]
+    let prev = sorted[0]
+    for (let i = 1; i < sorted.length; i++) {
+      const n = sorted[i]
+      if (n === prev + 1) {
+        prev = n
+        continue
+      }
+      // close previous range
+      parts.push(start === prev ? `${start}` : `${start}-${prev}`)
+      start = prev = n
+    }
+    parts.push(start === prev ? `${start}` : `${start}-${prev}`)
+    return parts.join(', ')
+  }
+
+  // Keep the range input in sync with current selection
+  useEffect(() => {
+    setRangeInput(formatPageRanges(selectedPages))
+  }, [selectedPages])
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -48,6 +118,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
           
           const arrayBuffer = await selectedFile.arrayBuffer()
           const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+          pdfDocRef.current = pdf
           const pageCount = pdf.numPages
           
           console.log(`PDF page count: ${pageCount}`)
@@ -60,11 +131,50 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
           
           // Store page count for later use
           ;(selectedFile as any).pageCount = pageCount
+          setPageCount(pageCount)
+          // Generate thumbnails
+          setGeneratingPreview(true)
+          const thumbs: { page: number; url: string }[] = []
+          for (let i = 1; i <= pageCount; i++) {
+            try {
+              const page = await pdf.getPage(i)
+              // Generate higher-res thumbnails for album view
+              const viewport = page.getViewport({ scale: 0.5 })
+              const canvas = document.createElement('canvas')
+              const ctx = canvas.getContext('2d')
+              if (!ctx) continue
+              canvas.width = viewport.width
+              canvas.height = viewport.height
+              await page.render({ canvasContext: ctx, viewport }).promise
+              const url = canvas.toDataURL('image/jpeg', 0.8)
+              thumbs.push({ page: i, url })
+              // free canvas
+              canvas.width = 0
+              canvas.height = 0
+            } catch (err) {
+              console.warn('Thumbnail render failed for page', i, err)
+            }
+          }
+          setThumbnails(thumbs)
+          // Default selection
+          if (pageCount <= MAX_SELECTABLE) {
+            setSelectedPages(Array.from({ length: pageCount }, (_, idx) => idx + 1))
+          } else {
+            setSelectedPages(Array.from({ length: MAX_SELECTABLE }, (_, idx) => idx + 1))
+            showToast({
+              type: 'info',
+              title: '페이지 선택 제한',
+              message: `최대 ${MAX_SELECTABLE}페이지까지만 선택 가능합니다. 기본으로 처음 ${MAX_SELECTABLE}페이지가 선택되었습니다.`,
+              duration: 5000
+            })
+          }
+          setGeneratingPreview(false)
           
         } catch (error) {
           console.error('Failed to check PDF page count:', error)
           // Don't block upload if page count check fails
           console.warn('Proceeding without page count validation')
+          setGeneratingPreview(false)
         }
       } else {
         console.warn('PDF.js not loaded, skipping page count validation')
@@ -74,6 +184,8 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       setError(null)
     }
   }
+
+  // Album view only (no separate large preview)
 
   const handleUpload = async () => {
     if (!file) return
@@ -117,9 +229,54 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         fileType: file.type
       })
 
+      // If user selected pages, generate a sliced PDF from selected pages only
+      let fileToUpload: File | Blob = file
+      let usedPageCount = (file as any).pageCount || null
+      if (pageCount && selectedPages.length > 0 && selectedPages.length <= MAX_SELECTABLE) {
+        try {
+          if (!pdfjsLib) throw new Error('PDF.js not loaded')
+          const arrayBuffer = await file.arrayBuffer()
+          const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+          // Render selected pages to images
+          const images: string[] = []
+          // Render at higher scale for readability
+          for (const p of selectedPages) {
+            const page = await pdfDoc.getPage(p)
+            const viewport = page.getViewport({ scale: 1.5 })
+            const canvas = document.createElement('canvas')
+            const ctx = canvas.getContext('2d')
+            if (!ctx) continue
+            canvas.width = viewport.width
+            canvas.height = viewport.height
+            await page.render({ canvasContext: ctx, viewport }).promise
+            const url = canvas.toDataURL('image/jpeg', 0.9)
+            images.push(url)
+            canvas.width = 0
+            canvas.height = 0
+          }
+
+          // Build a new PDF from images
+          const Sliced = () => (
+            <PDFDoc>
+              {images.map((src, idx) => (
+                <PDFPage key={idx} size="A4" style={styles.page}>
+                  <PDFImage src={src} style={styles.img} />
+                </PDFPage>
+              ))}
+            </PDFDoc>
+          )
+          const slicedBlob = await pdf(<Sliced />).toBlob()
+          const slicedFile = new File([slicedBlob], file.name.replace(/\.pdf$/i, '') + '_selected.pdf', { type: 'application/pdf' })
+          fileToUpload = slicedFile
+          usedPageCount = selectedPages.length
+        } catch (genErr: any) {
+          console.warn('Failed to generate sliced PDF, fallback to original:', genErr)
+        }
+      }
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('pdf-documents')
-        .upload(fileName, file, {
+        .upload(fileName, fileToUpload, {
           contentType: 'application/pdf',
           upsert: false
         })
@@ -172,10 +329,10 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       const documentData = {
         subject_id: subjectId,
         user_id: FIXED_USER_ID,
-        title: file.name.replace('.pdf', ''),
+        title: file.name.replace(/\.pdf$/i, ''),
         file_path: fileName,
-        file_size: file.size,
-        page_count: (file as any).pageCount || null,
+        file_size: (fileToUpload as any).size || file.size,
+        page_count: usedPageCount,
         status: 'processing',
       }
       
@@ -327,12 +484,12 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                 errorMessage: error.message,
                 errorType: error.name,
                 retryCount,
-                willRetry: retryCount < maxRetries
-              }
-            })
-            
-            if (retryCount < maxRetries) {
-              retryCount++
+            willRetry: retryCount < maxRetries
+          }
+        })
+        
+        if (retryCount < maxRetries) {
+          retryCount++
               const retryDelay = Math.pow(2, retryCount) * 1000
               setTimeout(triggerAnalysis, retryDelay)
             }
@@ -401,7 +558,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
 
       {isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-2xl w-[80%] max-w-4xl shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="p-6 border-b border-gray-100 bg-gray-50 rounded-t-2xl">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
@@ -421,6 +578,17 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                   <X className="h-4 w-4" />
                 </button>
               </div>
+              {file && (
+                <div className="mt-4 flex items-start gap-3">
+                  <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate" title={file.name}>{file.name}</p>
+                    <p className="text-xs text-gray-600 mt-1">{(file.size / (1024 * 1024)).toFixed(1)} MB {pageCount ? `• ${pageCount}페이지` : ''}</p>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="p-6">
 
@@ -446,28 +614,131 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                 />
               </div>
             ) : (
-              <div className="border border-green-200 bg-green-50 rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-3">
-                      <FileText className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-green-600">
-                        {(file.size / (1024 * 1024)).toFixed(1)} MB {(file as any).pageCount ? `• ${(file as any).pageCount}페이지` : ''} • 업로드 준비 완료
-                      </p>
+              // Single-column body: album-style selection (meta is in header)
+              <div className="grid grid-cols-1 gap-6">
+                <div className="border rounded-xl p-4 bg-white">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900">페이지 선택</h3>
+                    <div className="flex items-center gap-3 text-sm">
+                      {pageCount && pageCount > 0 && (
+                        <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300"
+                            checked={selectedPages.length === Math.min(pageCount, MAX_SELECTABLE)}
+                            onChange={(e) => {
+                              if (!pageCount) return
+                            if (e.target.checked) {
+                              const cnt = Math.min(pageCount, MAX_SELECTABLE)
+                              const arr = Array.from({ length: cnt }, (_, i) => i + 1)
+                              setSelectedPages(arr)
+                              if (pageCount > MAX_SELECTABLE) {
+                                showToast({ type: 'info', title: '선택 제한', message: `처음 ${MAX_SELECTABLE}페이지만 선택됩니다.`, duration: 3500 })
+                              }
+                            } else {
+                              setSelectedPages([])
+                            }
+                          }}
+                          />
+                          전체 선택
+                        </label>
+                      )}
+                      <button
+                        onClick={() => setSelectedPages([])}
+                        className="text-gray-600 hover:text-gray-900"
+                      >초기화</button>
+                      <span className="text-gray-600">선택: <span className="font-semibold">{selectedPages.length}</span> / {MAX_SELECTABLE}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setFile(null)}
-                    className="w-8 h-8 rounded-lg bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+
+                  {/* Range input */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-gray-600">구간 입력 (예: 1-12, 15, 19)</label>
+                    <div className="flex items-stretch gap-2">
+                      <input
+                        type="text"
+                        placeholder="1-12, 15, 19"
+                        value={rangeInput}
+                        onChange={(e) => setRangeInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const total = pageCount ?? (file as any).pageCount ?? 0
+                            const pages = parsePageRanges(rangeInput, total, MAX_SELECTABLE)
+                            if (pages.length === 0) {
+                              setRangeError('유효한 페이지 범위를 입력하세요.')
+                            } else {
+                              setRangeError(null)
+                            }
+                            setSelectedPages(pages)
+                          }
+                        }}
+                        className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        className="px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                        onClick={() => {
+                          const total = pageCount ?? (file as any).pageCount ?? 0
+                          const pages = parsePageRanges(rangeInput, total, MAX_SELECTABLE)
+                          if (pages.length === 0) {
+                            setRangeError('유효한 페이지 범위를 입력하세요.')
+                          } else {
+                            setRangeError(null)
+                          }
+                          setSelectedPages(pages)
+                        }}
+                      >적용</button>
+                    </div>
+                    {rangeError && <p className="text-xs text-red-600">{rangeError}</p>}
+                  </div>
+
+                  {/* Album grid */}
+                  <div className="mt-3 max-h-[520px] overflow-auto border border-emerald-100 rounded-lg p-3 bg-white">
+                    {generatingPreview ? (
+                      <div className="text-sm text-gray-500 p-4">페이지 미리보기 생성 중...</div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {thumbnails.map((t) => {
+                          const active = selectedPages.includes(t.page)
+                          return (
+                            <button
+                              type="button"
+                              key={t.page}
+                              className={`relative border ${active ? 'border-emerald-500' : 'border-gray-200'} rounded-lg overflow-hidden group shadow-sm`}
+                              onClick={() => {
+                                setSelectedPages((prev) => {
+                                  const exists = prev.includes(t.page)
+                                  if (exists) return prev.filter((p) => p !== t.page)
+                                  if (prev.length >= MAX_SELECTABLE) {
+                                    showToast({ type: 'warning', title: '최대 선택 수 초과', message: `최대 ${MAX_SELECTABLE}페이지까지 선택할 수 있습니다.`, duration: 3000 })
+                                    return prev
+                                  }
+                                  return [...prev, t.page].sort((a,b)=>a-b)
+                                })
+                              }}
+                              title={`페이지 ${t.page}`}
+                            >
+                              <div style={{ aspectRatio: '3 / 4' }} className="w-full bg-gray-50">
+                                <img src={t.url} alt={`p${t.page}`} className="w-full h-full object-contain" />
+                              </div>
+                              <span className={`absolute top-1 left-1 text-[11px] px-1.5 py-0.5 rounded ${active ? 'bg-emerald-600 text-white' : 'bg-black/60 text-white'}`}>{t.page}</span>
+                              {active && (
+                                <>
+                                  <span className="absolute inset-0 bg-emerald-500/20" />
+                                  <span className="absolute bottom-2 right-2 text-xs bg-emerald-600 text-white rounded px-2 py-0.5">선택됨</span>
+                                </>
+                              )}
+                            </button>
+                          )
+                        })}
+                        {thumbnails.length === 0 && (
+                          <div className="text-xs text-gray-500 p-2">미리보기를 생성할 수 없습니다.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
               </div>
             )}
 

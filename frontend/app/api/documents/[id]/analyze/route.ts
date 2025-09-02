@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { KNOWLEDGE_TREE_PROMPT } from '@/lib/gemini/prompts'
 import { analyzeLogger, geminiLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
+import '@/lib/ai/env'
 import { google } from '@ai-sdk/google'
 import { generateObject } from 'ai'
 import { z } from 'zod'
@@ -345,11 +346,6 @@ export async function POST(
         }
       })
       
-      // Ensure AI provider API key: fallback to GEMINI_API_KEY if needed
-      if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
-        process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY
-      }
-
       const aiTimer = geminiLogger.startTimer()
       let combinedData: KnowledgeTreeResponse
       try {

@@ -34,13 +34,6 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
     return '#ff4444'
   }
   
-  const getStatusEmoji = (progress: number) => {
-    if (progress === 100) return '✅'
-    if (progress >= 70) return '🔥'
-    if (progress >= 40) return '📚'
-    return '🚀'
-  }
-  
   // 파일명에서 확장자 제거 및 간략화
   const formatDocumentTitle = (title: string) => {
     // 확장자 제거
@@ -148,18 +141,6 @@ export default function DocumentProgressList({ documents }: DocumentProgressList
                   </div>
                 </div>
               </button>
-              
-              {/* 과목 색상 배지 */}
-              <div 
-                className="w-[55px] h-[60px] rounded-[10px] flex flex-col items-center justify-center text-xs"
-                style={{ backgroundColor: doc.subject_color || 'var(--color-primary-dark)' }}
-                title={`${doc.completed_nodes}/${doc.node_count} 완료`}
-              >
-                <span className="text-2xl mb-1">{getStatusEmoji(doc.progress)}</span>
-                <span className="text-white text-[9px] font-semibold">
-                  {doc.completed_nodes}/{doc.node_count}
-                </span>
-              </div>
             </div>
           ))
         )}
