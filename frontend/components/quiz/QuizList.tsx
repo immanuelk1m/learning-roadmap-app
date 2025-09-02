@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Sparkles, Loader2 } from 'lucide-react'
+import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Sparkles, Loader2, Trash2 } from 'lucide-react'
+import DeleteQuizSetButton from './DeleteQuizSetButton'
 import { createClient } from '@/lib/supabase/client'
 import DeleteQuizButton from './DeleteQuizButton'
 
@@ -354,7 +355,14 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                                 </h4>
                                 {/* Date removed as requested */}
                               </div>
-                              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors mt-0.5" />
+                              <div className="flex items-center gap-1">
+                                <DeleteQuizSetButton
+                                  quizSetId={qs.id}
+                                  quizSetName={qs.name}
+                                  onDeleted={() => window.location.reload()}
+                                />
+                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors mt-0.5" />
+                              </div>
                             </div>
                           </Link>
                         ))}
