@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Clock, Sparkles, Loader2 } from 'lucide-react'
+import { FileText, Brain, Calendar, ChevronRight, Plus, Check, ArrowLeft, Sparkles, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import DeleteQuizButton from './DeleteQuizButton'
 
@@ -314,7 +314,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                           <FileText className="w-5 h-5 text-white" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="text-base font-semibold text-slate-900 truncate">
+                          <h3 className="text-base font-semibold text-slate-900 whitespace-normal break-words line-clamp-2">
                             {doc.title.replace(/\.pdf$/i, '')}
                           </h3>
                           <div className="flex flex-col gap-1 mt-1 text-xs text-slate-600">
@@ -352,15 +352,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                                 <h4 className="text-sm font-medium text-slate-900 truncate group-hover:text-emerald-600 transition-colors">
                                   {qs.name}
                                 </h4>
-                                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {new Date(qs.created_at).toLocaleDateString('ko-KR', {
-                                      month: 'short',
-                                      day: 'numeric'
-                                    })}
-                                  </span>
-                                </div>
+                                {/* Date removed as requested */}
                               </div>
                               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors mt-0.5" />
                             </div>
