@@ -240,27 +240,6 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Link
-                href={`/subjects/${id}`}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                과목으로 돌아가기
-              </Link>
-              <div className="border-l border-gray-300 pl-4">
-                <h1 className="text-lg font-semibold text-gray-900">{subject.name}</h1>
-                <p className="text-sm text-gray-600">학습 전 배경지식 체크</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Assessment Component */}
       <div className="px-4 py-8">
         <AlbumStyleKnowledgeAssessment
