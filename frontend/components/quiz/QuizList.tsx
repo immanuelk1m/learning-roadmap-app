@@ -45,6 +45,7 @@ type DifficultyLevel = 'very_easy' | 'easy' | 'normal' | 'hard' | 'very_hard'
 export default function QuizList({ subjectId, documents }: QuizListProps) {
   const [quizDocuments, setQuizDocuments] = useState<Document[]>([])
   const [quizSessions, setQuizSessions] = useState<{ [key: string]: QuizSession[] }>({})
+  const [quizSets, setQuizSets] = useState<{ [key: string]: { id: string; name: string; created_at: string }[] }>({})
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<'view' | 'generate'>('view')
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
@@ -66,8 +67,9 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
       const docsWithQuiz = documents.filter(doc => doc.quiz_generation_status?.generated && doc.status === 'completed')
       setQuizDocuments(docsWithQuiz)
       
-      // Fetch quiz sessions for each document
+      // Fetch quiz sessions and quiz sets for each document
       const sessionsMap: { [key: string]: QuizSession[] } = {}
+      const setsMap: { [key: string]: { id: string; name: string; created_at: string }[] } = {}
       
       for (const doc of docsWithQuiz) {
         const { data: sessions, error } = await supabase
@@ -82,9 +84,19 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
           const validSessions = sessions.filter(s => s.document_id !== null) as QuizSession[]
           sessionsMap[doc.id] = validSessions
         }
+        // Fetch quiz_sets ordered by created_at ASC
+        const { data: sets } = await supabase
+          .from('quiz_sets')
+          .select('id, name, created_at')
+          .eq('document_id', doc.id)
+          .order('created_at', { ascending: true })
+        if (sets) {
+          setsMap[doc.id] = sets
+        }
       }
-      
+
       setQuizSessions(sessionsMap)
+      setQuizSets(setsMap)
       setLoading(false)
     }
     
@@ -290,6 +302,7 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
               const questionCount = doc.quiz_generation_status?.count || 0
               const isAssessmentCompleted = doc.assessment_completed || false
               const sessions = quizSessions[doc.id] || []
+              const sets = quizSets[doc.id] || []
               
               return (
                 <div key={doc.id} className="flex-shrink-0 w-[400px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -330,80 +343,37 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                     </div>
                   </div>
                   
-                  {/* Quiz Sessions List */}
+                  {/* Quiz Sets List (ordered by created_at ASC, using quiz_sets.name) */}
                   <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent hover:scrollbar-thumb-slate-300">
-                    {sessions.length > 0 ? (
+                    {sets.length > 0 ? (
                       <div className="divide-y divide-slate-100">
-                        {sessions.map((session, index) => (
-                          isAssessmentCompleted ? (
-                            <Link
-                              key={session.id}
-                              href={`/subjects/${subjectId}/quiz?doc=${doc.id}&session=${session.id}`}
-                              className="block px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer group"
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-gray-200 transition-colors">
-                                  <Brain className="w-3.5 h-3.5 text-gray-600" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-medium text-slate-900 truncate group-hover:text-emerald-600 transition-colors">
-                                    {formatSessionName(doc, session, index)}
-                                  </h4>
-                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {new Date(session.created_at).toLocaleDateString('ko-KR', {
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })}
-                                    </span>
-                                    <span>
-                                      {session.total_questions}개
-                                    </span>
-                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full font-medium ${
-                                      session.status === 'completed' 
-                                        ? 'bg-green-100 text-green-700'
-                                        : session.status === 'in_progress'
-                                        ? 'bg-yellow-100 text-yellow-700'
-                                        : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                      {session.status === 'completed' ? '완료' : 
-                                       session.status === 'in_progress' ? '진행 중' : '중단'}
-                                    </span>
-                                  </div>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors mt-0.5" />
+                        {sets.map((qs) => (
+                          <Link
+                            key={qs.id}
+                            href={`/subjects/${subjectId}/quiz?doc=${doc.id}&set=${qs.id}`}
+                            className="block px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer group"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-gray-200 transition-colors">
+                                <Brain className="w-3.5 h-3.5 text-gray-600" />
                               </div>
-                            </Link>
-                          ) : (
-                            <div key={session.id} className="px-5 py-3 opacity-60 cursor-not-allowed">
-                              <div className="flex items-start gap-3">
-                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                                  <Brain className="w-3.5 h-3.5 text-gray-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-medium text-slate-700 truncate">
-                                    {formatSessionName(doc, session, index)}
-                                  </h4>
-                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-400">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {new Date(session.created_at).toLocaleDateString('ko-KR', {
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })}
-                                    </span>
-                                    <span>
-                                      {session.total_questions}개
-                                    </span>
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
-                                      평가 필요
-                                    </span>
-                                  </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-medium text-slate-900 truncate group-hover:text-emerald-600 transition-colors">
+                                  {qs.name}
+                                </h4>
+                                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {new Date(qs.created_at).toLocaleDateString('ko-KR', {
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })}
+                                  </span>
                                 </div>
                               </div>
+                              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-emerald-600 transition-colors mt-0.5" />
                             </div>
-                          )
+                          </Link>
                         ))}
                       </div>
                     ) : (
@@ -411,16 +381,14 @@ export default function QuizList({ subjectId, documents }: QuizListProps) {
                         <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl mb-3">
                           <Brain className="w-6 h-6 text-gray-400" />
                         </div>
-                        <p className="text-xs text-slate-500 mb-4">
-                          아직 생성된 문제 세션이 없습니다
-                        </p>
+                        <p className="text-xs text-slate-500 mb-4">생성된 문제집이 없습니다</p>
                         {isAssessmentCompleted ? (
                           <Link
                             href={`/subjects/${subjectId}/quiz?doc=${doc.id}`}
                             className="inline-flex items-center gap-2 px-3 py-2 bg-[#2f332f] text-[#2ce477] font-medium rounded-lg hover:shadow-md transition-all duration-200 text-xs"
                           >
                             <Brain className="w-3.5 h-3.5" />
-                            첫 문제 풀기
+                            새 문제집 풀기
                           </Link>
                         ) : (
                           <div className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 font-medium rounded-lg text-xs">
