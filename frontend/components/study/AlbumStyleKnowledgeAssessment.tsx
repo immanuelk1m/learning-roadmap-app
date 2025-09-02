@@ -371,7 +371,7 @@ export default function AlbumStyleKnowledgeAssessment({
 
       {/* 앨범 형태 노드 그리드 */}
       <div className="mb-8">
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-4 justify-center px-2">
           {renderNodes.map(({ node, key }) => {
             const childNodes = nodes.filter(n => n.parent_id === node.id)
             const hasChildren = childNodes.length > 0
