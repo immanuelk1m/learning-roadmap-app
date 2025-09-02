@@ -179,7 +179,7 @@ export const geminiExtendedQuizModel = {
       systemInstruction: "You are an expert quiz creator for Korean university students. Create diverse question types that effectively assess understanding. Always write in Korean.",
     })
     
-    return model.generateContent(input.contents)
+    return model.generateContent(input)
   }
 }
 

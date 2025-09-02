@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, Upload, BookOpen } from 'lucide-react'
+import { Upload, BookOpen } from 'lucide-react'
 import UploadPDFButton from '@/components/documents/UploadPDFButton'
 import DocumentList from '@/components/documents/DocumentList'
 import SubjectDetailSkeleton from '@/components/subjects/SubjectDetailSkeleton'
@@ -122,16 +121,7 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
       {/* Main Content Container */}
       <div className="max-w-[1440px] mx-auto">
         <div className="pt-[20px] px-[42px]">
-          {/* Back Navigation */}
-          <div className="mb-4">
-            <Link
-              href="/subjects"
-              className="inline-flex items-center gap-2 text-[#737373] hover:text-[#212529] text-[13px] font-medium"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              과목 목록
-            </Link>
-          </div>
+          {/* Back Navigation removed as requested */}
           
           {/* Subject Header Card */}
           <div className="bg-white rounded-[5px] shadow-lg p-5 mb-6">

@@ -116,13 +116,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createError) {
-      console.error('Error creating quiz session:', {
-        error: createError,
-        code: createError.code,
-        message: createError.message,
-        details: createError.details,
-        hint: createError.hint
-      })
+      console.error('Error creating quiz session (full error object):', createError)
       return NextResponse.json(
         { error: 'Failed to create session', details: createError.message },
         { status: 500 }

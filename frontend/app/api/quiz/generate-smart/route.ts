@@ -145,23 +145,15 @@ ${index + 1}. **${node.name}** (ID: ${node.id})
 6. **모든 내용은 한국어로 작성하세요.**
 `
 
-    const result = await geminiExtendedQuizModel.generateContent({
-      contents: [
-        {
-          parts: [
-            {
-              inlineData: {
-                mimeType: 'application/pdf',
-                data: base64Data,
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
+    const result = await geminiExtendedQuizModel.generateContent([
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: base64Data,
         },
-      ],
-    })
+      },
+      { text: prompt },
+    ])
 
     // Google Generative AI SDK returns a GenerateContentResult
     // Access text via result.response.text()
