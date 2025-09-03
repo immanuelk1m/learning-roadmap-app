@@ -258,7 +258,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
 
       {/* Drawer Panel - Fixed position but appears to push content */}
       <aside
-        className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transition-transform duration-300 z-[9999] ${
+        className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transition-transform duration-300 z-[11000] ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ backgroundColor: '#ffffff' }}
@@ -272,7 +272,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             onClick={() => setIsOpen(false)}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M6 6l12 12M18 6l-12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
           </button>
         </div>
