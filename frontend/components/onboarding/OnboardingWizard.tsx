@@ -227,10 +227,8 @@ export default function OnboardingWizard() {
               onChange={(e)=>{ setCustomSubject(e.target.value); setPreferredSubject('') }}
               className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
-            <button type="button" onClick={()=>setCustomSubject('')} className="px-3 py-2 text-sm border rounded-lg">지우기</button>
           </div>
-          <div className="mt-6 flex justify-between">
-            <span className="text-xs text-gray-500">선택 또는 입력(선택사항)</span>
+          <div className="mt-6 flex justify-end">
             <div className="flex gap-2">
               <button type="button" onClick={()=>setStep('survey2')} className="px-4 py-2 bg-[#2f332f] text-[#2ce477] rounded-lg">다음</button>
             </div>
