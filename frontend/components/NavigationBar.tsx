@@ -67,6 +67,18 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       provider: 'google',
       options: {
         redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        // Try to let user pick account when logging in
+        queryParams: { prompt: 'select_account' }
+      }
+    })
+  }
+
+  const handleGoogleSignup = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        // Ensure consent screen for first-time signup
         queryParams: { prompt: 'consent' }
       }
     })
@@ -119,12 +131,20 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                   로그아웃
                 </button>
               ) : (
-                <button
-                  onClick={handleGoogleLogin}
-                  className="px-3 py-1.5 text-[13px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-                >
-                  로그인 / 회원가입
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleGoogleLogin}
+                    className="px-3 py-1.5 text-[13px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                  >
+                    로그인
+                  </button>
+                  <button
+                    onClick={handleGoogleSignup}
+                    className="px-3 py-1.5 text-[13px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                  >
+                    회원가입
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -172,12 +192,20 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                 로그아웃
               </button>
             ) : (
-              <button
-                onClick={handleGoogleLogin}
-                className="ml-auto px-3 py-1.5 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-              >
-                로그인 / 회원가입
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={handleGoogleLogin}
+                  className="px-3 py-1.5 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                >
+                  로그인
+                </button>
+                <button
+                  onClick={handleGoogleSignup}
+                  className="px-3 py-1.5 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                >
+                  회원가입
+                </button>
+              </div>
             )}
 
             {/* Mobile Center Title (Assessment page only) */}
