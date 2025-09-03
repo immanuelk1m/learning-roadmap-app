@@ -86,9 +86,15 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           {/* Center Title (Assessment page only) */}
           {(isAssessmentPage || isQuizPage || isHomePage) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-[15px] font-semibold text-gray-900">
-                {isAssessmentPage ? '학습 전 배경지식 체크' : isQuizPage ? '연습문제 - ' : 'Commit  환영합니다, Taehee님'}
-              </span>
+              {isHomePage ? (
+                <div className="flex items-center gap-4">
+                  <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+                  <div className="w-px h-5 bg-gray-300" />
+                  <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+                </div>
+              ) : (
+                <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>
+              )}
             </div>
           )}
 
@@ -116,7 +122,15 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             {/* Mobile Center Title (Assessment page only) */}
             {(isAssessmentPage || isQuizPage || isHomePage) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : isQuizPage ? '연습문제 - ' : 'Commit  환영합니다, Taehee님'}</span>
+                {isHomePage ? (
+                  <div className="flex items-center gap-4">
+                    <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+                    <div className="w-px h-5 bg-gray-300" />
+                    <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+                  </div>
+                ) : (
+                  <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>
+                )}
               </div>
             )}
           </div>
