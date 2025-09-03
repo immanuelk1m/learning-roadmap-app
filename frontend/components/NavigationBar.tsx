@@ -375,11 +375,11 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                     {account?.email || user?.email}
                   </div>
                   <Link
-                    href="/upgrade"
+                    href="/pricing"
                     onClick={() => { setUserMenuOpen(false); setIsOpen(false) }}
                     className="block px-3 py-2 text-[14px] text-gray-800 hover:bg-gray-50 rounded-md"
                   >
-                    플랜 업그레이드
+                    요금제
                   </Link>
                   <Link
                     href="/help"
