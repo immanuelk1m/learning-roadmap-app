@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    const FIXED_USER_ID = userId || '00000000-0000-0000-0000-000000000000'
+    const auth = await supabase.auth.getUser()
+    const FIXED_USER_ID = auth.data.user?.id || userId || '00000000-0000-0000-0000-000000000000'
 
     // Get most recent session for the document (either in_progress or completed)
     const { data: existingSession, error } = await supabase
@@ -57,7 +58,8 @@ export async function POST(request: NextRequest) {
     const { documentId, quizType = 'practice' } = body
 
     const supabase = await createClient()
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const auth = await supabase.auth.getUser()
+    const FIXED_USER_ID = auth.data.user?.id || '00000000-0000-0000-0000-000000000000'
     
     // Add detailed logging for debugging
     console.log('Creating quiz session:', { documentId, quizType, userId: FIXED_USER_ID })

@@ -41,8 +41,7 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   const [activeTab, setActiveTab] = useState<'files' | 'quizzes'>('files')
   const supabase = createClient()
   
-  // 고정 사용자 ID 사용
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+  const [userId, setUserId] = useState<string | null>(null)
 
   // 문서 목록 새로고침 함수
   const refreshDocuments = async () => {
@@ -78,6 +77,7 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   // 초기 데이터 로드
   useEffect(() => {
     params.then(p => setId(p.id))
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id || null))
   }, [])
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
         .from('subjects')
         .select('*')
         .eq('id', id)
-        .eq('user_id', FIXED_USER_ID)
+        .eq('user_id', userId!)
         .single()
 
       if (!subjectData) {
@@ -105,8 +105,8 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
       setLoading(false)
     }
 
-    fetchData()
-  }, [id])
+    if (userId) fetchData()
+  }, [id, userId])
 
   if (loading || !subject || !id) {
     return <SubjectDetailSkeleton />

@@ -18,7 +18,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([])
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || '게스트'
 
   useEffect(() => {
     if (isOpen) {
@@ -34,11 +34,15 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const { data } = await supabase
+        // load subjects for current user (auth required)
+        const { data: userRes } = await supabase.auth.getUser()
+        const uid = userRes.user?.id
+        const { data } = uid ? await supabase
           .from('subjects')
           .select('id, name')
-          .eq('user_id', FIXED_USER_ID)
+          .eq('user_id', uid)
           .order('created_at', { ascending: false })
+        : { data: [] as any[] }
         setSubjects(data || [])
       } catch (e) {
         console.warn('Failed to load subjects for drawer', e)
@@ -122,7 +126,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                 <div className="hidden xl:flex items-center gap-4">
                   <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
                   <div className="w-px h-5 bg-gray-300" />
-                  <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+                  <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, {displayName}</div>
                 </div>
               )}
               {user ? (
@@ -158,7 +162,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                 <div className="flex items-center gap-4">
                   <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
                   <div className="w-px h-5 bg-gray-300" />
-                  <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+                  <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, {displayName}</div>
                 </div>
               ) : (
                 <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>

@@ -12,14 +12,18 @@ export default function SubjectsPage() {
   const [loading, setLoading] = useState(true)
   const supabase = createBrowserClient()
   
-  // 고정 사용자 ID 사용 (인증 없이)
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
-  
   const fetchSubjects = async () => {
+    const { data: userRes } = await supabase.auth.getUser()
+    const uid = userRes.user?.id
+    if (!uid) {
+      setSubjects([])
+      setLoading(false)
+      return
+    }
     const { data } = await supabase
       .from('subjects')
       .select('*')
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', uid)
       .order('created_at', { ascending: false })
     
     if (data) {

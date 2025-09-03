@@ -16,22 +16,27 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const supabase = createBrowserClient()
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+  const [userId, setUserId] = useState<string | null>(null)
 
   const fetchData = async () => {
     try {
       setLoading(true)
+      const { data: userRes } = await supabase.auth.getUser()
+      const uid = userRes.user?.id
+      if (!uid) {
+        setSubjects([]); setDocuments([]); setActivities([]); setSystemStatus(null); setLoading(false); return
+      }
       
       // 병렬로 데이터 패칭 (RPC 함수 사용)
       const [subjectsResult, documentsResult, activitiesResult, statusResult] = await Promise.all([
         // 과목별 진행도 조회 (최적화된 RPC 함수)
-        supabase.rpc('get_subjects_with_progress', { p_user_id: FIXED_USER_ID }),
+        supabase.rpc('get_subjects_with_progress', { p_user_id: uid }),
         // 문서별 진행도 조회
-        supabase.rpc('get_documents_with_progress', { p_user_id: FIXED_USER_ID }),
+        supabase.rpc('get_documents_with_progress', { p_user_id: uid }),
         // 활동 히트맵 데이터 조회
-        supabase.rpc('get_activity_heatmap', { p_user_id: FIXED_USER_ID, days: 365 }),
+        supabase.rpc('get_activity_heatmap', { p_user_id: uid, days: 365 }),
         // 시스템 상태 조회
-        supabase.rpc('get_system_status', { p_user_id: FIXED_USER_ID })
+        supabase.rpc('get_system_status', { p_user_id: uid })
       ])
 
       if (subjectsResult.data) {

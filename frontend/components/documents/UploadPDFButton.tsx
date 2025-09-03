@@ -207,12 +207,18 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
     setError(null)
 
     try {
-      // Use fixed user ID
-      const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+      // Use authenticated user ID
+      const { data: userRes } = await supabase.auth.getUser()
+      const userId = userRes.user?.id
+      if (!userId) {
+        showToast({ type: 'warning', title: '로그인이 필요합니다', message: 'Google 계정으로 로그인 후 업로드하세요.' })
+        setLoading(false)
+        return
+      }
 
       // Upload file to Supabase Storage
       const fileExt = file.name.split('.').pop()
-      const fileName = `${FIXED_USER_ID}/${subjectId}/${Date.now()}.${fileExt}`
+      const fileName = `${userId}/${subjectId}/${Date.now()}.${fileExt}`
 
       uploadLogger.info('Uploading to Supabase Storage', {
         correlationId,
@@ -328,7 +334,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       
       const documentData = {
         subject_id: subjectId,
-        user_id: FIXED_USER_ID,
+        user_id: userId,
         title: file.name.replace(/\.pdf$/i, ''),
         file_path: fileName,
         file_size: (fileToUpload as any).size || file.size,
