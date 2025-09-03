@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { geminiStudyGuidePageModel, prepareFileData } from '@/lib/gemini/client'
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
 import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
-import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
+import { parseGeminiResponse, validateResponseStructure, withRetry } from '@/lib/gemini/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -263,12 +263,15 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
     if (studyGuide && studyGuideData.pages) {
       const pagesData = studyGuideData.pages.map(page => ({
         study_guide_id: studyGuide.id,
+        user_id: userId, // Add user_id
         page_number: page.page_number,
         page_title: page.page_title,
         page_content: page.page_content,
         key_concepts: page.key_concepts || [],
+        difficulty_level: page.difficulty_level || 'medium', // Add difficulty_level
         prerequisites: page.prerequisites || [],
         learning_objectives: page.learning_objectives || [],
+        original_content: page.original_content, // Add original_content
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }))
