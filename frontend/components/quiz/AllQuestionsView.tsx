@@ -13,11 +13,6 @@ import {
   TrendingDown
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import MultipleChoiceQuestion from './MultipleChoiceQuestion'
-import TrueFalseQuestion from './TrueFalseQuestion'
-import ShortAnswerQuestion from './ShortAnswerQuestion'
-import FillInTheBlankQuestion from './FillInTheBlankQuestion'
-import MatchingQuestion from './MatchingQuestion'
 import QuizSkeleton from '../study/QuizSkeleton'
 
 interface ExtendedQuizQuestion {
@@ -56,145 +51,14 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
   const [showResults, setShowResults] = useState(false)
   const [results, setResults] = useState<{ [key: string]: boolean }>({})
-  const [showKnowledgeUpdate, setShowKnowledgeUpdate] = useState(false)
-  const [knowledgeUpdates, setKnowledgeUpdates] = useState<{
-    improved: string[]
-    declined: string[]
-  }>({ improved: [], declined: [] })
-  const [assessmentCompleted, setAssessmentCompleted] = useState(false)
   const [generating, setGenerating] = useState(false)
-  
-  // Session management state
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [sessionLoading, setSessionLoading] = useState(false)
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    loadQuestions()
-  }, [documentId])
-
-  // Session management functions
-  const loadOrCreateSession = async () => {
-    setSessionLoading(true)
+  const loadQuestions = useCallback(async () => {
+    setLoading(true)
     try {
-      // Try to get existing session
-      const sessionResponse = await fetch(`/api/quiz/sessions?documentId=${documentId}`)
-      
-      if (sessionResponse.ok) {
-        const { session } = await sessionResponse.json()
-        
-        if (session) {
-          // Restore session state
-          setSessionId(session.id)
-          setUserAnswers(session.user_answers || {})
-          setResults(session.question_results || {})
-          setShowResults(session.show_results || false)
-          
-          console.log('Loaded existing quiz session:', {
-            sessionId: session.id,
-            answersCount: Object.keys(session.user_answers || {}).length,
-            resultsCount: Object.keys(session.question_results || {}).length,
-            showResults: session.show_results
-          })
-          
-          return session.id
-        }
-      }
-      
-      // No existing session, create new one
-      const createResponse = await fetch('/api/quiz/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId, quizType: 'practice' })
-      })
-      
-      if (createResponse.ok) {
-        const { session } = await createResponse.json()
-        setSessionId(session.id)
-        console.log('Created new quiz session:', session.id)
-        return session.id
-      } else {
-        console.error('Failed to create session')
-        return null
-      }
-    } catch (error) {
-      console.error('Error loading/creating session:', error)
-      return null
-    } finally {
-      setSessionLoading(false)
-    }
-  }
-
-  const saveSessionState = useCallback(async (
-    answers: { [key: string]: any },
-    questionResults?: { [key: string]: boolean },
-    showResultsState?: boolean,
-    status?: 'in_progress' | 'completed'
-  ) => {
-    if (!sessionId) return
-
-    try {
-      const updateData: any = {
-        userAnswers: answers
-      }
-      
-      if (questionResults !== undefined) {
-        updateData.questionResults = questionResults
-      }
-      
-      if (showResultsState !== undefined) {
-        updateData.showResults = showResultsState
-      }
-      
-      if (status !== undefined) {
-        updateData.status = status
-      }
-
-      await fetch(`/api/quiz/sessions/${sessionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      })
-    } catch (error) {
-      console.error('Error saving session state:', error)
-    }
-  }, [sessionId])
-
-  const debouncedSaveSession = useCallback((
-    answers: { [key: string]: any },
-    questionResults?: { [key: string]: boolean },
-    showResultsState?: boolean
-  ) => {
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-    
-    // Set new timeout for debounced save
-    saveTimeoutRef.current = setTimeout(() => {
-      saveSessionState(answers, questionResults, showResultsState, 'in_progress')
-    }, 500) // 500ms debounce
-  }, [saveSessionState])
-
-  const loadQuestions = async () => {
-    try {
-      // Check if assessment is completed
-      const { data: documentData, error: docError } = await supabase
-        .from('documents')
-        .select('assessment_completed')
-        .eq('id', documentId)
-        .single()
-
-      if (docError) {
-        console.error('Error checking assessment status:', docError)
-      } else {
-        setAssessmentCompleted(documentData?.assessment_completed || false)
-      }
-
-      // Load quiz questions (not assessment ones) - handle both false and null values
       const { data: quizData, error: quizError } = await supabase
         .from('quiz_items')
         .select('*')
@@ -203,101 +67,31 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
         .order('created_at', { ascending: true })
 
       if (quizError) {
-        console.error('Error loading questions:', quizError)
-        toast.error('문제를 불러오는 중 오류가 발생했습니다.')
-        return
+        throw quizError
       }
 
-      console.log(`Loaded ${quizData?.length || 0} quiz questions for document ${documentId}`)
-
-      // Load knowledge nodes
-      const { data: nodeData, error: nodeError } = await supabase
-        .from('knowledge_nodes')
-        .select('id, name')
-        .eq('document_id', documentId)
-
-      if (nodeError) {
-        console.error('Error loading nodes:', nodeError)
-      }
-
-      // Map quiz data to include node_id from the relationship
       setQuestions((quizData || []) as ExtendedQuizQuestion[])
-      setNodes(nodeData || [])
-      
-      // Load or create session after questions are loaded
-      if (quizData && quizData.length > 0) {
-        await loadOrCreateSession()
-      }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error loading questions:', error)
       toast.error('문제를 불러오는 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [documentId, supabase])
 
-  const generateFallbackQuestions = async () => {
-    if (generating) return
-    
-    setGenerating(true)
-    
-    try {
-      console.log('Generating fallback quiz for completed assessment...')
-      
-      const response = await fetch('/api/quiz/batch-generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentIds: [documentId],
-          difficulty: 'normal',
-          questionCount: 10,
-          questionTypes: {
-            multipleChoice: true,
-            shortAnswer: false,
-            trueFalse: false
-          }
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to generate quiz')
-      }
-
-      const result = await response.json()
-      
-      if (result.questionsGenerated && result.questionsGenerated > 0) {
-        console.log(`Generated ${result.questionsGenerated} fallback questions`)
-        // Reload questions to show the newly generated ones
-        await loadQuestions()
-      } else {
-        throw new Error('No questions were generated')
-      }
-    } catch (error: any) {
-      console.error('Error generating fallback questions:', error)
-      alert('문제 생성에 실패했습니다. 새로고침 후 다시 시도해주세요.')
-    } finally {
-      setGenerating(false)
-    }
-  }
+  useEffect(() => {
+    loadQuestions()
+  }, [loadQuestions])
 
   const handleAnswerChange = (questionId: string, answer: any) => {
-    const newAnswers = {
-      ...userAnswers,
+    setUserAnswers(prev => ({
+      ...prev,
       [questionId]: answer
-    }
-    
-    setUserAnswers(newAnswers)
-    
-    // Auto-save to session with debounce
-    debouncedSaveSession(newAnswers, results, showResults)
+    }))
   }
 
   const calculateResults = () => {
     const newResults: { [key: string]: boolean } = {}
-    
     questions.forEach(question => {
       const userAnswer = userAnswers[question.id]
       let isCorrect = false
@@ -307,38 +101,16 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
         case 'true_false':
           isCorrect = userAnswer === question.correct_answer
           break
-          
         case 'short_answer':
           const acceptableAnswers = question.acceptable_answers || [question.correct_answer]
           isCorrect = acceptableAnswers.some((ans: string) => 
             ans.toLowerCase().trim() === userAnswer?.toLowerCase().trim()
           )
           break
-          
-        case 'fill_in_blank':
-          if (question.blanks && Array.isArray(userAnswer)) {
-            isCorrect = question.blanks.every((blank: any, index: number) => {
-              const userAns = userAnswer[index]?.toLowerCase().trim()
-              const correctAns = blank.answer?.toLowerCase().trim()
-              const alternatives = blank.alternatives?.map((alt: string) => alt.toLowerCase().trim()) || []
-              return userAns === correctAns || alternatives.includes(userAns)
-            })
-          }
-          break
-          
-        case 'matching':
-          if (question.correct_pairs && typeof userAnswer === 'object') {
-            const correctPairs = question.correct_pairs
-            isCorrect = correctPairs.every((pair: any) => 
-              userAnswer[pair.left_index] === pair.right_index
-            )
-          }
-          break
+        // Other question types can be handled here
       }
-
       newResults[question.id] = isCorrect
     })
-
     return newResults
   }
 
@@ -346,225 +118,49 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
     const calculatedResults = calculateResults()
     setResults(calculatedResults)
     setShowResults(true)
-
-    // Save session state with results
-    saveSessionState(userAnswers, calculatedResults, true, 'in_progress')
-
-    // Save quiz attempts
-    questions.forEach(async (question) => {
-      const isCorrect = calculatedResults[question.id]
-      
-      await supabase.from('quiz_attempts').insert({
-        user_id: FIXED_USER_ID,
-        quiz_item_id: question.id,
-        user_answer: JSON.stringify(userAnswers[question.id]),
-        is_correct: isCorrect,
-      })
-    })
   }
 
-  const updateKnowledgeStatus = async () => {
-    const improved: string[] = []
-    const declined: string[] = []
-    
-    // Process each question individually for immediate score updates
-    for (const question of questions) {
-      if (!question.node_id) continue // Skip if no node is connected
-      
-      const isCorrect = results[question.id]
-      
-      // Get current status for this node
-      const { data: currentStatus } = await supabase
-        .from('knowledge_nodes')
-        .select('understanding_level, review_count')
-        .eq('user_id', FIXED_USER_ID)
-        .eq('id', question.node_id)
-        .single()
-
-      const currentLevel = currentStatus?.understanding_level || 0
-      let newLevel = currentLevel
-      
-      // Update score: +20 for correct, -10 for incorrect
-      if (isCorrect) {
-        newLevel = Math.min(100, currentLevel + 20)
-        if (newLevel > currentLevel) {
-          const node = nodes.find(n => n.id === question.node_id)
-          if (node && !improved.includes(node.name)) {
-            improved.push(node.name)
-          }
-        }
-      } else {
-        // Optional: reduce score slightly for wrong answers
-        newLevel = Math.max(0, currentLevel - 10)
-        if (newLevel < currentLevel) {
-          const node = nodes.find(n => n.id === question.node_id)
-          if (node && !declined.includes(node.name)) {
-            declined.push(node.name)
-          }
-        }
-      }
-
-      // Update the node's understanding level
-      await supabase
-        .from('knowledge_nodes')
-        .update({
-          understanding_level: newLevel,
-          assessment_method: 'quiz',
-          last_reviewed: new Date().toISOString(),
-          review_count: (currentStatus?.review_count || 0) + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', question.node_id)
-        .eq('user_id', FIXED_USER_ID)
-    }
-
-    setKnowledgeUpdates({ improved, declined })
-    setShowKnowledgeUpdate(true)
+  const handleNext = () => {
+    router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
   }
 
-  const handleNext = async () => {
-    if (!showKnowledgeUpdate) {
-      await updateKnowledgeStatus()
-    } else {
-      // Mark session as completed when returning to study page
-      if (sessionId) {
-        await saveSessionState(userAnswers, results, showResults, 'completed')
-      }
-      router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
-    }
-  }
-
-  if (loading || sessionLoading) {
-    return (
-      <div>
-        <QuizSkeleton />
-        {sessionLoading && (
-          <div className="text-center mt-4">
-            <div className="inline-flex items-center gap-2 text-sm text-gray-600">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-              퀴즈 세션을 불러오는 중...
-            </div>
-          </div>
-        )}
-      </div>
-    )
+  if (loading) {
+    return <QuizSkeleton />
   }
 
   if (questions.length === 0) {
-    if (!assessmentCompleted) {
-      return (
-        <div className="text-center py-16">
-          <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 mb-4">O/X 평가를 먼저 완료해주세요.</p>
-          <p className="text-sm text-gray-400 mb-6">평가 완료 후 맞춤형 연습 문제가 자동으로 생성됩니다.</p>
-          <div className="space-x-4">
-            <button
-              onClick={() => router.push(`/subjects/${subjectId}/study/assessment?doc=${documentId}`)}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              O/X 평가 시작하기
-            </button>
-            <button
-              onClick={() => router.push(`/subjects/${subjectId}/study?doc=${documentId}`)}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              학습으로 돌아가기
-            </button>
-          </div>
-        </div>
-      )
-    }
-    
     return (
       <div className="text-center py-16">
         <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 mb-4">연습 문제 생성에 문제가 발생했습니다.</p>
-        <p className="text-sm text-gray-400 mb-6">O/X 평가는 완료되었지만 연습 문제가 자동 생성되지 않았습니다.</p>
-        <div className="space-x-4">
-          <button
-            onClick={generateFallbackQuestions}
-            disabled={generating}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {generating ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                문제 생성 중...
-              </>
-            ) : (
-              '연습 문제 생성하기'
-            )}
-          </button>
-          <button
-            onClick={loadQuestions}
-            disabled={generating}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            새로고침
-          </button>
-        </div>
+        <p className="text-gray-500 mb-4">이 문서에 대한 연습 문제가 아직 없습니다.</p>
+        <button
+          onClick={() => router.push(`/subjects/${subjectId}/study?doc=${documentId}`)}
+          className="text-gray-600 hover:text-gray-800"
+        >
+          학습으로 돌아가기
+        </button>
       </div>
     )
   }
 
   const totalQuestions = questions.length
   const correctAnswers = Object.values(results).filter(r => r).length
-  const score = Math.round((correctAnswers / totalQuestions) * 100)
+  const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
-        <h2 className="text-2xl font-bold mb-2">문제풀고 개념트리 완성하기</h2>
+        <h2 className="text-2xl font-bold mb-2">연습 퀴즈</h2>
         <p className="text-gray-600">
           모든 문제를 풀고 하단의 "정답 확인하기" 버튼을 클릭하세요.
         </p>
       </div>
 
-      {/* Questions */}
       <div className="space-y-6">
         {questions.map((question, index) => (
           <div key={question.id} className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-gray-500">
-                    문제 {index + 1}
-                  </span>
-                  <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                    {question.difficulty === 'easy' ? '쉬움' : 
-                     question.difficulty === 'medium' ? '보통' : '어려움'}
-                  </span>
-                  
-                  {/* Answer status indicators */}
-                  {userAnswers[question.id] !== undefined && (
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3" />
-                      답변됨
-                    </span>
-                  )}
-                  
-                  {showResults && (
-                    <span className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
-                      results[question.id] 
-                        ? 'bg-green-100 text-green-600' 
-                        : 'bg-red-100 text-red-600'
-                    }`}>
-                      {results[question.id] ? (
-                        <>
-                          <CheckCircle className="h-3 w-3" />
-                          정답
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="h-3 w-3" />
-                          오답
-                        </>
-                      )}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-medium">{question.question}</h3>
-              </div>
+              <h3 className="text-lg font-medium">문제 {index + 1}. {question.question}</h3>
               {showResults && (
                 <div className="ml-4">
                   {results[question.id] ? (
@@ -576,7 +172,6 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
               )}
             </div>
 
-            {/* Question Component */}
             <div className="mb-4">
               {question.question_type === 'multiple_choice' && (
                 <div className="space-y-2">
@@ -596,116 +191,38 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
                   ))}
                 </div>
               )}
-
               {question.question_type === 'true_false' && (
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => handleAnswerChange(question.id, '참')}
-                    disabled={showResults}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                      userAnswers[question.id] === '참' 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    } ${showResults ? 'cursor-not-allowed opacity-60' : ''}`}
-                  >
-                    참
-                  </button>
-                  <button
-                    onClick={() => handleAnswerChange(question.id, '거짓')}
-                    disabled={showResults}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                      userAnswers[question.id] === '거짓' 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    } ${showResults ? 'cursor-not-allowed opacity-60' : ''}`}
-                  >
-                    거짓
-                  </button>
-                </div>
+                 <div className="flex gap-4">
+                   <button
+                     onClick={() => handleAnswerChange(question.id, '참')}
+                     disabled={showResults}
+                     className={`flex-1 p-4 rounded-lg border-2 transition-all ${userAnswers[question.id] === '참' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'} ${showResults ? 'cursor-not-allowed opacity-60' : ''}`}
+                   >
+                     참
+                   </button>
+                   <button
+                     onClick={() => handleAnswerChange(question.id, '거짓')}
+                     disabled={showResults}
+                     className={`flex-1 p-4 rounded-lg border-2 transition-all ${userAnswers[question.id] === '거짓' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'} ${showResults ? 'cursor-not-allowed opacity-60' : ''}`}
+                   >
+                     거짓
+                   </button>
+                 </div>
               )}
-
               {question.question_type === 'short_answer' && (
-                <div>
-                  <input
-                    type="text"
-                    value={userAnswers[question.id] || ''}
-                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    disabled={showResults}
-                    placeholder="답을 입력하세요"
-                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {question.hint && (
-                    <p className="text-sm text-gray-500 mt-2">힌트: {question.hint}</p>
-                  )}
-                </div>
-              )}
-
-              {question.question_type === 'fill_in_blank' && (
-                <div className="text-left">
-                  {question.template?.split('___').map((part: string, idx: number) => (
-                    <span key={idx}>
-                      {part}
-                      {idx < (question.template?.split('___').length || 0) - 1 && (
-                        <input
-                          type="text"
-                          value={userAnswers[question.id]?.[idx] || ''}
-                          onChange={(e) => {
-                            const newAnswers = [...(userAnswers[question.id] || [])]
-                            newAnswers[idx] = e.target.value
-                            handleAnswerChange(question.id, newAnswers)
-                          }}
-                          disabled={showResults}
-                          className="inline-block mx-2 px-3 py-1 border-b-2 border-gray-300 focus:border-blue-500 focus:outline-none"
-                        />
-                      )}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {question.question_type === 'matching' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-2">항목</h4>
-                    {question.left_items?.map((item: string, idx: number) => (
-                      <div key={idx} className="mb-2 p-3 bg-gray-50 rounded">
-                        {idx + 1}. {item}
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2">매칭</h4>
-                    {question.left_items?.map((_: any, idx: number) => (
-                      <div key={idx} className="mb-2">
-                        <select
-                          value={userAnswers[question.id]?.[idx] || ''}
-                          onChange={(e) => {
-                            const newAnswers = { ...(userAnswers[question.id] || {}) }
-                            newAnswers[idx] = parseInt(e.target.value)
-                            handleAnswerChange(question.id, newAnswers)
-                          }}
-                          disabled={showResults}
-                          className="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">선택...</option>
-                          {question.right_items?.map((item: string, rightIdx: number) => (
-                            <option key={rightIdx} value={rightIdx}>
-                              {String.fromCharCode(65 + rightIdx)}. {item}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <input
+                  type="text"
+                  value={userAnswers[question.id] || ''}
+                  onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                  disabled={showResults}
+                  placeholder="답을 입력하세요"
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               )}
             </div>
 
-            {/* Explanation (shown after results) */}
             {showResults && (
-              <div className={`mt-4 p-4 rounded-lg ${
-                results[question.id] ? 'bg-green-50' : 'bg-red-50'
-              }`}>
+              <div className={`mt-4 p-4 rounded-lg ${results[question.id] ? 'bg-green-50' : 'bg-red-50'}`}>
                 {!results[question.id] && (
                   <p className="text-sm font-medium mb-2">
                     정답: {question.correct_answer}
@@ -720,7 +237,6 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
         ))}
       </div>
 
-      {/* Bottom Actions */}
       <div className="mt-8 bg-white rounded-lg shadow-sm p-6">
         {!showResults ? (
           <button
@@ -730,73 +246,19 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
           >
             정답 확인하기 ({Object.keys(userAnswers).length}/{questions.length} 문제 완료)
           </button>
-        ) : !showKnowledgeUpdate ? (
+        ) : (
           <div className="text-center">
             <div className="mb-6">
-              <Trophy className={`h-16 w-16 mx-auto mb-4 ${
-                score >= 80 ? 'text-yellow-500' : 
-                score >= 60 ? 'text-gray-400' : 'text-gray-300'
-              }`} />
-              <h3 className="text-2xl font-bold mb-2">
-                {score}점
-              </h3>
-              <p className="text-gray-600">
-                {totalQuestions}문제 중 {correctAnswers}문제 정답
-              </p>
+              <Trophy className={`h-16 w-16 mx-auto mb-4 ${score >= 80 ? 'text-yellow-500' : score >= 60 ? 'text-gray-400' : 'text-gray-300'}`} />
+              <h3 className="text-2xl font-bold mb-2">{score}점</h3>
+              <p className="text-gray-600">{totalQuestions}문제 중 {correctAnswers}문제 정답</p>
             </div>
             <button
               onClick={handleNext}
               className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
             >
-              다음
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        ) : (
-          <div className="text-center">
-            <h3 className="text-xl font-bold mb-4">개념 노드 업데이트 결과</h3>
-            
-            {knowledgeUpdates.improved.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center justify-center gap-2 text-green-600 mb-2">
-                  <TrendingUp className="h-5 w-5" />
-                  <span className="font-medium">향상된 개념</span>
-                </div>
-                <div className="space-y-1">
-                  {knowledgeUpdates.improved.map((name, idx) => (
-                    <div key={idx} className="text-sm text-gray-700">
-                      {name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {knowledgeUpdates.declined.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center justify-center gap-2 text-red-600 mb-2">
-                  <TrendingDown className="h-5 w-5" />
-                  <span className="font-medium">복습이 필요한 개념</span>
-                </div>
-                <div className="space-y-1">
-                  {knowledgeUpdates.declined.map((name, idx) => (
-                    <div key={idx} className="text-sm text-gray-700">
-                      {name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {knowledgeUpdates.improved.length === 0 && knowledgeUpdates.declined.length === 0 && (
-              <p className="text-gray-600 mb-4">지식 수준에 큰 변화가 없습니다.</p>
-            )}
-
-            <button
-              onClick={handleNext}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
               학습으로 돌아가기
+              <ChevronRight className="h-5 w-5" />
             </button>
           </div>
         )}

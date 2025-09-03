@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { generatePracticeQuiz } from '@/lib/quiz/actions'
 
 export async function POST(
   request: NextRequest,
@@ -98,11 +99,13 @@ export async function POST(
     const assessmentData = {
       weakNodeIds: weakNodes.map(node => node.id),
       strongNodeIds: strongNodes.map(node => node.id),
-      assessmentResults: assessmentResults?.map(result => ({
-        nodeId: result.id,
-        understandingLevel: result.understanding_level,
-        assessmentMethod: result.assessment_method
-      })) || []
+      assessmentResults: assessmentResults
+        ?.filter(result => result.understanding_level !== null)
+        .map(result => ({
+          nodeId: result.id,
+          understandingLevel: result.understanding_level as number,
+          assessmentMethod: result.assessment_method as string
+        })) || []
     }
 
     // Execute Study Guide and Practice Quiz generation in parallel
@@ -167,50 +170,29 @@ export async function POST(
         }
 
         try {
-          console.log('📝 Starting Practice Quiz generation...')
+          console.log('📝 Starting Practice Quiz generation (direct function call)...')
           const quizStartTime = Date.now()
 
-          // Fixed parameters as requested
-          const difficulty: 'very_easy' | 'easy' | 'normal' | 'hard' | 'very_hard' = 'normal'
-          const questionCount = 10
+          const result = await generatePracticeQuiz({
+            documentIds: [id],
+            userId: userId,
+            difficulty: 'normal',
+            questionCount: 10,
+            questionTypes: {
+              multipleChoice: true,
+              shortAnswer: false,
+              trueFalse: false
+            },
+            userAssessmentData: assessmentData
+          })
 
-          // Fix URL for production environment
-          const baseUrl = process.env.NODE_ENV === 'production' 
-            ? 'https://mystduy.vercel.app'
-            : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003')
-
-          const batchGenerateResponse = await fetch(
-            `${baseUrl}/api/quiz/batch-generate`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-assessment-based': 'true'
-              },
-              body: JSON.stringify({
-                documentIds: [id],
-                userId: userId,
-                difficulty,
-                questionCount,
-                questionTypes: {
-                  multipleChoice: true,
-                  shortAnswer: false,
-                  trueFalse: false
-                },
-                userAssessmentData: assessmentData // Focus on weak nodes
-              })
-            }
-          )
-
-          if (batchGenerateResponse.ok) {
-            const result = await batchGenerateResponse.json()
+          if (result.success) {
             console.log('✅ Practice quiz generated successfully:', {
               documentId: id,
               questionsGenerated: result.questionsGenerated,
               duration: `${Date.now() - quizStartTime}ms`
             })
             
-            // Verify questions were actually created
             if (result.questionsGenerated === 0) {
               console.error('⚠️ Quiz generation succeeded but 0 questions were created')
             }
@@ -218,13 +200,11 @@ export async function POST(
             parallelResults.practiceQuiz.success = true
             return { type: 'practiceQuiz', success: true, result }
           } else {
-            const errorText = await batchGenerateResponse.text()
             console.error('❌ Failed to generate practice quiz:', {
-              status: batchGenerateResponse.status,
-              error: errorText
+              error: result.error
             })
-            parallelResults.practiceQuiz.error = errorText
-            return { type: 'practiceQuiz', success: false, error: errorText }
+            parallelResults.practiceQuiz.error = result.error
+            return { type: 'practiceQuiz', success: false, error: result.error }
           }
         } catch (error: any) {
           console.error('💥 Exception during practice quiz generation:', error)

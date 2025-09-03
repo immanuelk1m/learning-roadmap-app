@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         .from('knowledge_nodes')
         .select('*')
         .eq('document_id', documentId)
-        .eq('user_id', FIXED_USER_ID)
+        .eq('user_id', userId)
         .order('understanding_level', { ascending: true })
         .limit(10)
 
@@ -272,37 +272,7 @@ ${index + 1}. **${node.name}** (ID: ${node.id})
           throw itemError
         }
 
-        // 7. Save node relationships in quiz_item_nodes
-        if (question.node_id && quizItem) {
-          const { error: nodeRelError } = await supabase
-            .from('quiz_item_nodes')
-            .insert({
-              quiz_item_id: quizItem.id,
-              node_id: question.node_id,
-              is_primary: true,
-              relevance_score: 100
-            })
-          
-          if (nodeRelError) {
-            console.error('Error creating node relationship:', nodeRelError)
-          }
-        }
-
-        // 8. Link quiz item to quiz set
-        if (quizItem) {
-          const { error: linkError } = await supabase
-            .from('quiz_set_items')
-            .insert({
-              quiz_set_id: quizSet.id,
-              quiz_item_id: quizItem.id,
-              order_position: index
-            })
-          
-          if (linkError) {
-            console.error('Error linking quiz item to set:', linkError)
-          }
-        }
-
+        // Steps 7, 8, and 10 are removed as they use non-existent tables.
         return quizItem
       })
     
@@ -313,7 +283,7 @@ ${index + 1}. **${node.name}** (ID: ${node.id})
     // 9. Update quiz set with question count
     await supabase
       .from('quiz_sets')
-      .update({ 
+      .update({
         question_count: quizItems.length,
         difficulty_distribution: {
           easy: quizItems.filter(q => q?.difficulty === 'easy').length,
@@ -323,35 +293,16 @@ ${index + 1}. **${node.name}** (ID: ${node.id})
       })
       .eq('id', quizSet.id)
 
-    // 10. Create a new quiz session
-    const { data: session, error: sessionError } = await supabase
-      .from('quiz_sessions')
-      .insert({
-        user_id: userId,
-        document_id: documentId,
-        quiz_set_id: quizSet.id,
-        quiz_type: 'practice',
-        status: 'in_progress',
-        total_questions: quizItems.length,
-        user_answers: {},
-        question_results: {},
-        show_results: false
-      })
-      .select()
-      .single()
+    // 10. Create a new quiz session (REMOVED)
 
-    if (sessionError) {
-      console.error('Error creating session:', sessionError)
-    }
-
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       quizSet: {
         id: quizSet.id,
         name: quizSet.name,
         questionCount: quizItems.length
       },
-      session: session,
+      session: null, // Return null as sessions are not used
       message: `${quizItems.length}개의 맞춤형 문제가 생성되었습니다!`,
       questions: quizItems.length
     })

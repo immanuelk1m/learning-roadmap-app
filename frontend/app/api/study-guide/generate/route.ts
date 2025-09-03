@@ -166,42 +166,12 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
     const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}${assessmentContext}`
 
     // Add retry logic for Gemini API calls
-    let result
-    let retryCount = 0
-    const maxRetries = 3
-    const retryDelays = [2000, 5000, 10000] // Exponential backoff
-    
-    while (retryCount < maxRetries) {
-      try {
-        console.log(`Attempting Gemini API call (attempt ${retryCount + 1}/${maxRetries})...`)
-        
-        result = await geminiStudyGuidePageModel.generateContent([
-          { inlineData: fileDataPart.inlineData },
-          { text: prompt },
-        ])
-        
-        // If successful, break the loop
-        console.log('Gemini API call successful')
-        break
-      } catch (error: any) {
-        console.error(`Gemini API call failed (attempt ${retryCount + 1}):`, error.message)
-        
-        // Check if it's a 503 error (model overloaded)
-        if (error.status === 503 && retryCount < maxRetries - 1) {
-          const delay = retryDelays[retryCount]
-          console.log(`Waiting ${delay}ms before retry...`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-          retryCount++
-        } else {
-          // If not 503 or max retries reached, throw the error
-          throw error
-        }
-      }
-    }
-    
-    if (!result) {
-      throw new Error('Failed to generate study guide after multiple attempts')
-    }
+    const result = await withRetry(async () => {
+      return await geminiStudyGuidePageModel.generateContent([
+        { inlineData: fileDataPart.inlineData },
+        { text: prompt },
+      ])
+    })
     
     // Gemini API response structure handling - result.text is a getter property
     const responseText = result.response.text()

@@ -316,3 +316,49 @@ export function validateResponseStructure<T extends Record<string, any>>(
     }
   })
 }
+
+/**
+ * Wraps an async function with exponential backoff retry logic.
+ * @param asyncFn The async function to execute.
+ * @param maxRetries The maximum number of retries.
+ * @param initialDelayMs The initial delay in milliseconds.
+ * @returns The result of the async function.
+ * @throws Error if the function fails after all retries.
+ */
+export async function withRetry<T>(
+  asyncFn: () => Promise<T>,
+  maxRetries = 3,
+  initialDelayMs = 2000
+): Promise<T> {
+  let attempt = 0
+  while (attempt < maxRetries) {
+    try {
+      geminiLogger.info(`Attempting operation (attempt ${attempt + 1}/${maxRetries})...`)
+      return await asyncFn()
+    } catch (error: any) {
+      geminiLogger.warn(`Operation failed (attempt ${attempt + 1}):`, {
+        error: error.message,
+        status: error.status
+      })
+      
+      attempt++
+      if (attempt >= maxRetries) {
+        geminiLogger.error('Max retries reached. Rethrowing error.', { error })
+        throw error
+      }
+
+      // Check if it's a 5xx error, which is a good candidate for retry
+      if (error.status >= 500 && error.status <= 599) {
+        const delay = initialDelayMs * Math.pow(2, attempt - 1)
+        geminiLogger.info(`Waiting ${delay}ms before next retry...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      } else {
+        // If it's not a server error (e.g., 4xx), don't retry
+        geminiLogger.error('Non-retriable error encountered. Rethrowing immediately.', { error })
+        throw error
+      }
+    }
+  }
+  // This line should not be reachable, but is required for TypeScript
+  throw new Error('Exited retry loop unexpectedly.')
+}
