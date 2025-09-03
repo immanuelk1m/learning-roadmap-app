@@ -5,6 +5,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import NavigationBar from "@/components/NavigationBar";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,6 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const pathname = usePathname();
+  const isOnboarding = pathname === '/onboarding';
 
   return (
     <html lang="ko">
@@ -29,10 +32,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen text-[15px] overflow-x-hidden`}
       >
         <ToastProvider>
-          <NavigationBar isOpen={isDrawerOpen} setIsOpen={setIsDrawerOpen} />
+          <NavigationBar isOpen={isOnboarding ? false : isDrawerOpen} setIsOpen={setIsDrawerOpen} />
           <div 
             className={`pt-[65px] min-h-[calc(100vh-65px)] transition-all duration-300 ${
-              isDrawerOpen ? 'pl-72' : 'pl-0'
+              isOnboarding ? 'pl-0' : (isDrawerOpen ? 'pl-72' : 'pl-0')
             }`}
           >
             {children}

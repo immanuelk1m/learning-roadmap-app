@@ -15,6 +15,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const isAssessmentPage = !!pathname && /^\/subjects\/[^/]+\/study\/assessment$/.test(pathname)
   const isQuizPage = !!pathname && /^\/subjects\/[^/]+\/quiz$/.test(pathname)
   const isHomePage = pathname === '/'
+  const isOnboardingPage = pathname === '/onboarding'
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([])
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
@@ -142,25 +143,29 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
         <div className="relative max-w-[1200px] mx-auto h-full px-4 md:px-6">
           {/* Desktop Layout */}
           <div className="hidden md:flex h-full items-center justify-between">
-            {/* Left Section: Hamburger Menu - Shown only when drawer is closed (open state handled inside drawer) */}
-            {!isOpen ? (
-              <button
-                type="button"
-                aria-label="메뉴 열기"
-                className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
-                onClick={() => setIsOpen(true)}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              </button>
-            ) : (
+            {/* Left Section: Hide hamburger on onboarding */}
+            {isOnboardingPage ? (
               <div className="w-10 h-10" />
+            ) : (
+              !isOpen ? (
+                <button
+                  type="button"
+                  aria-label="메뉴 열기"
+                  className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={() => setIsOpen(true)}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              ) : (
+                <div className="w-10 h-10" />
+              )
             )}
 
             {/* Right Section: Auth buttons */}
             <div className="flex items-center gap-3">
-              {!isHomePage && (
+              {!isHomePage && !isOnboardingPage && (
                 <div className="hidden xl:flex items-center gap-4">
                   <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
                   <div className="w-px h-5 bg-gray-300" />
@@ -187,9 +192,9 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           </div>
 
           {/* Center Title (Assessment page only) */}
-          {(isAssessmentPage || isQuizPage || isHomePage) && (
+          {(isAssessmentPage || isQuizPage || isHomePage || isOnboardingPage) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              {isHomePage ? (
+              {(isHomePage || isOnboardingPage) ? (
                 <div className="flex items-center gap-4">
                   <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
                   <div className="w-px h-5 bg-gray-300" />
@@ -204,19 +209,23 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           {/* Mobile Layout */}
           <div className="relative flex md:hidden h-full items-center justify-between">
             {/* Left: Hamburger Menu - Shown only when drawer is closed (open state handled inside drawer) */}
-            {!isOpen ? (
-              <button
-                type="button"
-                aria-label="메뉴 열기"
-                className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700"
-                onClick={() => setIsOpen(true)}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              </button>
-            ) : (
+            {isOnboardingPage ? (
               <div className="w-10 h-10" />
+            ) : (
+              !isOpen ? (
+                <button
+                  type="button"
+                  aria-label="메뉴 열기"
+                  className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700"
+                  onClick={() => setIsOpen(true)}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              ) : (
+                <div className="w-10 h-10" />
+              )
             )}
 
             {/* Right: Logo */}
@@ -239,9 +248,9 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             )}
 
             {/* Mobile Center Title (Assessment page only) */}
-            {(isAssessmentPage || isQuizPage || isHomePage) && (
+            {(isAssessmentPage || isQuizPage || isHomePage || isOnboardingPage) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {isHomePage ? (
+                {(isHomePage || isOnboardingPage) ? (
                   <div className="flex items-center gap-4">
                     <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
                     <div className="w-px h-5 bg-gray-300" />
@@ -257,6 +266,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       </div>
 
       {/* Drawer Panel - Fixed position but appears to push content */}
+      {!isOnboardingPage && (
       <aside
         className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl transition-transform duration-300 z-[11000] ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
@@ -426,9 +436,10 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           )}
         </div>
       </aside>
+      )}
 
       {/* Click outside to close - only on mobile or when drawer is open */}
-      {isOpen && !isLargeScreen && (
+      {!isOnboardingPage && isOpen && !isLargeScreen && (
         <div
           className="fixed inset-0 z-[9998]"
           onClick={() => setIsOpen(false)}
