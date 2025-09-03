@@ -14,6 +14,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const pathname = usePathname()
   const isAssessmentPage = !!pathname && /^\/subjects\/[^/]+\/study\/assessment$/.test(pathname)
   const isQuizPage = !!pathname && /^\/subjects\/[^/]+\/quiz$/.test(pathname)
+  const isHomePage = pathname === '/'
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([])
   const supabase = createClient()
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
@@ -70,18 +71,24 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
               <div className="w-10 h-10" />
             )}
 
-            {/* Right Section: Logo + Welcome */}
-            <div className="flex items-center gap-4">
-              <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
-              <div className="w-px h-5 bg-gray-300" />
-              <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
-            </div>
+            {/* Right Section: Logo + Welcome (hidden on home to avoid duplicate with center overlay) */}
+            {!isHomePage ? (
+              <div className="flex items-center gap-4">
+                <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+                <div className="w-px h-5 bg-gray-300" />
+                <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+              </div>
+            ) : (
+              <div className="w-10 h-10" />
+            )}
           </div>
 
           {/* Center Title (Assessment page only) */}
-          {(isAssessmentPage || isQuizPage) && (
+          {(isAssessmentPage || isQuizPage || isHomePage) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>
+              <span className="text-[15px] font-semibold text-gray-900">
+                {isAssessmentPage ? '학습 전 배경지식 체크' : isQuizPage ? '연습문제 - ' : 'Commit  환영합니다, Taehee님'}
+              </span>
             </div>
           )}
 
@@ -107,9 +114,9 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
 
             {/* Mobile Center Title (Assessment page only) */}
-            {(isAssessmentPage || isQuizPage) && (
+            {(isAssessmentPage || isQuizPage || isHomePage) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>
+                <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : isQuizPage ? '연습문제 - ' : 'Commit  환영합니다, Taehee님'}</span>
               </div>
             )}
           </div>
