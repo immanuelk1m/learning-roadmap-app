@@ -18,7 +18,12 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([])
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
-  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || '게스트'
+  const [account, setAccount] = useState<{ name?: string | null; email?: string | null; avatar_url?: string | null } | null>(null)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const baseName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
+  const displayName = account?.name || baseName || '게스트'
+  const avatarUrl = account?.avatar_url ||
+    user?.user_metadata?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.profile_image || null
 
   useEffect(() => {
     if (isOpen) {
@@ -64,6 +69,23 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       mounted = false
       listener.subscription.unsubscribe()
     }
+  }, [])
+
+  // Load extended account info from auth.users via server API
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (!res.ok) return
+        const json = await res.json()
+        if (json?.user) {
+          setAccount({ name: json.user.name, email: json.user.email, avatar_url: json.user.avatar_url })
+        } else {
+          setAccount(null)
+        }
+      } catch {}
+    }
+    load()
   }, [])
 
   const handleGoogleLogin = async () => {
@@ -130,14 +152,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                   <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, {displayName}</div>
                 </div>
               )}
-              {user ? (
-                <button
-                  onClick={handleSignOut}
-                  className="px-3 py-1.5 text-[13px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-                >
-                  로그아웃
-                </button>
-              ) : (
+              {user ? null : (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleGoogleLogin}
@@ -191,14 +206,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
 
             {/* Right: Logo */}
             <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
-            {user ? (
-              <button
-                onClick={handleSignOut}
-                className="ml-auto px-3 py-1.5 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-              >
-                로그아웃
-              </button>
-            ) : (
+            {user ? null : (
               <div className="ml-auto flex items-center gap-2">
                 <button
                   onClick={handleGoogleLogin}
@@ -222,7 +230,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                   <div className="flex items-center gap-4">
                     <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
                     <div className="w-px h-5 bg-gray-300" />
-                    <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+                    <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, {displayName}</div>
                   </div>
                 ) : (
                   <span className="text-[15px] font-semibold text-gray-900">{isAssessmentPage ? '학습 전 배경지식 체크' : '연습문제 - '}</span>
@@ -254,7 +262,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           </button>
         </div>
         
-        <nav className="p-4 flex flex-col gap-2 bg-white">
+        <nav className="p-4 pb-24 flex flex-col gap-2 bg-white">
           <Link 
             onClick={() => setIsOpen(false)} 
             href="/" 
@@ -314,6 +322,94 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             마이페이지
           </Link>
         </nav>
+        {/* Bottom: Current account info */}
+        <div className="absolute bottom-0 left-0 w-full border-t border-gray-200 bg-white/95 p-3">
+          {user ? (
+            <div className="relative">
+              <button
+                className="w-full flex items-center gap-3 hover:bg-gray-50 rounded-md p-2 text-left"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+              >
+                {avatarUrl ? (
+                  // Avatar image from auth user metadata
+                  <img
+                    src={avatarUrl}
+                    alt="profile"
+                    className="w-9 h-9 rounded-full object-cover border border-gray-200"
+                  />
+                ) : (
+                  // Fallback initials avatar
+                  <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-sm font-semibold border border-gray-200">
+                    {(displayName || 'G')?.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-gray-900 truncate">{displayName}</div>
+                  <div className="text-[12px] text-gray-500 truncate">{account?.email || user?.email}</div>
+                </div>
+                <svg className="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute bottom-14 left-3 right-3 bg-white border border-gray-200 rounded-xl shadow-lg p-1 z-[10001]">
+                  <div className="px-3 py-2 text-[12px] text-gray-500 truncate border-b border-gray-100">
+                    {account?.email || user?.email}
+                  </div>
+                  <Link
+                    href="/upgrade"
+                    onClick={() => { setUserMenuOpen(false); setIsOpen(false) }}
+                    className="block px-3 py-2 text-[14px] text-gray-800 hover:bg-gray-50 rounded-md"
+                  >
+                    플랜 업그레이드
+                  </Link>
+                  <Link
+                    href="/help"
+                    onClick={() => { setUserMenuOpen(false); setIsOpen(false) }}
+                    className="block px-3 py-2 text-[14px] text-gray-800 hover:bg-gray-50 rounded-md"
+                  >
+                    도움말
+                  </Link>
+                  <button
+                    onClick={async () => { setUserMenuOpen(false); await handleSignOut(); setIsOpen(false) }}
+                    className="w-full text-left px-3 py-2 text-[14px] text-gray-800 hover:bg-gray-50 rounded-md"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-sm font-semibold border border-gray-200">
+                  ?
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold text-gray-900">로그인이 필요합니다</div>
+                  <div className="text-[12px] text-gray-500">계정으로 시작하세요</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleGoogleLogin}
+                  className="px-2.5 py-1 text-[12px] rounded-md bg-[#2f332f] text-white hover:bg-black"
+                >
+                  로그인
+                </button>
+                <button
+                  onClick={handleGoogleSignup}
+                  className="px-2.5 py-1 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                >
+                  회원가입
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* Click outside to close - only on mobile or when drawer is open */}
