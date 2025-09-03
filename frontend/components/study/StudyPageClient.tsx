@@ -111,22 +111,6 @@ export default function StudyPageClient({
   if (!document) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center">
-              <Link
-                href={`/subjects/${subjectId}`}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                과목으로 돌아가기
-              </Link>
-              <div className="border-l border-gray-300 pl-4">
-                <h1 className="text-lg font-semibold text-gray-900">{subject.name}</h1>
-              </div>
-            </div>
-          </div>
-        </div>
         <div className="max-w-4xl mx-auto px-4 py-16 text-center">
           <p className="text-gray-500 mb-4">분석이 완료된 문서가 없습니다.</p>
           <Link
@@ -192,29 +176,6 @@ export default function StudyPageClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Link
-                href={`/subjects/${subjectId}`}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">과목으로 돌아가기</span>
-                <span className="sm:hidden">뒤로</span>
-              </Link>
-              <div className="border-l border-gray-300 pl-4">
-                <h1 className="text-base sm:text-lg font-semibold text-gray-900">{subject.name}</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate max-w-[200px] sm:max-w-none">
-                  {document.title}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Mobile Layout - Tab Navigation at Top */}
       <div className="sm:hidden flex flex-col h-[calc(100vh-65px)]">
