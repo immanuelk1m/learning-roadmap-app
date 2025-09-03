@@ -335,17 +335,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
             </span>
           </div>
           
-          {/* Study Status Summary */}
-          <div className="flex gap-6 text-sm mb-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>아는 개념: {studyGuide.known_concepts.length}개</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-500" />
-              <span>모르는 개념: {studyGuide.unknown_concepts.length}개</span>
-            </div>
-          </div>
+          {/* Study Status Summary removed as requested */}
 
           {/* Document Summary for Page-based guides */}
           {isPageBased && studyGuide.overall_summary && (
