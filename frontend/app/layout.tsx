@@ -31,8 +31,8 @@ export default function RootLayout({
         <ToastProvider>
           <NavigationBar isOpen={isDrawerOpen} setIsOpen={setIsDrawerOpen} />
           <div 
-            className={`pt-[65px] min-h-[calc(100vh-65px)] transition-transform duration-300 ${
-              isDrawerOpen ? 'translate-x-72' : 'translate-x-0'
+            className={`pt-[65px] min-h-[calc(100vh-65px)] transition-all duration-300 ${
+              isDrawerOpen ? 'pl-72' : 'pl-0'
             }`}
           >
             {children}

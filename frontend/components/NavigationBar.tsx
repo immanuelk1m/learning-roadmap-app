@@ -20,20 +20,35 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const [user, setUser] = useState<any>(null)
   const [account, setAccount] = useState<{ name?: string | null; email?: string | null; avatar_url?: string | null } | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [isLargeScreen, setIsLargeScreen] = useState(false)
   const baseName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const displayName = account?.name || baseName || '게스트'
   const avatarUrl = account?.avatar_url ||
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.profile_image || null
 
   useEffect(() => {
-    if (isOpen) {
-      const original = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
-      return () => {
-        document.body.style.overflow = original
-      }
+    if (!isOpen) return
+    // Prevent background scroll only on smaller screens
+    const isLarge = typeof window !== 'undefined' && window.innerWidth >= 1440
+    if (isLarge) return
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = original
     }
   }, [isOpen])
+
+  // Auto-open drawer on large screens (>= 1440px), otherwise close
+  useEffect(() => {
+    const applyByWidth = () => {
+      if (typeof window === 'undefined') return
+      const large = window.innerWidth >= 1440
+      setIsLargeScreen(large)
+    }
+    applyByWidth()
+    window.addEventListener('resize', applyByWidth)
+    return () => window.removeEventListener('resize', applyByWidth)
+  }, [])
 
   // Load user's subjects for drawer submenu
   useEffect(() => {
@@ -121,8 +136,8 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   return (
     <>
       {/* Navigation Bar */}
-      <div className={`fixed bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-100 transition-transform duration-300 ${
-        isOpen ? 'translate-x-72' : 'translate-x-0'
+      <div className={`fixed bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-100 transition-all duration-300 ${
+        isOpen ? 'pl-72' : 'pl-0'
       }`}>
         <div className="relative max-w-[1200px] mx-auto h-full px-4 md:px-6">
           {/* Desktop Layout */}
@@ -413,7 +428,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       </aside>
 
       {/* Click outside to close - only on mobile or when drawer is open */}
-      {isOpen && (
+      {isOpen && !isLargeScreen && (
         <div
           className="fixed inset-0 z-[9998]"
           onClick={() => setIsOpen(false)}
