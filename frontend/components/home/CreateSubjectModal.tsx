@@ -25,7 +25,12 @@ export default function CreateSubjectModal({
 
     try {
       const supabase = createClient()
-      const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        setError('You must be logged in to create a subject.')
+        return
+      }
       
       const { data, error: supabaseError } = await supabase
         .from('subjects')
@@ -33,7 +38,7 @@ export default function CreateSubjectModal({
           name,
           description: null,
           color: '#2f332f',
-          user_id: FIXED_USER_ID,
+          user_id: user.id,
           exam_date: null
         })
         .select()

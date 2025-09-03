@@ -68,7 +68,7 @@ export default function SubjectsPage() {
                   첫 번째 과목을 추가하고 AI가 도와주는 효율적인 학습을 경험해보세요.
                 </p>
               </div>
-              <CreateSubjectButton />
+              {/* Removed duplicate create button to avoid two buttons (top-right and bottom-left) */}
             </div>
           )}
         </div>

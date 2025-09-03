@@ -71,7 +71,6 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
   
   const router = useRouter()
   const supabase = createClient()
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   useEffect(() => {
     loadQuestions()
@@ -82,7 +81,7 @@ export default function AllQuestionsView({ documentId, subjectId }: AllQuestions
     setSessionLoading(true)
     try {
       // Try to get existing session
-      const sessionResponse = await fetch(`/api/quiz/sessions?documentId=${documentId}&userId=${FIXED_USER_ID}`)
+      const sessionResponse = await fetch(`/api/quiz/sessions?documentId=${documentId}`)
       
       if (sessionResponse.ok) {
         const { session } = await sessionResponse.json()

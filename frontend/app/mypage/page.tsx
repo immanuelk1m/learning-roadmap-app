@@ -54,11 +54,14 @@ export default function MyPage() {
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchDashboardData()
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id || null))
   }, [])
+  useEffect(() => {
+    if (userId) fetchDashboardData()
+  }, [userId])
 
   const fetchDashboardData = async () => {
     try {
@@ -75,38 +78,38 @@ export default function MyPage() {
         supabase
           .from('subjects')
           .select('id')
-          .eq('user_id', FIXED_USER_ID),
+          .eq('user_id', userId!),
         
         // 문서 수
         supabase
           .from('documents')
           .select('id')
-          .eq('user_id', FIXED_USER_ID),
+          .eq('user_id', userId!),
         
         // 평균 이해도
         supabase
           .from('knowledge_nodes')
           .select('understanding_level')
-          .eq('user_id', FIXED_USER_ID)
+          .eq('user_id', userId!)
           .gt('understanding_level', 0),
         
         // 퀴즈 세션
         supabase
           .from('quiz_sessions')
           .select('id, status')
-          .eq('user_id', FIXED_USER_ID),
+          .eq('user_id', userId!),
         
         // 퀴즈 정답률
         supabase
           .from('quiz_attempts')
           .select('is_correct')
-          .eq('user_id', FIXED_USER_ID),
+          .eq('user_id', userId!),
         
         // 틀린 문제
         supabase
           .from('missed_questions')
           .select('id, mastered')
-          .eq('user_id', FIXED_USER_ID)
+          .eq('user_id', userId!)
           .eq('mastered', false)
       ])
 
@@ -133,7 +136,7 @@ export default function MyPage() {
       const { data: subjects } = await supabase
         .from('subjects')
         .select('*')
-        .eq('user_id', FIXED_USER_ID)
+        .eq('user_id', userId!)
         .order('created_at', { ascending: false })
 
       if (subjects) {
@@ -144,14 +147,14 @@ export default function MyPage() {
               .from('documents')
               .select('id')
               .eq('subject_id', subject.id)
-              .eq('user_id', FIXED_USER_ID)
+              .eq('user_id', userId!)
 
             // 해당 과목의 지식 노드 이해도
             const { data: nodes } = await supabase
               .from('knowledge_nodes')
               .select('understanding_level')
               .eq('subject_id', subject.id)
-              .eq('user_id', FIXED_USER_ID)
+              .eq('user_id', userId!)
 
             const avgNodeUnderstanding = nodes?.length
               ? nodes.reduce((sum, n) => sum + (n.understanding_level || 0), 0) / nodes.length
@@ -176,21 +179,21 @@ export default function MyPage() {
         supabase
           .from('documents')
           .select('id, title, updated_at')
-          .eq('user_id', FIXED_USER_ID)
+          .eq('user_id', userId!)
           .order('updated_at', { ascending: false })
           .limit(3),
         
         supabase
           .from('quiz_sessions')
           .select('id, created_at, status')
-          .eq('user_id', FIXED_USER_ID)
+          .eq('user_id', userId!)
           .order('created_at', { ascending: false })
           .limit(3),
         
         supabase
           .from('study_guides')
           .select('id, document_title, created_at')
-          .eq('user_id', FIXED_USER_ID)
+          .eq('user_id', userId!)
           .order('created_at', { ascending: false })
           .limit(3)
       ])

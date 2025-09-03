@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import { geminiQuizModel } from '@/lib/gemini/client'
 import { EXTENDED_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
 import { parseGeminiResponse, validateResponseStructure } from '@/lib/gemini/utils'
@@ -8,6 +9,7 @@ type DifficultyLevel = 'very_easy' | 'easy' | 'normal' | 'hard' | 'very_hard'
 
 interface BatchGenerateRequest {
   documentIds: string[]
+  userId?: string // Add userId to the interface
   difficulty: DifficultyLevel
   questionCount: number
   questionTypes: {
@@ -30,21 +32,45 @@ interface BatchGenerateRequest {
 export async function POST(request: NextRequest) {
   try {
     const body: BatchGenerateRequest = await request.json()
-    const { documentIds, difficulty, questionCount, questionTypes, customTitle, userAssessmentData } = body
+    console.log('[batch-generate] Received request body:', body)
+    const { documentIds, userId, difficulty, questionCount, questionTypes, customTitle, userAssessmentData } = body
     
     const supabase = createServiceClient()
     
-    // Use fixed user ID
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    // Use userId from body if provided, otherwise fallback to authenticated user
+    let effectiveUserId = userId
+    if (!effectiveUserId) {
+      console.log('[batch-generate] userId not in body, trying to get from auth context.')
+      const supabaseAuth = await createClient()
+      const { data: auth } = await supabaseAuth.auth.getUser()
+      effectiveUserId = auth.user?.id || ''
+    }
+
+    console.log('[batch-generate] Effective User ID:', effectiveUserId)
+
+    if (!effectiveUserId) {
+      console.error('[batch-generate] Unauthorized: No effective user ID found.')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // Get documents
-    const { data: documents } = await supabase
+    const { data: documents, error } = await supabase
       .from('documents')
       .select('*')
       .in('id', documentIds)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', effectiveUserId)
+
+    console.log('[batch-generate] Document query result:', {
+      documents,
+      error
+    })
+
+    if (error) {
+      console.error('[batch-generate] Error fetching documents:', error)
+    }
 
     if (!documents || documents.length === 0) {
+      console.error('[batch-generate] Documents not found for user.', { documentIds, effectiveUserId })
       return NextResponse.json({ error: 'Documents not found' }, { status: 404 })
     }
 

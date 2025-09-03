@@ -9,15 +9,16 @@ export async function POST(
     const { id } = await params
     const supabase = await createClient()
     
-    // Use fixed user ID
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // First, get the document details
     const { data: document, error: docError } = await supabase
       .from('documents')
       .select('*, knowledge_nodes(*)')
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .single()
     
     if (docError || !document) {
@@ -36,7 +37,7 @@ export async function POST(
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
 
     if (updateError) {
       console.error('Error updating assessment status:', updateError)
@@ -52,7 +53,7 @@ export async function POST(
     const { data: assessmentResults, error: assessmentError } = await supabase
       .from('knowledge_nodes')
       .select('*')
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .in('id', nodeIds)
     
     if (assessmentError) {
@@ -127,7 +128,7 @@ export async function POST(
               },
               body: JSON.stringify({
                 documentId: id,
-                userId: FIXED_USER_ID,
+                userId: userId,
                 assessmentData // Pass assessment results for customized generation
               })
             }
@@ -188,6 +189,7 @@ export async function POST(
               },
               body: JSON.stringify({
                 documentIds: [id],
+                userId: userId,
                 difficulty,
                 questionCount,
                 questionTypes: {

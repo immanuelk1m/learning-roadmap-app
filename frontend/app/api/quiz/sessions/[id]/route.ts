@@ -16,13 +16,15 @@ export async function GET(
   try {
     const { id } = await params
     const supabase = await createClient()
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { data: session, error } = await supabase
       .from('quiz_sessions')
       .select('*')
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .single()
 
     if (error) {
@@ -51,7 +53,9 @@ export async function PUT(
     const { id } = await params
     const body: UpdateSessionRequest = await request.json()
     const supabase = await createClient()
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Build update object
     const updateData: any = {
@@ -87,7 +91,7 @@ export async function PUT(
       .from('quiz_sessions')
       .update(updateData)
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -116,7 +120,9 @@ export async function DELETE(
   try {
     const { id } = await params
     const supabase = await createClient()
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Mark session as abandoned instead of deleting
     const { data: abandonedSession, error } = await supabase
@@ -126,7 +132,7 @@ export async function DELETE(
         last_updated: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .select()
       .single()
 

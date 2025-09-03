@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
@@ -12,27 +12,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // 직접 Supabase 클라이언트 생성
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing Supabase environment variables')
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
+    const supabase = await createClient()
+    const { data: userRes } = await supabase.auth.getUser()
+    const userId = userRes.user?.id
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-    
-    // 고정 사용자 ID 사용
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
     
     // 먼저 RLS 정책 때문에 실패할 수 있으므로, 직접 삽입 시도
     const { data, error } = await supabase
@@ -41,7 +26,7 @@ export async function POST(request: Request) {
         name,
         description: description || null,
         color: color || '#3B82F6',
-        user_id: FIXED_USER_ID
+        user_id: userId
       })
       .select()
       .single()

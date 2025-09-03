@@ -14,14 +14,16 @@ export async function POST(request: NextRequest) {
     }
     
     const supabase = await createClient()
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // 1. Get document information
     const { data: document, error: docError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .single()
 
     if (docError || !document) {
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
       .from('knowledge_nodes')
       .select('*')
       .eq('document_id', documentId)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .lt('understanding_level', 70)
       .order('understanding_level', { ascending: true })
       .limit(5) // Maximum 5 nodes to focus on (reduced to prevent long responses)
@@ -325,7 +327,7 @@ ${index + 1}. **${node.name}** (ID: ${node.id})
     const { data: session, error: sessionError } = await supabase
       .from('quiz_sessions')
       .insert({
-        user_id: FIXED_USER_ID,
+        user_id: userId,
         document_id: documentId,
         quiz_set_id: quizSet.id,
         quiz_type: 'practice',

@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -22,7 +22,12 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
   
   const { id } = await params
   const { doc: documentId } = await searchParams
-  const supabase = createServiceClient()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    notFound()
+  }
   
   assessmentLogger.info('Assessment page loading', {
     correlationId,
@@ -33,9 +38,6 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
     }
   })
   
-  // Use fixed user ID
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
-
   if (!documentId) {
     assessmentLogger.warn('No document ID provided, redirecting', {
       correlationId,
@@ -62,7 +64,7 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
     .from('subjects')
     .select('*')
     .eq('id', id)
-    .eq('user_id', FIXED_USER_ID)
+    .eq('user_id', user.id)
     .single()
   
   const subjectDuration = subjectTimer()
@@ -73,7 +75,7 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
       duration: subjectDuration,
       metadata: {
         subjectId: id,
-        userId: FIXED_USER_ID
+        userId: user.id
       }
     })
     notFound()

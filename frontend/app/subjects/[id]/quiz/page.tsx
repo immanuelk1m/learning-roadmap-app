@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -16,17 +16,17 @@ interface QuizPageProps {
 export default async function QuizPage({ params, searchParams }: QuizPageProps) {
   const { id } = await params
   const { doc: documentId } = await searchParams
-  const supabase = createServiceClient()
-  
-  // Use fixed user ID
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+  const supabase = await createClient()
+  const { data: auth } = await supabase.auth.getUser()
+  const userId = auth.user?.id
+  if (!userId) notFound()
 
   // Get subject info
   const { data: subject } = await supabase
     .from('subjects')
     .select('*')
     .eq('id', id)
-    .eq('user_id', FIXED_USER_ID)
+    .eq('user_id', userId!)
     .single()
 
   if (!subject) {

@@ -9,15 +9,16 @@ export async function DELETE(
     const { id } = await params
     const supabase = await createClient()
     
-    // Use fixed user ID
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Get document info to verify ownership and get file path
     const { data: document, error: docError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .single()
 
     if (docError || !document) {
@@ -38,7 +39,7 @@ export async function DELETE(
       .from('documents')
       .delete()
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
 
     if (deleteError) {
       return NextResponse.json(

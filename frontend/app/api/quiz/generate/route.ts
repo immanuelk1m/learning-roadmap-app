@@ -12,14 +12,16 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     
     // Use fixed user ID
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth.user?.id
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Get document
     const { data: document } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .single()
 
     if (!document) {
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
     const { data: userNodes } = await supabase
       .from('knowledge_nodes')
       .select('*')
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .in('id', nodeIds)
 
     const weakNodes = userNodes?.filter(node => 

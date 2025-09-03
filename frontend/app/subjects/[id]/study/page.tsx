@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import StudyPageClient from '@/components/study/StudyPageClient'
 
@@ -14,17 +14,17 @@ interface StudyPageProps {
 export default async function StudyPage({ params, searchParams }: StudyPageProps) {
   const { id } = await params
   const { doc: documentId } = await searchParams
-  const supabase = createServiceClient()
-  
-  // Use fixed user ID
-  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+  const supabase = await createClient()
+  const { data: auth } = await supabase.auth.getUser()
+  const userId = auth.user?.id
+  if (!userId) notFound()
 
   // Get subject info
   const { data: subject } = await supabase
     .from('subjects')
     .select('*')
     .eq('id', id)
-    .eq('user_id', FIXED_USER_ID)
+    .eq('user_id', userId!)
     .single()
 
   if (!subject) {
@@ -78,7 +78,7 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
     ? await supabase
         .from('study_guides')
         .select('*')
-        .eq('user_id', FIXED_USER_ID)
+        .eq('user_id', userId!)
         .eq('document_id', selectedDocumentId)
         .single()
     : { data: null }
@@ -99,7 +99,7 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
       const { data: attempts } = await supabase
         .from('quiz_attempts')
         .select('quiz_item_id')
-        .eq('user_id', FIXED_USER_ID)
+        .eq('user_id', userId!)
         .in('quiz_item_id', oxQuizItems.map(q => q.id))
 
       // If no questions attempted at all, redirect to assessment
@@ -119,7 +119,7 @@ export default async function StudyPage({ params, searchParams }: StudyPageProps
       studyGuide={studyGuide}
       subjectId={id}
       documentId={selectedDocumentId || ''}
-      userId={FIXED_USER_ID}
+      userId={userId!}
     />
   )
 }

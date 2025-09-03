@@ -49,9 +49,11 @@ export async function POST(
     })
     
     const supabase = await createClient()
-    
-    // Use fixed user ID
-    const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // Get document info
     supabaseLogger.info('Fetching document from database', {
@@ -68,7 +70,7 @@ export async function POST(
       .from('documents')
       .select('*')
       .eq('id', id)
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', user.id)
       .single()
     
     const dbDuration = dbTimer()
@@ -462,7 +464,7 @@ export async function POST(
           .from('knowledge_nodes')
           .delete()
           .eq('document_id', id)
-          .eq('user_id', FIXED_USER_ID)
+          .eq('user_id', user.id)
         
         const deleteDuration = deleteTimer()
         
@@ -599,7 +601,7 @@ export async function POST(
             
             return {
               document_id: id,
-              user_id: FIXED_USER_ID,
+              user_id: user.id,
               subject_id: document.subject_id,
               parent_id: actualParentId,
               name: node.name,
