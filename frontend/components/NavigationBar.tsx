@@ -142,7 +142,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
         <div className="relative max-w-[1200px] mx-auto h-full px-4 md:px-6">
           {/* Desktop Layout */}
           <div className="hidden md:flex h-full items-center justify-between">
-            {/* Left Section: Hamburger Menu - Hide when drawer is open */}
+            {/* Left Section: Hamburger Menu - Shown only when drawer is closed (open state handled inside drawer) */}
             {!isOpen ? (
               <button
                 type="button"
@@ -203,7 +203,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
 
           {/* Mobile Layout */}
           <div className="relative flex md:hidden h-full items-center justify-between">
-            {/* Left: Hamburger Menu - Hide when drawer is open */}
+            {/* Left: Hamburger Menu - Shown only when drawer is closed (open state handled inside drawer) */}
             {!isOpen ? (
               <button
                 type="button"
