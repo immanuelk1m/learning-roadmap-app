@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/ToastProvider'
 import { uploadLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
+import { useRouter } from 'next/navigation'
 import { pdf, Document as PDFDoc, Page as PDFPage, Image as PDFImage, StyleSheet } from '@react-pdf/renderer'
 // Dynamic import for PDF.js to avoid SSR issues
 let pdfjsLib: any = null
@@ -36,6 +37,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
   const pdfDocRef = useRef<any>(null)
   const [rangeError, setRangeError] = useState<string | null>(null)
   const [rangeInput, setRangeInput] = useState<string>('')
+  const router = useRouter()
 
   const MAX_SELECTABLE = 20
 
@@ -111,24 +113,16 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         return
       }
       
-      // Check page count limit (80 pages max) - only in browser
+      // Check page count (only in browser, no hard page limit)
       if (typeof window !== 'undefined' && pdfjsLib) {
         try {
-          setError('PDF 페이지 수 확인 중...')
-          
           const arrayBuffer = await selectedFile.arrayBuffer()
           const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
           pdfDocRef.current = pdf
           const pageCount = pdf.numPages
           
           console.log(`PDF page count: ${pageCount}`)
-          
-          if (pageCount > 80) {
-            setError(`PDF는 최대 80페이지까지만 업로드 가능합니다. (현재: ${pageCount}페이지)`) 
-            setFile(null)
-            return
-          }
-          
+
           // Store page count for later use
           ;(selectedFile as any).pageCount = pageCount
           setPageCount(pageCount)
@@ -385,7 +379,12 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         duration: 5000
       })
       
-      // Call the callback to refresh the document list immediately
+      // Navigate to assessment page for the new document with skeleton loading
+      try {
+        router.push(`/subjects/${subjectId}/study/assessment?doc=${newDoc.id}`)
+      } catch {}
+
+      // Optionally notify the parent to refresh the list in background
       if (onUploadSuccess) {
         onUploadSuccess()
       }

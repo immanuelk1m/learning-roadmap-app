@@ -48,6 +48,16 @@ export default function DocumentList({ initialDocuments, subjectId, refreshTrigg
       prevDocumentsRef.current = refreshTrigger
       // Set loading to false since we have documents to display
       setIsInitialLoading(false)
+
+      // Ensure polling reflects latest statuses from parent refresh
+      const hasProcessingDocs = refreshTrigger.some(doc => (doc.status || 'pending') === 'processing' || (doc.status || 'pending') === 'pending')
+      if (hasProcessingDocs && !isPollingActive) {
+        console.log('[DocumentList] RefreshTrigger indicates processing docs; starting polling')
+        startPolling()
+      } else if (!hasProcessingDocs && isPollingActive) {
+        console.log('[DocumentList] RefreshTrigger indicates no processing docs; stopping polling')
+        stopPolling()
+      }
     }
   }, [refreshTrigger])
 

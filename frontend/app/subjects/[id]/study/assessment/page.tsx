@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import AlbumStyleKnowledgeAssessment from '@/components/study/AlbumStyleKnowledgeAssessment'
+import AssessmentWaiter from '@/components/study/AssessmentWaiter'
 import { assessmentLogger, supabaseLogger } from '@/lib/logger'
 import Logger from '@/lib/logger'
 
@@ -109,18 +110,23 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
   
   const docDuration = docTimer()
   
-  if (!document || document.status !== 'completed') {
-    assessmentLogger.warn('Document not ready for assessment', {
+  if (!document) {
+    assessmentLogger.warn('Document not found for assessment', {
       correlationId,
       documentId,
       duration: docDuration,
-      metadata: {
-        documentExists: !!document,
-        documentStatus: document?.status,
-        redirectTo: `/subjects/${id}`
-      }
     })
-    redirect(`/subjects/${id}`)
+    notFound()
+  }
+  
+  if (document.status !== 'completed') {
+    assessmentLogger.info('Document not completed yet, rendering AssessmentWaiter', {
+      correlationId,
+      documentId,
+      duration: docDuration,
+      metadata: { documentStatus: document.status }
+    })
+    return <AssessmentWaiter subjectId={id} documentId={documentId} />
   }
   
   supabaseLogger.info('Document fetched successfully', {
@@ -152,15 +158,12 @@ export default async function AssessmentPage({ params, searchParams }: Assessmen
   const nodesDuration = nodesTimer()
   
   if (!rawKnowledgeNodes || rawKnowledgeNodes.length === 0) {
-    assessmentLogger.error('No knowledge nodes found', {
+    assessmentLogger.info('Knowledge nodes not ready yet, rendering AssessmentWaiter', {
       correlationId,
       documentId,
       duration: nodesDuration,
-      metadata: {
-        redirectTo: `/subjects/${id}`
-      }
     })
-    redirect(`/subjects/${id}`)
+    return <AssessmentWaiter subjectId={id} documentId={documentId} />
   }
   
   supabaseLogger.info('Knowledge nodes fetched', {
