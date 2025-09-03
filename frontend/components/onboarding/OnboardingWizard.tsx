@@ -141,7 +141,7 @@ export default function OnboardingWizard() {
   }
 
   const renderStepIndicator = (activeIndex: number) => (
-    <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
+    <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-6">
       {[1,2,3].map((n, idx) => (
         <div key={n} className="flex items-center">
           <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
@@ -207,9 +207,9 @@ export default function OnboardingWizard() {
       {renderStepIndicator(stepIndex)}
       {step === 'survey1' && (
         <div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">어떤 과목을 주로 공부하시나요?</h1>
-          <p className="text-sm text-gray-600 mb-5">관심 분야를 알려주시면 추천과 화면 구성을 맞춰드려요.</p>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">어떤 과목을 주로 공부하시나요?</h1>
+          <p className="text-sm text-gray-600 mb-5 text-center">관심 분야를 알려주시면 추천과 화면 구성을 맞춰드려요.</p>
+          <div className="flex flex-wrap justify-center gap-2 mb-4">
             {SUBJECT_SUGGESTIONS.map(s => (
               <button
                 key={s}
@@ -237,8 +237,8 @@ export default function OnboardingWizard() {
       )}
       {step === 'survey2' && (
         <div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Commit을 어떤 용도로 사용하시나요?</h1>
-          <p className="text-sm text-gray-600 mb-5">목적에 맞춰 평가/가이드를 최적화해 드립니다.</p>
+          <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">Commit을 어떤 용도로 사용하시나요?</h1>
+          <p className="text-sm text-gray-600 mb-5 text-center">목적에 맞춰 평가/가이드를 최적화해 드립니다.</p>
           <div className="flex flex-col gap-2">
             {USAGE_PURPOSE_OPTIONS.map(o => (
               <label key={o.value} className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer ${usagePurpose===o.value ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300'}`}>
@@ -255,8 +255,8 @@ export default function OnboardingWizard() {
       )}
       {step === 'survey3' && (
         <div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">주로 어떠한 형태의 자료를 업로드하시나요?</h1>
-          <p className="text-sm text-gray-600 mb-5">첫 업로드를 빠르게 시작할 수 있도록 준비할게요.</p>
+          <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">주로 어떠한 형태의 자료를 업로드하시나요?</h1>
+          <p className="text-sm text-gray-600 mb-5 text-center">첫 업로드를 빠르게 시작할 수 있도록 준비할게요.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {MATERIAL_OPTIONS.map(m => (
               <button
