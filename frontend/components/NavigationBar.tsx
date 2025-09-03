@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface NavigationBarProps {
   isOpen: boolean
@@ -13,6 +14,10 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const pathname = usePathname()
   const isAssessmentPage = !!pathname && /^\/subjects\/[^/]+\/study\/assessment$/.test(pathname)
   const isQuizPage = !!pathname && /^\/subjects\/[^/]+\/quiz$/.test(pathname)
+  const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([])
+  const [subjectsOpen, setSubjectsOpen] = useState(false)
+  const supabase = createClient()
+  const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   useEffect(() => {
     if (isOpen) {
@@ -23,6 +28,23 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       }
     }
   }, [isOpen])
+
+  // Load user's subjects for drawer submenu
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const { data } = await supabase
+          .from('subjects')
+          .select('id, name')
+          .eq('user_id', FIXED_USER_ID)
+          .order('created_at', { ascending: false })
+        setSubjects(data || [])
+      } catch (e) {
+        console.warn('Failed to load subjects for drawer', e)
+      }
+    }
+    fetchSubjects()
+  }, [])
 
   return (
     <>
@@ -128,17 +150,45 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           >
             Main
           </Link>
-          <Link 
-            onClick={() => setIsOpen(false)} 
-            href="/subjects" 
-            className={`py-3 px-4 rounded-md transition-colors ${
+          {/* My Course with expandable subject list */}
+          <button
+            onClick={() => setSubjectsOpen((v) => !v)}
+            className={`text-left py-3 px-4 rounded-md transition-colors ${
               pathname === '/subjects' || pathname.startsWith('/subjects/') 
                 ? 'bg-gray-100 text-[#212529] font-semibold' 
                 : 'text-[#94aac0] hover:bg-gray-50 hover:text-[#212529]'
             }`}
+            aria-expanded={subjectsOpen}
+            aria-controls="drawer-subjects"
           >
             My Course
-          </Link>
+          </button>
+          {subjectsOpen && subjects.length > 0 && (
+            <div id="drawer-subjects" className="ml-2 pl-2 border-l border-gray-200 flex flex-col gap-1">
+              <Link
+                onClick={() => setIsOpen(false)}
+                href="/subjects"
+                className={`py-2 px-3 rounded-md text-sm transition-colors ${
+                  pathname === '/subjects' ? 'bg-gray-100 text-[#212529] font-semibold' : 'text-[#7b8a9a] hover:bg-gray-50 hover:text-[#212529]'
+                }`}
+              >
+                전체 과목 보기
+              </Link>
+              {subjects.map((s) => (
+                <Link
+                  key={s.id}
+                  onClick={() => setIsOpen(false)}
+                  href={`/subjects/${s.id}`}
+                  className={`py-2 px-3 rounded-md text-sm truncate transition-colors ${
+                    pathname === `/subjects/${s.id}` ? 'bg-gray-100 text-[#212529] font-semibold' : 'text-[#7b8a9a] hover:bg-gray-50 hover:text-[#212529]'
+                  }`}
+                  title={s.name}
+                >
+                  {s.name}
+                </Link>
+              ))}
+            </div>
+          )}
           <Link 
             onClick={() => setIsOpen(false)} 
             href="/mypage" 
