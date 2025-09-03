@@ -17,6 +17,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const isHomePage = pathname === '/'
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([])
   const supabase = createClient()
+  const [user, setUser] = useState<any>(null)
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   useEffect(() => {
@@ -46,6 +47,36 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
     fetchSubjects()
   }, [])
 
+  // Auth state (Google OAuth via Supabase)
+  useEffect(() => {
+    let mounted = true
+    supabase.auth.getUser().then(({ data }) => {
+      if (mounted) setUser(data.user || null)
+    })
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        queryParams: { prompt: 'consent' }
+      }
+    })
+  }
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    // keep drawer state
+  }
+
   return (
     <>
       {/* Navigation Bar */}
@@ -71,16 +102,31 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
               <div className="w-10 h-10" />
             )}
 
-            {/* Right Section: Logo + Welcome (hidden on home to avoid duplicate with center overlay) */}
-            {!isHomePage ? (
-              <div className="flex items-center gap-4">
-                <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
-                <div className="w-px h-5 bg-gray-300" />
-                <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
-              </div>
-            ) : (
-              <div className="w-10 h-10" />
-            )}
+            {/* Right Section: Auth buttons */}
+            <div className="flex items-center gap-3">
+              {!isHomePage && (
+                <div className="hidden xl:flex items-center gap-4">
+                  <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+                  <div className="w-px h-5 bg-gray-300" />
+                  <div className="text-[#94aac0] text-[13px] font-normal">환영합니다, Taehee님</div>
+                </div>
+              )}
+              {user ? (
+                <button
+                  onClick={handleSignOut}
+                  className="px-3 py-1.5 text-[13px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                >
+                  로그아웃
+                </button>
+              ) : (
+                <button
+                  onClick={handleGoogleLogin}
+                  className="px-3 py-1.5 text-[13px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                >
+                  로그인 / 회원가입
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Center Title (Assessment page only) */}
@@ -118,6 +164,21 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
 
             {/* Right: Logo */}
             <div className="text-[#212529] text-[18px] font-semibold">Commit</div>
+            {user ? (
+              <button
+                onClick={handleSignOut}
+                className="ml-auto px-3 py-1.5 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                로그아웃
+              </button>
+            ) : (
+              <button
+                onClick={handleGoogleLogin}
+                className="ml-auto px-3 py-1.5 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                로그인 / 회원가입
+              </button>
+            )}
 
             {/* Mobile Center Title (Assessment page only) */}
             {(isAssessmentPage || isQuizPage || isHomePage) && (
