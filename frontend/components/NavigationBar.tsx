@@ -63,10 +63,11 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   }, [])
 
   const handleGoogleLogin = async () => {
+    const target = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : undefined)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        redirectTo: target,
         // Try to let user pick account when logging in
         queryParams: { prompt: 'select_account' }
       }
@@ -74,10 +75,11 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   }
 
   const handleGoogleSignup = async () => {
+    const target = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : undefined)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        redirectTo: target,
         // Ensure consent screen for first-time signup
         queryParams: { prompt: 'consent' }
       }
