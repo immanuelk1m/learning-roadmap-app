@@ -9,6 +9,8 @@ interface LogContext {
   operation?: string
   duration?: number
   error?: any
+  status?: number | string
+  stats?: any
   metadata?: Record<string, any>
 }
 

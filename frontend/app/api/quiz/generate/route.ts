@@ -172,21 +172,11 @@ ${index + 1}. **${node.name}**
             explanation: question.explanation,
             source_quote: question.source_quote,
             difficulty: question.difficulty,
+            // Link directly via existing column in schema
+            node_id: targetNode ? targetNode.id : null,
           })
           .select()
           .single()
-
-        // If there's a target node, create the relationship
-        if (quizItem && targetNode) {
-          await supabase
-            .from('quiz_item_nodes')
-            .insert({
-              quiz_item_id: quizItem.id,
-              node_id: targetNode.id,
-              is_primary: true,
-              relevance_score: 100
-            })
-        }
 
         return quizItem
       })

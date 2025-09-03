@@ -31,16 +31,14 @@
 - 없음 (레퍼런스만 고정)
 
 ## Phase 1. 온보딩 라우트 및 UI 스캐폴딩
-- [ ] 라우트 생성: `app/onboarding/page.tsx` (Client Component)
-- [ ] 위저드 컨테이너 컴포넌트 생성: `components/onboarding/OnboardingWizard.tsx`
-- [ ] 3단계 설문 스텝 컴포넌트 분리 또는 단일 위저드 내부에 상태로 구현
-  - [ ] Step 1: “어떤 과목을 주로 공부하시나요?”
-  - [ ] Step 2: “Commit을 어떤 용도로 사용하시나요?”
-        - 선택지: 시험 대비 공부 / 개념 이해 / 과제 도움
-  - [ ] Step 3: “주로 어떠한 형태의 자료를 업로드하시나요?”
-        - 선택지: PDF / PPT / 유튜브 영상
-- [ ] 각 단계는 다음/이전으로 이동 가능, 마지막 단계에서 “다음” 클릭 시 과목 생성 단계로 진행
-- [ ] 설문 응답은 우선 로컬 상태에 저장, 추후 DB 저장 옵션 제공(Phase 4 참고)
+- [x] 라우트 생성: `app/onboarding/page.tsx` (Client Component)
+- [x] 위저드 컨테이너 컴포넌트 생성: `components/onboarding/OnboardingWizard.tsx`
+- [x] 3단계 설문 스텝 컴포넌트(위저드 내부 상태 기반)
+  - [x] Step 1: “어떤 과목을 주로 공부하시나요?”
+  - [x] Step 2: “Commit을 어떤 용도로 사용하시나요?” (시험 대비 공부 / 개념 이해 / 과제 도움)
+  - [x] Step 3: “주로 어떠한 형태의 자료를 업로드하시나요?” (PDF / PPT / 유튜브 영상)
+- [x] 각 단계 이전/다음 이동, 마지막 단계에서 “계속”으로 진행
+- [x] 설문 응답 저장: `onboarding_responses` upsert
 
 산출물/변경점
 - `frontend/app/onboarding/page.tsx`
@@ -86,51 +84,45 @@
   - ['수학','컴퓨터공학','통계','경영/경제','의학','법학','외국어','인문/사회','공학','자연과학']
 
 ## Phase 2. 첫 회원가입 시 온보딩으로 이동
-- [ ] 회원가입 버튼의 OAuth 리다이렉트 대상 수정: 회원가입 시에는 `/onboarding`으로 귀결되도록 설정
-  - 수정 파일: `components/NavigationBar.tsx`
-  - `handleGoogleSignup()`의 `redirectTo`를 `"${origin}/onboarding"`로 지정
-- [ ] (보완책) 홈 페이지에서 온보딩 미완료 시 `/onboarding`으로 리다이렉트
-  - `app/page.tsx`에 로그인 사용자 로딩 후 `profiles.onboarding_completed`(또는 보조 조건) 확인 → 미완료면 `router.push('/onboarding')`
+- [x] 회원가입 버튼의 OAuth 리다이렉트 대상 수정: 회원가입 시 `/onboarding`으로 이동
+  - 수정 파일: `components/NavigationBar.tsx` (`handleGoogleSignup`)
+- [x] 홈 페이지에서 온보딩 미완료 시 `/onboarding`으로 리다이렉트
+  - `app/page.tsx`에 `onboarding_responses` 존재 확인 후 미존재 시 push
 
 산출물/변경점
 - `frontend/components/NavigationBar.tsx`
 - `frontend/app/page.tsx` (간단한 온보딩 완료 체크 로직)
 
 ## Phase 3. 과목 생성 단계 연결
-- [ ] 설문 위저드 마지막 단계에서 “계속” 클릭 시 과목 생성 화면으로 전환
-  - 옵션 A: 위저드 내에 과목 생성 폼 포함 (간단: 제목 입력 → 생성)
-  - 옵션 B: 기존 모달 재사용(`components/home/CreateSubjectModal.tsx`)을 임베드 or 열기
-- [ ] 과목 생성 시 Supabase로 `subjects` INSERT (기존 모달 로직 재사용 권장)
-- [ ] 성공 시 새 `subjectId`를 위저드 상태에 보관하고 다음 단계(PDF 업로드)로 전진
+- [x] 설문 위저드 마지막 단계에서 “계속” 클릭 시 과목 생성 화면으로 전환
+  - 채택: 옵션 A(위저드 내 간단 폼)
+- [x] 과목 생성 시 Supabase `subjects` INSERT
+- [x] 성공 시 `subjectId`를 보관하고 업로드 단계로 전진
 
 산출물/변경점
 - `frontend/components/onboarding/OnboardingWizard.tsx` (과목 생성 단계 추가/호출)
 - (선택) `frontend/components/home/CreateSubjectModal.tsx` 재사용
 
 ## Phase 4. PDF 업로드 단계 연결
-- [ ] 과목 생성 성공 후 “문서 업로드” 단계 보여주기
-  - `components/documents/UploadPDFButton.tsx`를 재사용하고 `subjectId`를 전달
-  - 현재 컴포넌트는 업로드 완료 시 자동으로 `router.push('/subjects/[id]/study/assessment?doc=...')` 수행(이미 구현됨)
-- [ ] 온보딩 위저드 화면에서 업로드 UI를 임베드하여 한 화면에서 진행 가능하도록 구성
-  - 업로드 시작 시 토스트/진행상태 안내(현 로직 재사용)
+- [x] 과목 생성 성공 후 “문서 업로드” 단계 노출
+  - `UploadPDFButton` 재사용(`subjectId` 전달)
+  - 업로드 완료 시 자동 이동 동작 확인
+- [x] 온보딩 위저드 내 업로드 UI 임베드
 
 산출물/변경점
 - `frontend/components/onboarding/OnboardingWizard.tsx` (업로드 섹션 임베드)
 - 기존 업로드 컴포넌트 재사용으로 코드 최소화
 
 ## Phase 5. 온보딩 완료 처리 및 재방문 시 동작
-- [ ] 설문 완료 시점 또는 과목 생성 직후 `profiles.onboarding_completed = true`로 마킹
-  - 마킹 시점은 비즈니스 결정: 설문만 완료해도 완료 처리할지, 과목 생성까지 완료해야 완료로 볼지
-- [ ] 홈 진입 시 온보딩 완료자는 기존 홈으로 곧장 노출
+- [ ] (선택) `profiles.onboarding_completed` 마킹
+- [x] 홈 진입 시 온보딩 미완료자는 `/onboarding`으로 유도
 
 산출물/변경점
 - `frontend/app/page.tsx` 온보딩 완료 여부 체크 로직 (Phase 2와 동일 위치)
 
 ## Phase 6. “개념 트리 생성 중” 로딩 제거(온보딩 초기 UX)
-- [ ] 온보딩 경로(`/onboarding`)에서는 개념 트리 관련 로딩/스켈레톤이 노출되지 않도록 분리
-- [ ] 기존에 업로드 직후 보여주는 로딩 텍스트가 있다면 온보딩 설명/가이드 텍스트로 대체
-  - 참고 파일: `components/documents/DocumentList.tsx`, `components/study/AssessmentWaiter.tsx` 등
-- [ ] 첫 진입 흐름에서 사용자가 혼란스러운 로딩 문구를 보지 않도록 가드
+- [x] 온보딩 경로(`/onboarding`)는 별도 화면으로 분리(개념 트리 로딩 미노출)
+- [ ] (필요 시) 기존 로딩 문구 개선
 
 산출물/변경점
 - 필요 시 관련 컴포넌트의 조건부 렌더링 보완

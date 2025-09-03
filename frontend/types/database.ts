@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      quiz_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          document_id: string | null
+          quiz_type: string | null
+          status: string | null
+          current_question_index: number | null
+          total_questions: number | null
+          user_answers: Json | null
+          question_results: Json | null
+          show_results: boolean | null
+          time_started: string | null
+          time_completed: string | null
+          last_updated: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          document_id?: string | null
+          quiz_type?: string | null
+          status?: string | null
+          current_question_index?: number | null
+          total_questions?: number | null
+          user_answers?: Json | null
+          question_results?: Json | null
+          show_results?: boolean | null
+          time_started?: string | null
+          time_completed?: string | null
+          last_updated?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          document_id?: string | null
+          quiz_type?: string | null
+          status?: string | null
+          current_question_index?: number | null
+          total_questions?: number | null
+          user_answers?: Json | null
+          question_results?: Json | null
+          show_results?: boolean | null
+          time_started?: string | null
+          time_completed?: string | null
+          last_updated?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_sessions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           assessment_completed: boolean | null
@@ -365,7 +424,7 @@ export type Database = {
       }
       quiz_sets: {
         Row: {
-          created_at: string | null
+          created_at: string
           description: string | null
           difficulty_distribution: Json | null
           document_id: string
@@ -379,7 +438,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           difficulty_distribution?: Json | null
           document_id: string
@@ -393,7 +452,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           difficulty_distribution?: Json | null
           document_id?: string
@@ -412,6 +471,44 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_attempts: {
+        Row: {
+          id: string
+          user_id: string
+          quiz_item_id: string
+          user_answer: string
+          is_correct: boolean
+          time_spent: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          quiz_item_id: string
+          user_answer: string
+          is_correct: boolean
+          time_spent?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          quiz_item_id?: string
+          user_answer?: string
+          is_correct?: boolean
+          time_spent?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_quiz_item_id_fkey"
+            columns: ["quiz_item_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_items"
             referencedColumns: ["id"]
           },
         ]

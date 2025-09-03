@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/browser'
 import { SubjectWithProgress, DocumentWithProgress, ActivityData, SystemStatus } from '@/types/home'
 import TodayRecommendation from '@/components/home/TodayRecommendation'
@@ -16,6 +17,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const supabase = createBrowserClient()
+  const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
 
   const fetchData = async () => {
@@ -28,6 +30,18 @@ export default function HomePage() {
       }
       
       // 병렬로 데이터 패칭 (RPC 함수 사용)
+      // Onboarding redirect guard: if user has no onboarding response, send to /onboarding
+      const { data: ob } = await (supabase as any)
+        .from('onboarding_responses')
+        .select('id')
+        .eq('user_id', uid)
+        .maybeSingle()
+      if (!ob) {
+        setLoading(false)
+        router.push('/onboarding')
+        return
+      }
+
       const [subjectsResult, documentsResult, activitiesResult, statusResult] = await Promise.all([
         // 과목별 진행도 조회 (최적화된 RPC 함수)
         supabase.rpc('get_subjects_with_progress', { p_user_id: uid }),

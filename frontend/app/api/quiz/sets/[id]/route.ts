@@ -29,26 +29,8 @@ export async function DELETE(
 
     const quizItemIds = (quizItems || []).map(q => q.id)
 
-    // Delete relations first
-    if (quizItemIds.length > 0) {
-      await supabase
-        .from('quiz_item_nodes')
-        .delete()
-        .in('quiz_item_id', quizItemIds)
-    }
-
-    // Delete linking records
-    await supabase
-      .from('quiz_set_items')
-      .delete()
-      .eq('quiz_set_id', id)
-
-    // Delete sessions for this set (if column exists)
-    await supabase
-      .from('quiz_sessions')
-      .delete()
-      .eq('quiz_set_id', id)
-      .eq('user_id', FIXED_USER_ID)
+    // No join-table cleanup needed: schema links items directly to set via quiz_set_id
+    // If you later add session cleanup, ensure columns match schema before filtering
 
     // Delete quiz items belonging to the set
     await supabase
@@ -71,4 +53,3 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
   }
 }
-

@@ -105,7 +105,7 @@ ${studyGuideContext}
         ],
       })
       
-      const response = result.text || ''
+      const response = (await result.response?.text()) || ''
       
       if (!response) {
         throw new Error('Empty response from Gemini API')

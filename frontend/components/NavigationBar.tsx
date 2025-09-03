@@ -79,11 +79,12 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   }
 
   const handleGoogleSignup = async () => {
-    const target = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : undefined)
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : undefined)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: target,
+        // First-time signups land on onboarding to complete survey
+        redirectTo: origin ? `${origin}/onboarding` : undefined,
         // Ensure consent screen for first-time signup
         queryParams: { prompt: 'consent' }
       }
