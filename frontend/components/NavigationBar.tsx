@@ -134,7 +134,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleGoogleLogin}
-                    className="px-3 py-1.5 text-[13px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    className="px-3 py-1.5 text-[13px] rounded-md bg-[#2f332f] text-white hover:bg-black"
                   >
                     로그인
                   </button>
@@ -195,7 +195,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
               <div className="ml-auto flex items-center gap-2">
                 <button
                   onClick={handleGoogleLogin}
-                  className="px-3 py-1.5 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                  className="px-3 py-1.5 text-[12px] rounded-md bg-[#2f332f] text-white hover:bg-black"
                 >
                   로그인
                 </button>
