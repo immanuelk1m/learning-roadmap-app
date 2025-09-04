@@ -23,13 +23,14 @@ CREATE TABLE IF NOT EXISTS public.user_usage_limits (
 );
 
 -- 인덱스 생성
-CREATE INDEX idx_user_usage_limits_period ON public.user_usage_limits(period_start, period_end);
-CREATE INDEX idx_user_usage_limits_updated_at ON public.user_usage_limits(updated_at);
+CREATE INDEX IF NOT EXISTS idx_user_usage_limits_period ON public.user_usage_limits(period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_user_usage_limits_updated_at ON public.user_usage_limits(updated_at);
 
 -- RLS 활성화
 ALTER TABLE public.user_usage_limits ENABLE ROW LEVEL SECURITY;
 
 -- 사용자는 자신의 레코드만 조회 가능
+DROP POLICY IF EXISTS "Users can view own usage limits" ON public.user_usage_limits;
 CREATE POLICY "Users can view own usage limits"
   ON public.user_usage_limits
   FOR SELECT
@@ -37,6 +38,7 @@ CREATE POLICY "Users can view own usage limits"
   USING (auth.uid() = user_id);
 
 -- 사용자는 자신의 레코드만 삽입 가능 (초기 생성 시)
+DROP POLICY IF EXISTS "Users can insert own usage limits" ON public.user_usage_limits;
 CREATE POLICY "Users can insert own usage limits"
   ON public.user_usage_limits
   FOR INSERT
@@ -44,6 +46,7 @@ CREATE POLICY "Users can insert own usage limits"
   WITH CHECK (auth.uid() = user_id);
 
 -- 사용자는 자신의 레코드만 업데이트 가능
+DROP POLICY IF EXISTS "Users can update own usage limits" ON public.user_usage_limits;
 CREATE POLICY "Users can update own usage limits"
   ON public.user_usage_limits
   FOR UPDATE
@@ -74,20 +77,21 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
 );
 
 -- 사용자당 하나의 활성 구독만 허용하는 unique 제약 추가
-CREATE UNIQUE INDEX idx_one_active_subscription_per_user 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_subscription_per_user 
   ON public.user_subscriptions(user_id, status) 
   WHERE status = 'active';
 
 -- 인덱스 생성
-CREATE INDEX idx_user_subscriptions_user_id ON public.user_subscriptions(user_id);
-CREATE INDEX idx_user_subscriptions_polar_subscription_id ON public.user_subscriptions(polar_subscription_id);
-CREATE INDEX idx_user_subscriptions_status ON public.user_subscriptions(status);
-CREATE INDEX idx_user_subscriptions_current_period ON public.user_subscriptions(current_period_end);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_id ON public.user_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_polar_subscription_id ON public.user_subscriptions(polar_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_status ON public.user_subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_current_period ON public.user_subscriptions(current_period_end);
 
 -- RLS 활성화
 ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- 사용자는 자신의 구독 정보만 조회 가능
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON public.user_subscriptions;
 CREATE POLICY "Users can view own subscriptions"
   ON public.user_subscriptions
   FOR SELECT
@@ -95,6 +99,7 @@ CREATE POLICY "Users can view own subscriptions"
   USING (auth.uid() = user_id);
 
 -- 서비스 역할은 모든 작업 가능 (webhook 처리용)
+DROP POLICY IF EXISTS "Service role full access" ON public.user_subscriptions;
 CREATE POLICY "Service role full access"
   ON public.user_subscriptions
   FOR ALL
@@ -115,11 +120,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- updated_at 트리거들
+DROP TRIGGER IF EXISTS update_user_usage_limits_updated_at ON public.user_usage_limits;
 CREATE TRIGGER update_user_usage_limits_updated_at
     BEFORE UPDATE ON public.user_usage_limits
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_user_subscriptions_updated_at ON public.user_subscriptions;
 CREATE TRIGGER update_user_subscriptions_updated_at
     BEFORE UPDATE ON public.user_subscriptions
     FOR EACH ROW
@@ -169,6 +176,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 신규 사용자 생성 트리거
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
@@ -205,6 +213,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 구독 변경 시 사용량 제한 업데이트 트리거
+DROP TRIGGER IF EXISTS on_subscription_changed ON public.user_subscriptions;
 CREATE TRIGGER on_subscription_changed
   AFTER INSERT OR UPDATE OF status, subscription_type ON public.user_subscriptions
   FOR EACH ROW
