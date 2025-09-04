@@ -119,8 +119,8 @@ export default function SubjectDetailPage({ params }: SubjectDetailPageProps) {
   return (
     <div className="bg-[#f8f8f8] w-full min-h-screen">
       {/* Main Content Container */}
-      <div className="max-w-[1440px] mx-auto">
-        <div className="pt-[20px] px-[42px]">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="pt-5 px-4 sm:px-6 lg:px-8">
           {/* Back Navigation removed as requested */}
           
           {/* Subject Header Card */}
