@@ -1,5 +1,10 @@
-export default function UpgradeSuccessPage({ searchParams }: { searchParams?: { [key: string]: string | string[] | undefined } }) {
-  const checkoutId = (searchParams?.checkout_id as string) || ''
+export default async function UpgradeSuccessPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const sp = (await searchParams) ?? {}
+  const checkoutId = (sp.checkout_id as string) || ''
   return (
     <main className="max-w-3xl mx-auto px-6 py-16 text-center">
       <h1 className="text-3xl font-bold text-gray-900">결제가 완료되었습니다 🎉</h1>

@@ -12,7 +12,7 @@ export async function hasActivePro(): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('subscriptions')
     .select('status,current_period_end,cancel_at_period_end,canceled_at')
     .eq('user_id', user.id)

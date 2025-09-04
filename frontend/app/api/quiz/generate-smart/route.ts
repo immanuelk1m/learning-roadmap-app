@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
 // 사용량 한도 체크 (퀴즈 생성)
-    const { data: usage, error: usageErr } = await supabase
+    const { data: usage, error: usageErr } = await (supabase as any)
       .rpc('check_and_increment_quiz_creation', { p_user_id: userId })
 
     if (usageErr) {

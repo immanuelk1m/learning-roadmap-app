@@ -7,7 +7,7 @@ export async function POST() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
       .rpc('check_and_increment_pdf_upload', { p_user_id: user.id })
 
     if (error) {
