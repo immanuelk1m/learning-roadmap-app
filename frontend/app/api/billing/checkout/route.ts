@@ -30,12 +30,13 @@ export async function POST(request: NextRequest) {
     const server = process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox'
 
     const polar = new Polar({ accessToken, server } as any)
-    const checkout = await polar.checkouts.create({
-      products: [productId],
+    // 최신 SDK에서는 custom checkout 엔드포인트 사용
+    const checkout = await (polar as any).checkouts.custom.create({
+      productId,
       successUrl,
-      // 외부 식별자로 Supabase 사용자 ID 연결 → 추후 Webhook에서 역매핑
-      externalCustomerId: user.id,
-    } as any)
+      // 사용자 매핑을 메타데이터로 전달 → 웹훅에서 역매핑 가능
+      customerMetadata: { externalCustomerId: user.id },
+    })
 
     return NextResponse.json({ url: checkout.url })
   } catch (error: any) {
