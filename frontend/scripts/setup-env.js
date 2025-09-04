@@ -18,12 +18,28 @@ async function setup() {
   const supabaseKey = await question('Supabase Anon Key: ');
   const geminiKey = await question('Gemini API Key: ');
 
+  // Polar 설정 (빈 값 입력 시 공백으로 저장됩니다)
+  const polarOrgId = await question('Polar Organization ID (optional): ');
+  const polarAccessToken = await question('Polar Access Token (optional): ');
+  const polarWebhookSecret = await question('Polar Webhook Secret (optional): ');
+  const polarServer = await question('Polar Server (sandbox|production, default sandbox): ');
+  const polarProProductId = await question('Polar Pro Product ID (optional): ');
+  const polarSuccessUrl = await question('Polar Success URL (optional): ');
+
   const envContent = `# Supabase
 NEXT_PUBLIC_SUPABASE_URL=${supabaseUrl}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${supabaseKey}
 
 # Gemini API
 GEMINI_API_KEY=${geminiKey}
+
+# Polar
+POLAR_ORGANIZATION_ID=${polarOrgId}
+POLAR_ACCESS_TOKEN=${polarAccessToken}
+POLAR_WEBHOOK_SECRET=${polarWebhookSecret}
+POLAR_SERVER=${polarServer || 'sandbox'}
+POLAR_PRO_PRODUCT_ID=${polarProProductId}
+POLAR_SUCCESS_URL=${polarSuccessUrl}
 `;
 
   const envPath = path.join(__dirname, '..', '.env.local');

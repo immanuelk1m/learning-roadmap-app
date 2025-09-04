@@ -1,4 +1,27 @@
+'use client'
+
+import { useState } from 'react'
+
 export default function PricingPage() {
+  const [loading, setLoading] = useState(false)
+
+  const handleProCheckout = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/billing/checkout', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || '결제 세션 생성 실패')
+      if (data?.url) {
+        window.location.href = data.url
+      }
+    } catch (e) {
+      console.error(e)
+      alert('결제 세션 생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <main className="max-w-5xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-bold text-gray-900">요금제</h1>
@@ -30,7 +53,9 @@ export default function PricingPage() {
             <li>학습 가이드 고급 기능</li>
             <li>우선 지원</li>
           </ul>
-          <button className="mt-6 w-full py-2 rounded-md bg-black text-white hover:bg-gray-900">프로 신청</button>
+          <button onClick={handleProCheckout} disabled={loading} className="mt-6 w-full py-2 rounded-md bg-black text-white hover:bg-gray-900 disabled:opacity-60">
+            {loading ? '진행 중...' : '프로 신청'}
+          </button>
         </section>
       </div>
     </main>
