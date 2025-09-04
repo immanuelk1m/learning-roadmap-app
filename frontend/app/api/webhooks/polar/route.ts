@@ -46,18 +46,23 @@ export const POST = Webhooks({
         }
 
         const { error } = await supabase
-          .from('user_subscriptions')
-          .upsert({
-            user_id: userId,
-            polar_subscription_id: polarSubscriptionId,
-            polar_product_id: productId,
-            status: status,
-            subscription_type: status === 'active' ? 'pro' : 'free',
-            current_period_start: currentPeriodStart,
-            current_period_end: currentPeriodEnd,
-            canceled_at: canceledAt,
-            metadata: { source: 'polar_webhook' }
-          }, { onConflict: 'polar_subscription_id' })
+          .from('subscriptions')
+          .upsert(
+            {
+              user_id: userId,
+              provider: 'polar',
+              polar_subscription_id: polarSubscriptionId,
+              product_id: productId,
+              status: status,
+              current_period_start: currentPeriodStart,
+              current_period_end: currentPeriodEnd,
+              cancel_at_period_end: cancelAtPeriodEnd,
+              canceled_at: canceledAt,
+              started_at: startedAt,
+              ends_at: endsAt,
+            },
+            { onConflict: 'polar_subscription_id' }
+          )
 
         if (error) {
           console.error('Webhook upsert error:', error)
