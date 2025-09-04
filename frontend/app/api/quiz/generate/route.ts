@@ -16,6 +16,25 @@ export async function POST(request: NextRequest) {
     const userId = auth.user?.id
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+// 사용량 한도 체크 (퀴즈 생성)
+    const { data: usage, error: usageErr, status: usageStatus } = await supabase
+      .rpc('check_and_increment_quiz_creation', { p_user_id: userId })
+
+    if (usageErr) {
+      console.error('Usage check failed:', usageErr)
+      return NextResponse.json({ error: 'Failed to check usage' }, { status: 500 })
+    }
+
+    const usageRow = Array.isArray(usage) ? usage[0] : usage
+    if (!usageRow?.allowed) {
+      return NextResponse.json({
+        error: 'QUIZ_LIMIT_REACHED',
+        message: '이 달의 퀴즈 생성 한도를 초과했습니다.',
+        current_count: usageRow?.current_count,
+        limit_count: usageRow?.limit_count,
+      }, { status: 429 })
+    }
+
     // Get document
     const { data: document } = await supabase
       .from('documents')

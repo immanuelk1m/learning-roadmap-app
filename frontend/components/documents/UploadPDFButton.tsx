@@ -317,6 +317,22 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
         }
       })
 
+// 사용량 한도 체크 (서버 API 호출)
+      const checkResp = await fetch('/api/usage/check-upload', { method: 'POST' })
+      if (!checkResp.ok) {
+        let info: any = {}
+        try { info = await checkResp.json() } catch {}
+        showToast({
+          type: 'warning',
+          title: '업로드 한도 초과',
+          message: info?.message || '이 달의 PDF 업로드 한도를 초과했습니다.',
+          duration: 6000
+        })
+        setIsOpen(false)
+        setFile(null)
+        return
+      }
+
       // Create document record in database
       uploadLogger.info('Creating document record', {
         correlationId,
