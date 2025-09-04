@@ -140,28 +140,24 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       <div className={`fixed bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 h-[65px] left-0 top-0 w-full z-[10000] border-b border-gray-100 transition-all duration-300 ${
         isOpen ? 'pl-72' : 'pl-0'
       }`}>
+        {/* Desktop: Absolute-positioned hamburger at far left of the navbar (outside centered container) */}
+        {!isOnboardingPage && !isOpen && (
+          <button
+            type="button"
+            aria-label="메뉴 열기"
+            className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+            onClick={() => setIsOpen(true)}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
         <div className="relative max-w-[1200px] mx-auto h-full px-4 md:px-6">
           {/* Desktop Layout */}
           <div className="hidden md:flex h-full items-center justify-between">
-            {/* Left Section: Hide hamburger on onboarding */}
-            {isOnboardingPage ? (
-              <div className="w-10 h-10" />
-            ) : (
-              !isOpen ? (
-                <button
-                  type="button"
-                  aria-label="메뉴 열기"
-                  className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
-                  onClick={() => setIsOpen(true)}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                </button>
-              ) : (
-                <div className="w-10 h-10" />
-              )
-            )}
+            {/* Left Section spacer (icon moved to absolute far-left on desktop) */}
+            <div className="w-10 h-10" />
 
             {/* Right Section: Auth buttons */}
             <div className="flex items-center gap-3">
