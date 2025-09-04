@@ -11,12 +11,25 @@ export async function POST(request: NextRequest) {
     const productId = process.env.POLAR_PRO_PRODUCT_ID || ''
     const accessToken = process.env.POLAR_ACCESS_TOKEN || ''
     if (!productId || !accessToken) {
-      return NextResponse.json({ error: 'Polar not configured' }, { status: 500 })
+      console.error('Polar env check', {
+        hasProductId: !!productId,
+        hasAccessToken: !!accessToken,
+      })
+      return NextResponse.json({
+        error: 'Polar not configured',
+        missing: {
+          POLAR_PRO_PRODUCT_ID: !productId,
+          POLAR_ACCESS_TOKEN: !accessToken,
+        }
+      }, { status: 500 })
     }
 
     const successUrl = process.env.POLAR_SUCCESS_URL || `${request.nextUrl.origin}/upgrade/success`
 
-    const polar = new Polar({ accessToken })
+    // Default to sandbox unless explicitly set to production
+    const server = process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox'
+
+    const polar = new Polar({ accessToken, server } as any)
     const checkout = await polar.checkouts.create({
       products: [productId],
       successUrl,
