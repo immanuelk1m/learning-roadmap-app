@@ -35,9 +35,9 @@ export default function PricingClient({ isPro }: { isPro: boolean }) {
           </div>
           <p className="mt-1 text-sm text-gray-500">개인 학습을 시작하기 위한 기본 기능</p>
           <ul className="mt-4 space-y-2 text-sm text-gray-700 list-disc list-inside">
-            <li>과목 관리</li>
-            <li>문서 업로드</li>
-            <li>기본 퀴즈</li>
+            <li>월 PDF 80페이지 처리</li>
+            <li>월 문제 생성 8회</li>
+            <li>과목 관리 및 기본 기능</li>
           </ul>
           <button className="mt-6 w-full py-2 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50">현재 플랜</button>
         </section>
@@ -49,9 +49,9 @@ export default function PricingClient({ isPro }: { isPro: boolean }) {
           </div>
           <p className="mt-1 text-sm text-gray-500">성장을 가속하는 고급 기능</p>
           <ul className="mt-4 space-y-2 text-sm text-gray-700 list-disc list-inside">
-            <li>스마트 퀴즈 생성</li>
-            <li>학습 가이드 고급 기능</li>
-            <li>우선 지원</li>
+            <li>월 PDF 800페이지 처리</li>
+            <li>월 문제 생성 80회</li>
+            <li>스마트 퀴즈/가이드 등 고급 기능</li>
           </ul>
           <button onClick={handleProCheckout} disabled={loading || isPro} className="mt-6 w-full py-2 rounded-md bg-black text-white hover:bg-gray-900 disabled:opacity-60">
             {isPro ? '이미 프로입니다' : (loading ? '진행 중...' : '프로 신청')}

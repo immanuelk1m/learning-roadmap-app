@@ -416,7 +416,16 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       })
 
 // 사용량 한도 체크 (서버 API 호출)
-      const checkResp = await fetch('/api/usage/check-upload', { method: 'POST' })
+      // pages: 선택된 페이지 수가 있으면 그것을, 없으면 전체 페이지 수를 사용
+      const pagesToUse = (selectedPages && selectedPages.length > 0)
+        ? selectedPages.length
+        : ((file as any).pageCount || pageCount || 0)
+
+      const checkResp = await fetch('/api/usage/check-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pages: pagesToUse })
+      })
       if (!checkResp.ok) {
         let info: any = {}
         try { info = await checkResp.json() } catch {}

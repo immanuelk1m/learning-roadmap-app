@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data, error } = await (supabase as any)
-      .rpc('check_and_increment_pdf_upload', { p_user_id: user.id })
+    // pages 값을 요청 바디에서 수신 (선택된 페이지 수 또는 전체 페이지 수)
+    let pages = 0
+    try {
+      const body = await request.json()
+      pages = Number(body?.pages || 0)
+    } catch {}
+    if (!Number.isFinite(pages) || pages <= 0) {
+      return NextResponse.json({ error: 'INVALID_PAGES', message: '올바른 페이지 수가 필요합니다.' }, { status: 400 })
+    }
+
+    const { data, error } = await (supabase as any)
+      .rpc('check_and_increment_pdf_pages', { p_user_id: user.id, p_pages: pages })
 
     if (error) {
       console.error('check_and_increment_pdf_upload error:', error)
