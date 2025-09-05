@@ -8,6 +8,7 @@ import TodayRecommendation from '@/components/home/TodayRecommendation'
 import DocumentProgressList from '@/components/home/DocumentProgressList'
 import MyCourseCards from '@/components/home/MyCourseCards'
 import ActivityGraph from '@/components/home/ActivityGraph'
+import HomeSkeleton from '@/components/home/HomeSkeleton'
 
 export default function HomePage() {
   const [subjects, setSubjects] = useState<SubjectWithProgress[]>([])
@@ -99,14 +100,7 @@ export default function HomePage() {
   }, [systemStatus?.processing_documents])
 
   if (loading) {
-    return (
-      <div className="bg-[var(--color-background)] w-full h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-gray-300 border-t-primary rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">데이터를 불러오는 중...</p>
-        </div>
-      </div>
-    )
+    return <HomeSkeleton />
   }
 
   return (
@@ -114,7 +108,7 @@ export default function HomePage() {
       {/* Main Content Container */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col flex-1">
         {/* Main Content - 반응형 레이아웃 */}
-        <div className="py-6 lg:py-8 flex-1 flex flex-col gap-8 min-h-0 lg:grid lg:grid-cols-[320px_1fr] lg:items-start">
+        <div className="py-6 lg:py-8 flex-1 flex flex-col gap-8 min-h-0 lg:grid lg:grid-cols-[320px_1fr] lg:items-stretch">
           {/* Left Column */}
           <div className="lg:w-auto lg:flex-none flex flex-col gap-4 min-h-0 h-full">
             {/* Today's Recommendation */}

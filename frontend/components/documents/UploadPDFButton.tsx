@@ -346,7 +346,8 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       for (let i = 0; i < selectedPages.length; i++) {
         const pageNum = selectedPages[i]
         try {
-          const page = await pdfDoc.getPage(pageNum)
+          if (!pdfDocRef.current) continue
+          const page = await pdfDocRef.current.getPage(pageNum)
           const viewport = page.getViewport({ scale: 1.5 })
           const canvas = document.createElement('canvas')
           const ctx = canvas.getContext('2d')
