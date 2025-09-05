@@ -22,6 +22,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const [account, setAccount] = useState<{ name?: string | null; email?: string | null; avatar_url?: string | null } | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
+  const [isPro, setIsPro] = useState(false)
   const baseName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const displayName = account?.name || baseName || '게스트'
   const avatarUrl = account?.avatar_url ||
@@ -70,6 +71,36 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       }
     }
     fetchSubjects()
+  }, [])
+
+  // Check active subscription (PRO) status for current user
+  useEffect(() => {
+    const checkPro = async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser()
+        const uid = auth.user?.id
+        if (!uid) { setIsPro(false); return }
+        const { data, error } = await (supabase as any)
+          .from('subscriptions')
+          .select('status,current_period_end,cancel_at_period_end')
+          .eq('user_id', uid)
+        if (error || !data) { setIsPro(false); return }
+        const now = Date.now()
+        const active = (data as any[]).some((row) => {
+          if (row.status !== 'active') return false
+          if (row.cancel_at_period_end) return false
+          if (row.current_period_end) {
+            const until = new Date(row.current_period_end).getTime()
+            if (Number.isFinite(until) && until <= now) return false
+          }
+          return true
+        })
+        setIsPro(active)
+      } catch {
+        setIsPro(false)
+      }
+    }
+    checkPro()
   }, [])
 
   // Auth state (Google OAuth via Supabase)
@@ -367,7 +398,14 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold text-gray-900 truncate">{displayName}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-[13px] font-semibold text-gray-900 truncate">{displayName}</div>
+                    {isPro ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold">PRO</span>
+                    ) : (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 text-[10px] font-semibold">STARTER</span>
+                    )}
+                  </div>
                   <div className="text-[12px] text-gray-500 truncate">{account?.email || user?.email}</div>
                 </div>
                 <svg className="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
