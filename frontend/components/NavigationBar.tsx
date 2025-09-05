@@ -23,6 +23,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
   const [isPro, setIsPro] = useState(false)
+  const [usageSummary, setUsageSummary] = useState<{ pdf_pages_remaining: number; pdf_pages_limit: number; quiz_sets_remaining: number; quiz_set_creation_limit: number } | null>(null)
   const baseName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const displayName = account?.name || baseName || '게스트'
   const avatarUrl = account?.avatar_url ||
@@ -101,6 +102,24 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       }
     }
     checkPro()
+  }, [])
+
+  // Load usage summary
+  useEffect(() => {
+    const loadUsage = async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser()
+        const uid = auth.user?.id
+        if (!uid) { setUsageSummary(null); return }
+        const { data, error } = await (supabase as any)
+          .rpc('get_user_usage_summary', { p_user_id: uid })
+        if (!error && data) {
+          const row = Array.isArray(data) ? data[0] : data
+          setUsageSummary(row || null)
+        }
+      } catch {}
+    }
+    loadUsage()
   }, [])
 
   // Auth state (Google OAuth via Supabase)
@@ -423,7 +442,14 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                     onClick={() => { setUserMenuOpen(false); setIsOpen(false) }}
                     className="block px-3 py-2 text-[14px] text-gray-800 hover:bg-gray-50 rounded-md"
                   >
-                    요금제
+                    <div className="flex items-center justify-between gap-3">
+                      <span>요금제</span>
+                      {usageSummary && (
+                        <span className="text-[11px] text-gray-500">
+                          PDF {usageSummary.pdf_pages_remaining}/{usageSummary.pdf_pages_limit} · 퀴즈 {usageSummary.quiz_sets_remaining}/{usageSummary.quiz_set_creation_limit}
+                        </span>
+                      )}
+                    </div>
                   </Link>
                   <Link
                     href="/help"
