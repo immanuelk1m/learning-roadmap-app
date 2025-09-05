@@ -268,40 +268,106 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
           if (!pdfjsLib) throw new Error('PDF.js not loaded')
           const arrayBuffer = await file.arrayBuffer()
           const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-          // Render selected pages to images
-          const images: string[] = []
-          // Render at higher scale for readability
-          for (const p of selectedPages) {
-            const page = await pdfDoc.getPage(p)
+          
+          // Collect all page data
+          const pageData: Array<{
+            url: string
+            width: number
+            height: number
+            isLandscape: boolean
+          }> = []
+          
+          for (const pageNum of selectedPages) {
+            const page = await pdfDoc.getPage(pageNum)
             const viewport = page.getViewport({ scale: 1.5 })
+            
             const canvas = document.createElement('canvas')
             const ctx = canvas.getContext('2d')
             if (!ctx) continue
+            
             canvas.width = viewport.width
             canvas.height = viewport.height
-            await page.render({ canvasContext: ctx, viewport }).promise
+            
+            await page.render({ 
+              canvasContext: ctx, 
+              viewport 
+            }).promise
+            
             const url = canvas.toDataURL('image/jpeg', 0.9)
-            images.push(url)
+            
+            pageData.push({
+              url,
+              width: viewport.width,
+              height: viewport.height,
+              isLandscape: viewport.width > viewport.height
+            })
+            
             canvas.width = 0
             canvas.height = 0
           }
 
-          // Build a new PDF from images
+          // Build a new PDF maintaining original dimensions
           const Sliced = () => (
             <PDFDoc>
-              {images.map((src, idx) => (
-                <PDFPage key={idx} size="A4" style={styles.page}>
-                  <PDFImage src={src} style={styles.img} />
-                </PDFPage>
-              ))}
+              {pageData.map((data, idx) => {
+                const { width, height, isLandscape, url } = data
+                
+                return (
+                  <PDFPage 
+                    key={idx} 
+                    size={isLandscape ? [height, width] : [width, height]}
+                    style={styles.page}
+                  >
+                    <PDFImage 
+                      src={url} 
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain'
+                      }} 
+                    />
+                  </PDFPage>
+                )
+              })}
             </PDFDoc>
           )
+          
           const slicedBlob = await pdf(<Sliced />).toBlob()
           const slicedFile = new File([slicedBlob], file.name.replace(/\.pdf$/i, '') + '_selected.pdf', { type: 'application/pdf' })
           fileToUpload = slicedFile
           usedPageCount = selectedPages.length
         } catch (genErr: any) {
           console.warn('Failed to generate sliced PDF, fallback to original:', genErr)
+        }
+      }
+
+      // Render selected pages to images with original dimensions
+      const images: string[] = []
+      for (let i = 0; i < selectedPages.length; i++) {
+        const pageNum = selectedPages[i]
+        try {
+          const page = await pdfDoc.getPage(pageNum)
+          const viewport = page.getViewport({ scale: 1.5 })
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          if (!ctx) continue
+          
+          // Use original page dimensions
+          canvas.width = viewport.width
+          canvas.height = viewport.height
+          
+          await page.render({ 
+            canvasContext: ctx, 
+            viewport: page.getViewport({ scale: 1.5 }) 
+          }).promise
+          
+          const url = canvas.toDataURL('image/jpeg', 0.9)
+          images.push(url)
+          
+          canvas.width = 0
+          canvas.height = 0
+        } catch (err) {
+          console.warn('Image render failed for page', pageNum, err)
         }
       }
 
@@ -609,7 +675,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+        <div className="fixed top-[65px] left-0 right-0 bottom-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-[80%] max-w-4xl shadow-2xl animate-in zoom-in-95 duration-300 transform scale-[0.8] origin-center">
             <div className="p-6 border-b border-gray-100 bg-gray-50 rounded-t-2xl">
               <div className="flex justify-between items-start">
