@@ -1,112 +1,111 @@
-## 과금/사용량 한도 개편 계획 (Starter/Pro)
+친구 초대 코드(중복 없는 8자리) 생성 및 온보딩에서 프로 1개월 자동 등록 계획
 
-### 요구사항
-- Starter: 월간 PDF 80페이지, 퀴즈 생성 8회
-- Pro: 월간 PDF 800페이지, 퀴즈 생성 80회
-- Pricing 화면(`/pricing`)에 해당 한도 안내 표시, 현재 플랜에 맞는 버튼 상태/라벨 반영
-- 백엔드 한도 체크는 페이지 기반으로 동작해야 함 (현재는 업로드 횟수 기반)
+개요
+- 목표: 네비게이션 드로어의 계정 정보 영역에 "친구 초대" 버튼 추가. 초대자는 고유 8자리 코드 부여(중복 없이 랜덤). 신규 유저가 회원가입 후 온보딩 페이지에서 코드 입력 시, 신규 유저에게 프로 1개월을 자동 부여.
+- 추가 정책: 유저당 초대 코드는 최대 5개까지만 생성 가능. 생성 가능한 잔여 수가 0이면 친구 초대 화면에 "사용 불가능"(빨간불), 1 이상이면 "사용 가능"(초록불) 상태를 시각적으로 표시.
+- 사용 리소스: Supabase(Postgres + Auth + RLS), Next.js App Router, 기존 `subscriptions` 테이블/로직 재사용.
+- 프로젝트: `tclwjtrrhnivskqhiokg` (frontend에서 사용 중: documents/subjects/onboarding_responses/subscriptions 존재), 확장: `uuid-ossp`, `pgcrypto` 설치되어 랜덤/UUID 함수 사용 가능.
 
----
+데이터베이스 변경 (DDL)
+1) 초대 코드 테이블 생성: `invite_codes`
+   - 컬럼
+     - `code` text PRIMARY KEY (8자, 대문자+숫자) — 유니크 보장
+     - `inviter_user_id` uuid NOT NULL REFERENCES auth.users(id)
+     - `created_at` timestamptz DEFAULT timezone('utc', now())
+     - `expires_at` timestamptz NULL (선택: 기본 6개월 등)
+     - `max_uses` integer DEFAULT 1 (인당 최대 발급/사용 정책과 분리, 기본 1회용)
+     - `use_count` integer DEFAULT 0
+     - `active` boolean DEFAULT true
+   - 인덱스
+     - PRIMARY KEY(code)
+     - BTREE(inviter_user_id)
+   - 제약
+     - `use_count <= max_uses`
+     - 만료/비활성/초과 사용 방지 트리거는 애플리케이션/SQL 함수에서 검사
 
-### 현재 상태 분석 요약
-- 테이블: `public.user_usage_limits`
-  - 컬럼 기본값: `pdf_upload_limit=5`, `quiz_set_creation_limit=10`
-  - 월별 리셋 컬럼 존재: `period_start`, `period_end`
-  - 트리거: `update_user_usage_limits_updated_at` (공통 함수 `update_updated_at_column()`)
+2) 초대 사용 로그 테이블: `invite_redemptions`
+   - 컬럼
+     - `id` uuid PRIMARY KEY DEFAULT uuid_generate_v4()
+     - `code` text REFERENCES invite_codes(code)
+     - `invited_user_id` uuid NOT NULL REFERENCES auth.users(id)
+     - `created_at` timestamptz DEFAULT timezone('utc', now())
+   - 인덱스/제약
+     - 유저당 최초 1회만 유효하게 만들 경우: UNIQUE(invited_user_id)
+     - 동일 코드에 대해 중복 사용 허용 여부는 invite_codes.max_uses로 제어
 
-- RPC 함수 (보안: SECURITY DEFINER)
-  - `check_and_increment_pdf_upload(p_user_id uuid)`
-    - 레코드 없으면 `pdf_upload_limit=5`, `quiz_set_creation_limit=10`로 생성 후 업로드 “횟수” +1
-  - `check_and_increment_quiz_creation(p_user_id uuid)`
-    - 레코드 없으면 동일 기본값으로 생성 후 퀴즈 생성 “횟수” +1
+3) 랜덤 코드 생성 함수(중복 방지)
+   - 함수: `generate_unique_invite_code(len int default 8) returns text`
+   - 구현 아이디어: `encode(gen_random_bytes(6), 'base64')` → 대문자/숫자만 필터 → 길이 8자 추출 → 존재 검사 → 충돌 시 재시도 (최대 N회)
+   - 대안: `pgcrypto`의 `gen_random_uuid()`를 hashids로 변환하는 확장 사용 가능하나, 단순 필터 방식이 충분
 
-- 구독 테이블
-  - 앱 사용: `public.subscriptions` (webhook/polar 연동)
-  - 마이그레이션 파일에는 별도의 `public.user_subscriptions` + 트리거(`on_subscription_changed`) 있으나, 현재 앱 로직은 `subscriptions`를 사용 중
-  - NavigationBar에서 PRO 여부 판단은 `subscriptions`의 `status`, `cancel_at_period_end`, `current_period_end` 기반
+4) RLS 정책
+   - `invite_codes`
+     - INSERT: 사용자 본인(`auth.uid()`)만 자신의 코드 생성 가능
+     - SELECT: 기본은 본인 소유 코드만 조회 허용. 관리자/서버는 service key 사용
+     - UPDATE: 서버 로직(Cloud Function/서버 API)만 허용 또는 본인 코드 비활성화만 허용
+   - `invite_redemptions`
+     - INSERT: 서버 API에서만 수행 (서비스 롤)
+     - SELECT: 본인 기록만 조회 가능
 
-- 프런트엔드 사용량 체크 경로
-  - PDF 업로드: `/api/usage/check-upload` → `check_and_increment_pdf_upload` 호출 (페이지 수 정보 미전달)
-  - 퀴즈 생성: `/api/quiz/generate*` → `check_and_increment_quiz_creation` 호출
+5) 인당 코드 생성 제한(최대 5개)
+- DB 트리거 함수(권장): `prevent_more_than_5_codes_per_user()`
+  - NEW.inviter_user_id 기준 `SELECT COUNT(*) FROM invite_codes WHERE inviter_user_id = NEW.inviter_user_id`
+  - 결과가 5 이상이면 예외 발생: `RAISE EXCEPTION 'invite code limit reached (5)'`
+- API 레벨 사전 체크로 사용자 친화적 에러 메시지 제공
 
----
+백엔드 API 설계 (Next.js API Routes)
+1) POST /api/invite/create
+- auth 필요. 유저당 최대 5개 생성 가능
+- 동작: 현재 보유 코드 수가 5 미만이면 새 코드 생성, 5 이상이면 409 반환
+- 응답: { code } 또는 { error: 'LIMIT_REACHED', limitReached: true, currentCount: number }
 
-### 변경 설계
-1) 스키마 확장 (페이지 기반)
-- `user_usage_limits`에 “페이지 단위” 카운터/한도를 추가
-  - 추가 컬럼: `pdf_pages_count integer not null default 0`, `pdf_pages_limit integer not null default 80`
-  - 기존 컬럼(`pdf_upload_count`, `pdf_upload_limit`)은 하위호환 위해 유지, 더 이상 증가시키지 않음
-  - 인덱스/트리거는 기존과 동일 (updated_at 갱신 트리거 유지)
+2) GET /api/invite/my
+- 본인 코드 목록 + 잔여 생성 가능 수 반환
+- 응답: { codes: Array<{ code, use_count, max_uses, active, created_at }>, availableSlots: number } // availableSlots = max(5 - codes.length, 0)
 
-2) Starter/Pro 한도 기본값 재정의
-- Starter(기본): `pdf_pages_limit=80`, `quiz_set_creation_limit=8`
-- Pro: `pdf_pages_limit=800`, `quiz_set_creation_limit=80`
-- 신규 사용자 초기화 함수(`initialize_new_user`) 수정: 위 한도로 생성
-- 구독 변경 트리거: 현재 `user_subscriptions` 기준으로 작성되어 있으므로, 실제 사용 중인 `subscriptions` 테이블에도 동등한 트리거 추가
-  - 조건: 활성(`status='active'`), 기간 유효, `cancel_at_period_end=false`
-  - Pro → 800/80, Free(혹은 비활성) → 80/8
+3) POST /api/invite/redeem
+   - Body: { code }
+   - 조건 체크
+     - 코드 존재/active 여부
+     - 만료 여부(expires_at)
+     - 사용 가능 횟수(use_count < max_uses)
+     - 초대 대상: 신규 유저 첫 온보딩 시점에만 허용(예: `onboarding_responses` 미존재 또는 가입 후 N시간 이내 등 비즈니스 규칙)
+   - 처리
+     - `invite_redemptions`에 기록 삽입 (유일 제약 위반 시 409)
+     - `invite_codes.use_count` 증가
+     - 구독 1개월 부여: `subscriptions`에 1개월 active 레코드 upsert
+       - provider = 'referral'
+       - product_id = 'referral_pro_1m'
+       - status = 'active'
+       - current_period_start = now(), current_period_end = now() + interval '1 month'
+       - cancel_at_period_end = true
+     - 성공 응답: { success: true, pro_until: date }
 
-3) RPC 함수 개편
-- `check_and_increment_pdf_upload` → 페이지 기반으로 변경
-  - 새 시그니처: `check_and_increment_pdf_pages(p_user_id uuid, p_pages integer)`
-  - 동작: 기간 만료 시 리셋 → `pdf_pages_count + p_pages`가 `pdf_pages_limit` 이하일 때 허용 후 증가
-  - 반환: `{ allowed, current_count, limit_count, message }` (current/limit는 “페이지” 단위)
-- `check_and_increment_quiz_creation` 기본값/문구 조정
-  - 레코드 없을 때 생성 기본값을 8/80 체계로 반영
+4) POST /api/invite/validate
+- Body: { code }
+- 동작: 코드 존재/active/만료/사용 가능 여부를 검증만 수행(부여/소비 없음)
+- 응답: { valid: boolean, reason?: 'NOT_FOUND'|'INACTIVE'|'EXPIRED'|'LIMIT_REACHED'|'ALREADY_USED' }
+- 메모: 온보딩 첫 화면의 "확인" 버튼이 이 API를 사용하여 실시간 피드백 제공
 
-4) API 레이어 수정
-- `/api/usage/check-upload`
-  - 요청 바디로 `pages` 전달 (선택된 페이지 수 또는 전체 페이지 수)
-  - 서버에서 `check_and_increment_pdf_pages(p_user_id, pages)` 호출로 변경
-- 퀴즈 생성 API는 기존 호출 유지 (한도만 8/80으로 적용됨)
+프론트엔드 변경
+1) 드로어(UI) - `components/NavigationBar.tsx`
+   - 계정 정보 섹션에 "친구 초대" 버튼 추가
+   - 클릭 시 모달/드로어 오픈: 
+     - 내 초대코드 표시 + 복사 버튼
+     - 초대 링크: `${origin}/onboarding?ref=${code}` 제공 (선택)
+     - 코드가 없다면 생성 API 호출 후 표시
+     - 생성 가능 여부 상태등: `availableSlots > 0`이면 초록불(사용 가능), 0이면 빨간불(사용 불가능) 표시 및 생성 버튼 비활성화
 
-5) 프런트엔드 반영
-- `UploadPDFButton.tsx`
-  - 업로드 전 체크 호출 시 `pages` 계산:
-    - `selectedPages.length > 0 ? selectedPages.length : (file as any).pageCount || pageCount`
-  - 제한 초과 시 토스트 메시지에 남은 페이지 수 표기
-- `/pricing` 화면
-  - Starter 카드: “월 80페이지 / 문제 생성 8회”
-  - Pro 카드: “월 800페이지 / 문제 생성 80회”
-  - 현재 플랜에 따라 버튼 라벨/비활성 처리 유지
-
-6) 데이터 마이그레이션/백필
-- 과거 업로드 이력으로 `pdf_pages_count` 백필 (가능 시):
-  - `documents`에 페이지 수(`page_count`)가 있다면, 당월 범위에서 합산해 사용자별로 업데이트
-  - 불가능하면 0으로 두고 차등 적용 시작
-
-7) 테스트 계획
-- 단위: RPC에 대해 Starter/Pro 케이스별 경계값 테스트 (79/80/81, 799/800/801)
-- 통합: 업로드 UI에서 선택 페이지 수를 달리하여 제한 동작 확인
-- 구독 전환: `subscriptions` 레코드 상태 변경에 따른 한도 자동 전환 확인
-
-8) 롤백 계획
-- 새 컬럼/함수 추가는 역호환성 유지
-- 문제가 있으면 API에서 기존 함수(`check_and_increment_pdf_upload`)로 빠르게 스위치 가능
-
----
-
-### 작업 순서 (체크리스트)
-1. DB 마이그레이션 작성/적용
-   - `user_usage_limits` 컬럼 추가(`pdf_pages_count`, `pdf_pages_limit`), 기본값 설정
-   - `initialize_new_user` 함수의 기본 한도 80/8로 변경
-   - `check_and_increment_pdf_pages` 신규 함수 추가 (기존 함수는 남김)
-   - `check_and_increment_quiz_creation` 내 기본값 8/80로 조정
-   - `subscriptions` 테이블용 한도 동기화 트리거 추가 (Pro=800/80, Free=80/8)
-   - 백필 쿼리(당월 `documents.page_count` 합산) 작성
-
-2. 서버 API 변경
-   - `/api/usage/check-upload`가 `pages` 인자를 받아 새 RPC 호출하도록 수정
-
-3. 프런트엔드 변경
-   - `UploadPDFButton.tsx`에서 `pages` 계산 및 API 전송
-   - `/pricing` UI 문구/라벨 업데이트
-
-4. 테스트 & 검증
-   - Starter/Pro 케이스 경계 테스트
-   - 구독 상태 전환에 따른 한도 전환 확인
-
-5. 배포 및 모니터링
-   - 에러 로그/한도 초과 응답 비율 모니터링
-
-
+2) 온보딩 - `components/onboarding/OnboardingWizard.tsx`
+- 초대 코드 입력란 추가: 설문 첫 화면에 배치
+- URL 쿼리 파라미터 `ref`가 존재하면 자동으로 입력란에 채움
+- 입력 형식 검증: 8자리, 대문자/숫자만 허용. 유효/무효 실시간 표시
+- 유효성 확인 버튼: 입력란 옆 "확인" 버튼을 제공하고 `/api/invite/validate` 호출로 즉시 검증
+  - 성공 시 초록 상태/체크 아이콘 표시 및 내부 상태 `isInviteCodeValid = true`
+  - 실패 시 에러 메시지(존재하지 않음/만료/비활성/사용 한도 초과)를 표시하고 `isInviteCodeValid = false`
+- 적용 타이밍: 설문 저장(`handleSaveAnswers`) 성공 직후 `POST /api/invite/redeem` 호출
+  - 이미 PRO 활성 사용자면 호출 스킵
+  - 성공 시 토스트: "초대 코드 적용 완료 — 프로 1개월 활성화"
+  - 실패 시 케이스별 에러: 존재하지 않음/만료/비활성/사용 한도 초과/중복 사용
+- 상태 관리: 적용 중 로딩, 버튼 비활성화, 중복 제출 방지
+- 보안: 실제 유효성/한도/부여는 서버에서 검증. 클라이언트는 입력/호출만 수행

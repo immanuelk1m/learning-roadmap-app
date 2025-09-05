@@ -45,6 +45,12 @@ export default function OnboardingWizard() {
   const [savingAnswers, setSavingAnswers] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  // invite code (first screen)
+  const [inviteCode, setInviteCode] = useState<string>('')
+  const [inviteCheckLoading, setInviteCheckLoading] = useState(false)
+  const [inviteValid, setInviteValid] = useState<boolean | null>(null)
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null)
+
   const effectiveSubject = useMemo(() => {
     return customSubject?.trim() ? customSubject.trim() : (preferredSubject || '')
   }, [preferredSubject, customSubject])
@@ -92,11 +98,57 @@ export default function OnboardingWizard() {
 
       if (error) throw error
 
+      // If invite code looked valid, try redeem once after saving answers
+      if (inviteCode && inviteCode.trim().length === 8) {
+        try {
+          const res = await fetch('/api/invite/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: inviteCode.trim().toUpperCase() })
+          })
+          if (res.ok) {
+            // success toast
+            setInviteMessage('초대 코드 적용 완료 — 프로 1개월 활성화')
+          } else {
+            // do not block flow
+          }
+        } catch {}
+      }
+
       setStep('createSubject')
     } catch (e: any) {
       setSaveError(e?.message || '설문 저장에 실패했습니다.')
     } finally {
       setSavingAnswers(false)
+    }
+  }
+
+  const checkInviteCode = async () => {
+    try {
+      setInviteCheckLoading(true)
+      setInviteMessage(null)
+      setInviteValid(null)
+      const code = inviteCode.trim().toUpperCase()
+      if (!code || code.length !== 8) {
+        setInviteValid(false)
+        setInviteMessage('8자리 코드 형식을 확인해주세요')
+        return
+      }
+      const res = await fetch('/api/invite/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      })
+      const json = await res.json().catch(() => ({}))
+      if (res.ok && json?.valid) {
+        setInviteValid(true)
+        setInviteMessage('사용 가능한 코드입니다')
+      } else {
+        setInviteValid(false)
+        setInviteMessage('유효하지 않은 코드입니다')
+      }
+    } finally {
+      setInviteCheckLoading(false)
     }
   }
 
@@ -209,6 +261,33 @@ export default function OnboardingWizard() {
         <div>
           <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">어떤 과목을 주로 공부하시나요?</h1>
           <p className="text-sm text-gray-600 mb-5 text-center">관심 분야를 알려주시면 추천과 화면 구성을 맞춰드려요.</p>
+          {/* Invite code input at the very top of first screen */}
+          <div className="mb-4 flex items-center gap-2 justify-center">
+            <input
+              type="text"
+              value={inviteCode}
+              onChange={(e)=>{ setInviteCode(e.target.value.toUpperCase()); setInviteValid(null); setInviteMessage(null) }}
+              placeholder="초대코드 (선택)"
+              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm tracking-widest"
+              maxLength={8}
+            />
+            <button
+              type="button"
+              onClick={checkInviteCode}
+              disabled={inviteCheckLoading}
+              className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+            >{inviteCheckLoading ? '확인 중...' : '확인'}</button>
+            {inviteValid === true && (
+              <span className="inline-flex items-center gap-2 text-emerald-700 text-sm">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />사용 가능
+              </span>
+            )}
+            {inviteValid === false && inviteMessage && (
+              <span className="inline-flex items-center gap-2 text-red-600 text-sm">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500" />{inviteMessage}
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap justify-center gap-2 mb-4">
             {SUBJECT_SUGGESTIONS.map(s => (
               <button

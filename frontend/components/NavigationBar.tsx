@@ -24,6 +24,10 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
   const [isPro, setIsPro] = useState(false)
   const [usageSummary, setUsageSummary] = useState<{ pdf_pages_remaining: number; pdf_pages_limit: number; quiz_sets_remaining: number; quiz_set_creation_limit: number } | null>(null)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteCodes, setInviteCodes] = useState<Array<{ code: string; use_count: number; max_uses: number; active: boolean; created_at: string }>>([])
+  const [availableSlots, setAvailableSlots] = useState<number>(0)
   const baseName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const displayName = account?.name || baseName || '게스트'
   const avatarUrl = account?.avatar_url ||
@@ -52,6 +56,46 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
     window.addEventListener('resize', applyByWidth)
     return () => window.removeEventListener('resize', applyByWidth)
   }, [])
+
+  // Invite codes load helper
+  const loadInviteCodes = async () => {
+    try {
+      setInviteLoading(true)
+      const res = await fetch('/api/invite/my', { cache: 'no-store' })
+      if (!res.ok) throw new Error('failed')
+      const json = await res.json()
+      setInviteCodes(Array.isArray(json.codes) ? json.codes : [])
+      setAvailableSlots(typeof json.availableSlots === 'number' ? json.availableSlots : 0)
+    } catch {
+      setInviteCodes([])
+      setAvailableSlots(0)
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  const handleOpenInviteModal = async () => {
+    setInviteModalOpen(true)
+    await loadInviteCodes()
+  }
+
+  const handleCreateInviteCode = async () => {
+    try {
+      setInviteLoading(true)
+      const res = await fetch('/api/invite/create', { method: 'POST' })
+      if (res.status === 409) {
+        // limit reached; just reload to update state
+        await loadInviteCodes()
+        return
+      }
+      if (!res.ok) throw new Error('failed')
+      await loadInviteCodes()
+    } catch {
+      // no-op
+    } finally {
+      setInviteLoading(false)
+    }
+  }
 
   // Load user's subjects for drawer submenu
   useEffect(() => {
@@ -437,6 +481,16 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                   <div className="px-3 py-2 text-[12px] text-gray-500 truncate border-b border-gray-100">
                     {account?.email || user?.email}
                   </div>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); handleOpenInviteModal() }}
+                    className="w-full text-left px-3 py-2 text-[14px] text-gray-800 hover:bg-gray-50 rounded-md flex items-center justify-between"
+                  >
+                    <span>친구 초대</span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${availableSlots > 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                      <span className="text-[11px] text-gray-500">{availableSlots > 0 ? `가능 ${availableSlots}개` : '사용 불가능'}</span>
+                    </span>
+                  </button>
                   <Link
                     href="/pricing"
                     onClick={() => { setUserMenuOpen(false); setIsOpen(false) }}
@@ -505,6 +559,64 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
+      )}
+
+      {/* Invite Modal */}
+      {inviteModalOpen && (
+        <div className="fixed inset-0 z-[12000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setInviteModalOpen(false)} />
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-xl border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-lg font-semibold text-gray-900">친구 초대</div>
+              <button onClick={() => setInviteModalOpen(false)} className="w-8 h-8 inline-flex items-center justify-center rounded-md border border-gray-200 hover:bg-gray-50">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6l12 12M18 6l-12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-gray-600">보유 코드:
+                <span className="ml-2 inline-flex items-center gap-2">
+                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${availableSlots > 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                  <span className="text-gray-800 font-medium">{Math.max(5 - availableSlots, 0)} / 5</span>
+                </span>
+              </div>
+            </div>
+            <div className="max-h-64 overflow-auto border rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500">
+                  <tr>
+                    <th className="text-left px-3 py-2">코드</th>
+                    <th className="text-left px-3 py-2">상태</th>
+                    <th className="text-right px-3 py-2">복사</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inviteCodes.length === 0 ? (
+                    <tr><td colSpan={3} className="px-3 py-6 text-center text-gray-500">코드가 없습니다.</td></tr>
+                  ) : inviteCodes.map((c) => {
+                    const usedUp = (c.use_count ?? 0) >= (c.max_uses ?? 1)
+                    return (
+                      <tr key={c.code} className="border-t">
+                        <td className="px-3 py-2 font-mono text-[13px] text-gray-900">{c.code}</td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-flex items-center gap-2 ${usedUp || !c.active ? 'text-red-600' : 'text-emerald-700'}`}>
+                            <span className={`inline-block w-2.5 h-2.5 rounded-full ${usedUp || !c.active ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                            {usedUp ? '사용 완료' : (c.active ? '사용 가능' : '비활성')}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            onClick={async () => { try { await navigator.clipboard.writeText(c.code) } catch {} }}
+                            className="px-2 py-1 text-xs rounded-md border border-gray-200 hover:bg-gray-50"
+                          >복사</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
