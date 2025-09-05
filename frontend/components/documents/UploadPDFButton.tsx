@@ -37,6 +37,8 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
   const pdfDocRef = useRef<any>(null)
   const [rangeError, setRangeError] = useState<string | null>(null)
   const [rangeInput, setRangeInput] = useState<string>('')
+  const [activePage, setActivePage] = useState<number | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const router = useRouter()
 
   const MAX_SELECTABLE = 20
@@ -150,6 +152,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
             }
           }
           setThumbnails(thumbs)
+          setActivePage(1)
           // Default selection
           if (pageCount <= MAX_SELECTABLE) {
             setSelectedPages(Array.from({ length: pageCount }, (_, idx) => idx + 1))
@@ -178,6 +181,34 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
       setError(null)
     }
   }
+
+  // Render high-res preview for the active page on the left
+  useEffect(() => {
+    let cancelled = false
+    const renderPreview = async () => {
+      try {
+        if (!pdfDocRef.current || !activePage) return
+        const page = await pdfDocRef.current.getPage(activePage)
+        const viewport = page.getViewport({ scale: 1.6 })
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+        await page.render({ canvasContext: ctx, viewport }).promise
+        const url = canvas.toDataURL('image/jpeg', 0.9)
+        if (!cancelled) setPreviewUrl(url)
+        canvas.width = 0
+        canvas.height = 0
+      } catch (err) {
+        // ignore
+      }
+    }
+    renderPreview()
+    return () => {
+      cancelled = true
+    }
+  }, [activePage])
 
   // Album view only (no separate large preview)
 
@@ -579,7 +610,7 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
 
       {isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-[80%] max-w-4xl shadow-2xl animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-2xl w-[80%] max-w-4xl shadow-2xl animate-in zoom-in-95 duration-300 transform scale-[0.8] origin-center">
             <div className="p-6 border-b border-gray-100 bg-gray-50 rounded-t-2xl">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
@@ -635,54 +666,86 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                 />
               </div>
             ) : (
-              // Single-column body: album-style selection (meta is in header)
-              <div className="grid grid-cols-1 gap-6">
-                <div className="border rounded-xl p-4 bg-white">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <h3 className="text-sm font-semibold text-gray-900">페이지 선택</h3>
-                    <div className="flex items-center gap-3 text-sm">
-                      {pageCount && pageCount > 0 && (
-                        <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300"
-                            checked={selectedPages.length === Math.min(pageCount, MAX_SELECTABLE)}
-                            onChange={(e) => {
-                              if (!pageCount) return
-                            if (e.target.checked) {
-                              const cnt = Math.min(pageCount, MAX_SELECTABLE)
-                              const arr = Array.from({ length: cnt }, (_, i) => i + 1)
-                              setSelectedPages(arr)
-                              if (pageCount > MAX_SELECTABLE) {
-                                showToast({ type: 'info', title: '선택 제한', message: `처음 ${MAX_SELECTABLE}페이지만 선택됩니다.`, duration: 3500 })
+              // Two-column layout: left preview, right vertical list
+              <div className="grid grid-cols-12 gap-6">
+                {/* Left: Large preview */}
+                <div className="col-span-12 md:col-span-8">
+                  <div className="border rounded-xl p-4 bg-white h-full flex items-center justify-center min-h-[360px]">
+                    {generatingPreview ? (
+                      <div className="text-sm text-gray-500">페이지 미리보기 생성 중...</div>
+                    ) : previewUrl ? (
+                      <img src={previewUrl} alt={`page-${activePage ?? ''}`} className="max-w-full max-h-[50vh] object-contain rounded" />
+                    ) : (
+                      <div className="text-sm text-gray-500">오른쪽 목록에서 페이지를 선택하세요.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Controls + vertical thumbnail list */}
+                <div className="col-span-12 md:col-span-4">
+                  <div className="border rounded-xl p-4 bg-white">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h3 className="text-sm font-semibold text-gray-900">페이지 선택</h3>
+                      <div className="flex items-center gap-3 text-sm">
+                        {pageCount && pageCount > 0 && (
+                          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300"
+                              checked={selectedPages.length === Math.min(pageCount, MAX_SELECTABLE)}
+                              onChange={(e) => {
+                                if (!pageCount) return
+                                if (e.target.checked) {
+                                  const cnt = Math.min(pageCount, MAX_SELECTABLE)
+                                  const arr = Array.from({ length: cnt }, (_, i) => i + 1)
+                                  setSelectedPages(arr)
+                                  if (pageCount > MAX_SELECTABLE) {
+                                    showToast({ type: 'info', title: '선택 제한', message: `처음 ${MAX_SELECTABLE}페이지만 선택됩니다.`, duration: 3500 })
+                                  }
+                                } else {
+                                  setSelectedPages([])
+                                }
+                              }}
+                            />
+                            전체 선택
+                          </label>
+                        )}
+                        <button
+                          onClick={() => setSelectedPages([])}
+                          className="text-gray-600 hover:text-gray-900"
+                        >초기화</button>
+                        <span className="text-gray-600">선택: <span className="font-semibold">{selectedPages.length}</span> / {MAX_SELECTABLE}</span>
+                      </div>
+                    </div>
+
+                    {/* Range input */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-600">구간 입력 (예: 1-12, 15, 19)</label>
+                      <div className="flex items-stretch gap-2">
+                        <input
+                          type="text"
+                          placeholder="1-12, 15, 19"
+                          value={rangeInput}
+                          onChange={(e) => setRangeInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const total = pageCount ?? (file as any).pageCount ?? 0
+                              const pages = parsePageRanges(rangeInput, total, MAX_SELECTABLE)
+                              if (pages.length === 0) {
+                                setRangeError('유효한 페이지 범위를 입력하세요.')
+                              } else {
+                                setRangeError(null)
                               }
-                            } else {
-                              setSelectedPages([])
+                              setSelectedPages(pages)
+                              if (pages.length > 0) setActivePage(pages[0])
                             }
                           }}
-                          />
-                          전체 선택
-                        </label>
-                      )}
-                      <button
-                        onClick={() => setSelectedPages([])}
-                        className="text-gray-600 hover:text-gray-900"
-                      >초기화</button>
-                      <span className="text-gray-600">선택: <span className="font-semibold">{selectedPages.length}</span> / {MAX_SELECTABLE}</span>
-                    </div>
-                  </div>
-
-                  {/* Range input */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-gray-600">구간 입력 (예: 1-12, 15, 19)</label>
-                    <div className="flex items-stretch gap-2">
-                      <input
-                        type="text"
-                        placeholder="1-12, 15, 19"
-                        value={rangeInput}
-                        onChange={(e) => setRangeInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          className="px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                          onClick={() => {
                             const total = pageCount ?? (file as any).pageCount ?? 0
                             const pages = parsePageRanges(rangeInput, total, MAX_SELECTABLE)
                             if (pages.length === 0) {
@@ -691,75 +754,56 @@ export default function UploadPDFButton({ subjectId, onUploadSuccess }: UploadPD
                               setRangeError(null)
                             }
                             setSelectedPages(pages)
-                          }
-                        }}
-                        className="flex-1 border rounded-lg px-3 py-2 text-sm"
-                      />
-                      <button
-                        type="button"
-                        className="px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-                        onClick={() => {
-                          const total = pageCount ?? (file as any).pageCount ?? 0
-                          const pages = parsePageRanges(rangeInput, total, MAX_SELECTABLE)
-                          if (pages.length === 0) {
-                            setRangeError('유효한 페이지 범위를 입력하세요.')
-                          } else {
-                            setRangeError(null)
-                          }
-                          setSelectedPages(pages)
-                        }}
-                      >적용</button>
-                    </div>
-                    {rangeError && <p className="text-xs text-red-600">{rangeError}</p>}
-                  </div>
-
-                  {/* Album grid */}
-                  <div className="mt-3 max-h-[520px] overflow-auto border border-emerald-100 rounded-lg p-3 bg-white">
-                    {generatingPreview ? (
-                      <div className="text-sm text-gray-500 p-4">페이지 미리보기 생성 중...</div>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {thumbnails.map((t) => {
-                          const active = selectedPages.includes(t.page)
-                          return (
-                            <button
-                              type="button"
-                              key={t.page}
-                              className={`relative border ${active ? 'border-emerald-500' : 'border-gray-200'} rounded-lg overflow-hidden group shadow-sm`}
-                              onClick={() => {
-                                setSelectedPages((prev) => {
-                                  const exists = prev.includes(t.page)
-                                  if (exists) return prev.filter((p) => p !== t.page)
-                                  if (prev.length >= MAX_SELECTABLE) {
-                                    showToast({ type: 'warning', title: '최대 선택 수 초과', message: `최대 ${MAX_SELECTABLE}페이지까지 선택할 수 있습니다.`, duration: 3000 })
-                                    return prev
-                                  }
-                                  return [...prev, t.page].sort((a,b)=>a-b)
-                                })
-                              }}
-                              title={`페이지 ${t.page}`}
-                            >
-                              <div style={{ aspectRatio: '3 / 4' }} className="w-full bg-gray-50">
-                                <img src={t.url} alt={`p${t.page}`} className="w-full h-full object-contain" />
-                              </div>
-                              <span className={`absolute top-1 left-1 text-[11px] px-1.5 py-0.5 rounded ${active ? 'bg-emerald-600 text-white' : 'bg-black/60 text-white'}`}>{t.page}</span>
-                              {active && (
-                                <>
-                                  <span className="absolute inset-0 bg-emerald-500/20" />
-                                  <span className="absolute bottom-2 right-2 text-xs bg-emerald-600 text-white rounded px-2 py-0.5">선택됨</span>
-                                </>
-                              )}
-                            </button>
-                          )
-                        })}
-                        {thumbnails.length === 0 && (
-                          <div className="text-xs text-gray-500 p-2">미리보기를 생성할 수 없습니다.</div>
-                        )}
+                            if (pages.length > 0) setActivePage(pages[0])
+                          }}
+                        >적용</button>
                       </div>
-                    )}
+                      {rangeError && <p className="text-xs text-red-600">{rangeError}</p>}
+                    </div>
+
+                    {/* Vertical list */}
+                    <div className="mt-3 max-h-[40vh] overflow-y-auto">
+                      {thumbnails.length === 0 ? (
+                        <div className="text-xs text-gray-500 p-2">미리보기를 생성할 수 없습니다.</div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {thumbnails.map((t) => {
+                            const isSelected = selectedPages.includes(t.page)
+                            const isActive = activePage === t.page
+                            return (
+                              <button
+                                type="button"
+                                key={t.page}
+                                onClick={() => {
+                                  setActivePage(t.page)
+                                  setSelectedPages((prev) => {
+                                    const exists = prev.includes(t.page)
+                                    if (exists) return prev.filter((p) => p !== t.page)
+                                    if (prev.length >= MAX_SELECTABLE) {
+                                      showToast({ type: 'warning', title: '최대 선택 수 초과', message: `최대 ${MAX_SELECTABLE}페이지까지 선택할 수 있습니다.`, duration: 3000 })
+                                      return prev
+                                    }
+                                    return [...prev, t.page].sort((a,b)=>a-b)
+                                  })
+                                }}
+                                className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors ${isSelected ? 'border-emerald-500 bg-emerald-50' : isActive ? 'border-gray-300' : 'border-gray-200 hover:bg-gray-50'}`}
+                                title={`페이지 ${t.page}`}
+                              >
+                                <div className="w-16 h-20 bg-gray-50 flex items-center justify-center overflow-hidden rounded">
+                                  <img src={t.url} alt={`p${t.page}`} className="max-w-full max-h-full object-contain" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <div className="text-sm font-medium text-gray-900">페이지 {t.page}</div>
+                                  {isSelected && <div className="text-xs text-gray-600">선택됨</div>}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-
               </div>
             )}
 
