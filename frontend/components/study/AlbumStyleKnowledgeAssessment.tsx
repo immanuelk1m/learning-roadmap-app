@@ -60,19 +60,18 @@ function NodeCard({
     return 13
   }, [node.name])
   
-  // 모든 상태를 진한 초록색으로 통일
-  const borderClass = isSelected 
-    ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50'  // 선택됨
-    : isExpanded 
-    ? 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50'  // 확장됨
-    : 'border-gray-200 hover:border-gray-400'  // 기본
+  // Level 기반 색상 팔레트: Level 1 = 연한 파랑, Level 2+ = 초록
+  const isLevel1 = level === 1
   
-  // 배경색도 모두 진한 초록색으로 통일
-  const bgClass = isSelected 
-    ? 'bg-emerald-50'  // 선택됨
-    : isExpanded 
-    ? 'bg-emerald-50'  // 확장됨
-    : 'bg-white'  // 기본
+  // 기본 배경은 level에 따라 항상 적용
+  const bgClass = isLevel1 ? 'bg-sky-50' : 'bg-emerald-50'
+  
+  // 선택/확장 시 팔레트 색으로 강조, 기본은 중립 테두리
+  const borderClass = (isSelected || isExpanded)
+    ? (isLevel1 
+        ? 'border-sky-500 shadow-xl ring-2 ring-sky-500/50'
+        : 'border-emerald-500 shadow-xl ring-2 ring-emerald-500/50')
+    : 'border-gray-200 hover:border-gray-400'
   
   // 커서 스타일
   const cursorClass = 'cursor-pointer'

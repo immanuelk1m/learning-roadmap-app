@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -12,6 +12,7 @@ interface NavigationBarProps {
 
 export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const isAssessmentPage = !!pathname && /^\/subjects\/[^/]+\/study\/assessment$/.test(pathname)
   const isQuizPage = !!pathname && /^\/subjects\/[^/]+\/quiz$/.test(pathname)
   const isHomePage = pathname === '/'
@@ -226,7 +227,22 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    // keep drawer state
+    // 즉시 로컬 UI 상태 초기화
+    setUser(null)
+    setAccount(null)
+    setSubjects([])
+    setIsPro(false)
+    setUsageSummary(null)
+    setInviteCodes([])
+    setAvailableSlots(0)
+    setUserMenuOpen(false)
+    // 메인 페이지로 이동 및 새로고침하여 완전한 초기 상태 보장
+    try {
+      if (pathname !== '/') {
+        router.replace('/')
+      }
+      router.refresh()
+    } catch {}
   }
 
   return (

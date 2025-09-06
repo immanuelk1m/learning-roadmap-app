@@ -90,6 +90,28 @@ export default function HomePage() {
     
     return () => clearInterval(interval)
   }, [])
+
+  // 인증 상태 변화에 따라 홈 화면 데이터 초기화/재로딩
+  useEffect(() => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      const uid = session?.user?.id || null
+      setUserId(uid)
+      if (!uid) {
+        // 로그아웃: 화면을 기본 상태로 즉시 초기화
+        setSubjects([])
+        setDocuments([])
+        setActivities([])
+        setSystemStatus(null)
+        setLoading(false)
+      } else {
+        // 로그인/계정 전환: 새 데이터 불러오기
+        fetchData()
+      }
+    })
+    return () => {
+      subscription.subscription.unsubscribe()
+    }
+  }, [])
   
   // 시스템 상태 변경 감지
   useEffect(() => {
