@@ -28,6 +28,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteCodes, setInviteCodes] = useState<Array<{ code: string; use_count: number; max_uses: number; active: boolean; created_at: string }>>([])
   const [availableSlots, setAvailableSlots] = useState<number>(0)
+  const usableInviteCount = inviteCodes.filter((c) => (c.active) && ((c.use_count ?? 0) < (c.max_uses ?? 1))).length
   const baseName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const displayName = account?.name || baseName || '게스트'
   const avatarUrl = account?.avatar_url ||
@@ -443,7 +444,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             <div className="relative">
               <button
                 className="w-full flex items-center gap-3 hover:bg-gray-50 rounded-md p-2 text-left"
-                onClick={() => setUserMenuOpen((v) => !v)}
+                onClick={async () => { const next = !userMenuOpen; setUserMenuOpen(next); if (next) { await loadInviteCodes() } }}
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
               >
@@ -487,8 +488,8 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                   >
                     <span>친구 초대</span>
                     <span className="inline-flex items-center gap-2">
-                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${availableSlots > 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                      <span className="text-[11px] text-gray-500">{availableSlots > 0 ? `가능 ${availableSlots}개` : '사용 불가능'}</span>
+                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${usableInviteCount > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />
+                      <span className="text-[11px] text-gray-500">{usableInviteCount > 0 ? '사용 가능' : '사용 불가능'}</span>
                     </span>
                   </button>
                   <Link
@@ -575,7 +576,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-600">보유 코드:
                 <span className="ml-2 inline-flex items-center gap-2">
-                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${availableSlots > 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${usableInviteCount > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />
                   <span className="text-gray-800 font-medium">{Math.max(5 - availableSlots, 0)} / 5</span>
                 </span>
               </div>
