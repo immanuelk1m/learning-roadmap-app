@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export async function GET(_request: NextRequest) {
   try {
@@ -7,10 +8,11 @@ export async function GET(_request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Ensure five codes exist (server-side function)
-    await (supabase as any).rpc('ensure_five_invite_codes', { p_user_id: user.id })
+    const service = createServiceClient()
+    // Ensure five codes exist (server-side function, bypass RLS)
+    await (service as any).rpc('ensure_five_invite_codes', { p_user_id: user.id })
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await (service as any)
       .from('invite_codes')
       .select('code,use_count,max_uses,active,created_at')
       .eq('inviter_user_id', user.id)

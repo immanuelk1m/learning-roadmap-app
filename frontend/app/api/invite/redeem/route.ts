@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
+    const service = createServiceClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
     // Eligibility: 서버는 1회만 허용(초대 사용 로그 유니크 제약)으로 제한. 별도 온보딩 존재 여부는 제한하지 않음.
 
     // Validate code
-    const { data, error } = await (supabase as any)
+    const { data, error } = await (service as any)
       .from('invite_codes')
       .select('code,active,expires_at,max_uses,use_count,inviter_user_id')
       .eq('code', code)
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure user hasn't redeemed before
-    const { data: prior } = await (supabase as any)
+    const { data: prior } = await (service as any)
       .from('invite_redemptions')
       .select('id')
       .eq('invited_user_id', user.id)
@@ -41,12 +43,12 @@ export async function POST(request: NextRequest) {
 
     // Perform redemption and grant 1 month pro
     // Use Postgrest sequential ops (best-effort). In production consider RPC transaction.
-    const { error: insErr } = await (supabase as any)
+    const { error: insErr } = await (service as any)
       .from('invite_redemptions')
       .insert({ code, invited_user_id: user.id })
     if (insErr) return NextResponse.json({ error: 'REDEMPTION_FAILED' }, { status: 500 })
 
-    const { error: updErr } = await (supabase as any)
+    const { error: updErr } = await (service as any)
       .from('invite_codes')
       .update({ use_count: (data.use_count ?? 0) + 1 })
       .eq('code', code)
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Upsert subscriptions row (referral)
     const nowIso = new Date().toISOString()
     const until = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    const { error: subErr } = await (supabase as any)
+    const { error: subErr } = await (service as any)
       .from('subscriptions')
       .upsert({
         user_id: user.id,
