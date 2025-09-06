@@ -174,7 +174,7 @@ export default function StudyTabs({
     },
     {
       id: 'guide' as const,
-      label: 'PDF 퀵노트',
+      label: '퀵노트',
       icon: BookOpen,
       content: studyGuideContent
     }
@@ -201,10 +201,7 @@ export default function StudyTabs({
                   )}
                 >
                   <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-                  <span className="hidden xs:inline sm:inline">{tab.label}</span>
-                  <span className="xs:hidden">
-                    {tab.id === 'knowledge' ? '트리' : '노트'}
-                  </span>
+                  <span className="whitespace-nowrap">{tab.label}</span>
                 </button>
               )
             })}
