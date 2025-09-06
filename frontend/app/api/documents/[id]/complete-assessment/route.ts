@@ -91,13 +91,13 @@ export async function POST(
 
     // Update understanding_level to 50 for all knowledge nodes
     console.log('🎯 Setting understanding_level to 50 for all knowledge nodes...')
-    const { error: updateError } = await supabase
+    const { error: nodesUpdateError } = await supabase
       .from('knowledge_nodes')
       .update({ understanding_level: 50 })
       .in('id', nodeIds)
 
-    if (updateError) {
-      console.error('❌ Failed to update understanding_level:', updateError)
+    if (nodesUpdateError) {
+      console.error('❌ Failed to update understanding_level:', nodesUpdateError)
       return NextResponse.json(
         { error: 'Failed to update knowledge nodes understanding level' },
         { status: 500 }
@@ -112,25 +112,44 @@ export async function POST(
       studyGuide: { success: false, error: null },
       practiceQuiz: { success: false, error: null }
     }
+    
+    // Prepare assessment data for downstream generators
+    const assessmentData = {
+      weakNodeIds: weakNodes.map(n => n.id),
+      strongNodeIds: strongNodes.map(n => n.id),
+      assessmentResults: (assessmentResults
+        ?.filter(r => r.understanding_level !== null)
+        .map(r => ({
+          nodeId: r.id,
+          understandingLevel: r.understanding_level as number,
+          assessmentMethod: (r.assessment_method as string)
+        })) || [])
+    }
 
     const parallelPromises = await Promise.allSettled([
-      // Generate study guide
+      // Generate study guide via internal API
       (async () => {
         try {
-          const result = await generateStudyGuide({
-            documentId: id,
-            nodeIds,
-            userId
+          const baseUrl = process.env.NODE_ENV === 'production'
+            ? 'https://mystduy.vercel.app'
+            : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003')
+
+          const res = await fetch(`${baseUrl}/api/study-guide/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-assessment-based': 'true' },
+            body: JSON.stringify({ documentId: id, userId, assessmentData })
           })
-          
-          if (result.success) {
+
+          if (res.ok) {
             console.log('📚 Study guide generated successfully')
             parallelResults.studyGuide.success = true
+            const result = await res.json()
             return { type: 'studyGuide', success: true, result }
           } else {
-            console.error('❌ Failed to generate study guide:', result.error)
-            parallelResults.studyGuide.error = result.error
-            return { type: 'studyGuide', success: false, error: result.error }
+            const errorText = await res.text()
+            console.error('❌ Failed to generate study guide:', errorText)
+            parallelResults.studyGuide.error = errorText
+            return { type: 'studyGuide', success: false, error: errorText }
           }
         } catch (error: any) {
           console.error('💥 Exception during study guide generation:', error)
@@ -139,23 +158,24 @@ export async function POST(
         }
       })(),
 
-      // Generate practice quiz
+      // Generate practice quiz using library function
       (async () => {
         try {
           const result = await generatePracticeQuiz({
-            documentId: id,
-            nodeIds,
-            userId
+            documentIds: [id],
+            userId,
+            difficulty: 'normal',
+            questionCount: 10,
+            questionTypes: { multipleChoice: true, shortAnswer: false, trueFalse: false },
+            userAssessmentData: assessmentData
           })
-          
+
           if (result.success) {
             console.log('🎯 Practice quiz generated successfully')
             parallelResults.practiceQuiz.success = true
             return { type: 'practiceQuiz', success: true, result }
           } else {
-            console.error('❌ Failed to generate practice quiz:', {
-              error: result.error
-            })
+            console.error('❌ Failed to generate practice quiz:', result.error)
             parallelResults.practiceQuiz.error = result.error
             return { type: 'practiceQuiz', success: false, error: result.error }
           }

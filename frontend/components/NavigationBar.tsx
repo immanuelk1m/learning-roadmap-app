@@ -480,13 +480,14 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <div className="text-[13px] font-semibold text-gray-900 truncate">{displayName}</div>
+                  </div>
+                  <div className="text-[12px] text-gray-500 truncate">
                     {isPro ? (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold">PRO</span>
                     ) : (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 text-[10px] font-semibold">STARTER</span>
                     )}
                   </div>
-                  <div className="text-[12px] text-gray-500 truncate">{account?.email || user?.email}</div>
                 </div>
                 <svg className="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
