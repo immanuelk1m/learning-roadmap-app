@@ -65,17 +65,16 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
   }
 
 
-  const getNodeStatus = (nodeId: string): 'known' | 'unknown' => {
+  const getNodeLevel = (nodeId: string): number => {
     const level = userStatus.find(s => s.node_id === nodeId)?.understanding_level
-    if (level === undefined) return 'unknown'
-    if (level >= 70) return 'known'  // Changed from 50 to 70 to match assessment scoring
-    return 'unknown'
+    return level === undefined || level === null ? 0 : level
   }
 
   const renderNode = (node: KnowledgeNodeWithChildren, depth: number = 0) => {
     const hasChildren = node.children.length > 0
     const isExpanded = expandedNodes.has(node.id)
-    const status = getNodeStatus(node.id)
+    const level = getNodeLevel(node.id)
+    const status: 'known' | 'unknown' = level >= 70 ? 'known' : 'unknown'
 
     // Calculate indentation based on depth
     const indentWidth = depth * 32 // 32px per level
@@ -160,7 +159,7 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
                     status === 'known' ? 'bg-green-500 text-white' :
                     'bg-red-500 text-white'
                   }`}>
-                    {status === 'known' ? '✓ 아는 개념' : '✗ 모르는 개념'}
+                    이해도 : {level}
                   </div>
                 </div>
               </div>
