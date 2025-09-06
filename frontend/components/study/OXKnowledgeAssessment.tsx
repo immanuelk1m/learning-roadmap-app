@@ -314,69 +314,30 @@ export default function OXKnowledgeAssessment({
         }
       })
 
-      // Mark assessment as completed and auto-generate study guide
-      // Note: complete-assessment API already handles study guide generation internally
-      setIsGeneratingStudyGuide(true)
-      
-      try {
-        assessmentLogger.info('Completing assessment and generating study guide', {
-          correlationId,
-          documentId,
-          metadata: {
-            knownCount,
-            unknownCount
-          }
-        })
-        
-        const response = await fetch(`/api/documents/${documentId}/complete-assessment`, {
-          method: 'POST'
-        })
-        
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.warn('Failed to complete assessment:', errorText)
-          assessmentLogger.warn('Failed to complete assessment', {
-            correlationId,
-            documentId,
-            error: errorText
-          })
-          toast.error('생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
-          return // 이동 차단
-        } else {
-          const result = await response.json()
-          assessmentLogger.info('Assessment completed and study guide generated successfully', {
-            correlationId,
-            documentId,
-            stats: result.stats
-          })
-          
-          // Enforce both generations success on client side as well
-          const bothOk = !!(result?.success && result?.stats?.studyGuideGenerated && result?.stats?.hasQuizQuestions)
-          if (!bothOk) {
-            const reasons = result?.stats?.failureReasons?.join(', ') || '알 수 없는 원인'
-            toast.error(`생성에 실패했습니다 (${reasons}). 잠시 후 다시 시도해주세요.`)
-            return // 이동 차단
-          }
+      // 평가 완료 후 생성은 백그라운드로 트리거하고 즉시 과목 페이지로 이동
+      assessmentLogger.info('Completing assessment and triggering background generation', {
+        correlationId,
+        documentId,
+        metadata: {
+          knownCount,
+          unknownCount
         }
-      } catch (error: any) {
-        console.warn('Error completing assessment:', error)
-        assessmentLogger.error('Error completing assessment', {
-          correlationId,
-          documentId,
-          error,
-          metadata: {
-            errorType: error.name,
-            errorMessage: error.message
+      })
+      void fetch(`/api/documents/${documentId}/complete-assessment`, { method: 'POST' })
+        .then(async (res) => {
+          if (!res.ok) {
+            const txt = await res.text()
+            assessmentLogger.warn('Background generation failed', { correlationId, documentId, error: txt })
+          } else {
+            const result = await res.json().catch(() => null)
+            assessmentLogger.info('Background generation completed', { correlationId, documentId, stats: result?.stats })
           }
         })
-      } finally {
-        setIsGeneratingStudyGuide(false)
-      }
-      
-      // Add a small delay to ensure database writes are complete
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      router.push(`/subjects/${subjectId}/study?doc=${documentId}`)
+        .catch((err) => {
+          assessmentLogger.error('Background generation exception', { correlationId, documentId, error: err?.message })
+        })
+
+      router.push(`/subjects/${subjectId}`)
     } catch (error: any) {
       const saveDuration = saveTimer()
       assessmentLogger.error('Exception while saving assessments', {
@@ -559,31 +520,7 @@ export default function OXKnowledgeAssessment({
         </div>
       </div>
 
-      {(isSubmitting || isGeneratingStudyGuide) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
-            <div className="space-y-4">
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {isGeneratingStudyGuide ? '퀵노트 생성 중...' : '평가 결과 저장 중...'}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {isGeneratingStudyGuide 
-                    ? '학습 전 배경지식 체크 결과를 바탕으로 개인 맞춤 퀵노트를 생성하고 있습니다.'
-                    : '평가 결과를 저장하고 있습니다.'
-                  }
-                </p>
-                <p className="text-xs text-gray-500">
-                  잠시만 기다려주세요...
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 모달 제거: 과목 페이지로 즉시 이동하여 스켈레톤 표시 */}
     </div>
   )
 }
