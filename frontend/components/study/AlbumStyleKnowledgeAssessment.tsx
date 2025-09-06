@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
@@ -34,6 +34,7 @@ interface NodeCardProps {
   onToggleSelection: () => void
   onToggleExpansion: () => void
   level: number
+  containerRef?: React.Ref<HTMLDivElement>
 }
 
 function NodeCard({ 
@@ -44,7 +45,8 @@ function NodeCard({
   isSelectable,
   onToggleSelection,
   onToggleExpansion,
-  level
+  level,
+  containerRef
 }: NodeCardProps) {
   // 모든 카드 컨테이너 동일 사이즈
   const sizeClass = 'w-56 h-36'
@@ -79,9 +81,10 @@ function NodeCard({
   return (
     <div 
       className={`${sizeClass} animate-slideIn`}
+      ref={containerRef}
     >
       <div 
-        className={`relative ${bgClass} rounded-xl border-3 transition-all ${cursorClass} hover:shadow-lg h-full ${borderClass}`}
+        className={`relative ${bgClass} rounded-xl border transition-all ${cursorClass} hover:shadow-lg h-full ${borderClass}`}
         onClick={() => {
           if (hasChildren) {
             onToggleExpansion()
@@ -181,7 +184,7 @@ export default function AlbumStyleKnowledgeAssessment({
     })
   }
 
-  // 렌더링할 모든 노드들을 평면 배열로 생성
+  // 렌더링할 모든 노드들을 평면 배열로 생성 (앨범형 유지)
   const renderNodes = useMemo(() => {
     const result: { node: KnowledgeNode; key: string }[] = []
     
@@ -224,6 +227,48 @@ export default function AlbumStyleKnowledgeAssessment({
     
     return result
   }, [level1Nodes, nodes, expandedNodes])
+
+  // 연결선(SVG) 계산을 위한 레퍼런스 수집
+  const containerRef = useRef<HTMLDivElement>(null)
+  const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const [lines, setLines] = useState<{ fromId: string; toId: string; x1: number; y1: number; x2: number; y2: number }[]>([])
+
+  useEffect(() => {
+    const computeLines = () => {
+      const container = containerRef.current
+      if (!container) return
+      const containerRect = container.getBoundingClientRect()
+
+      const visibleIds = new Set(renderNodes.map(r => r.node.id))
+      const newLines: { fromId: string; toId: string; x1: number; y1: number; x2: number; y2: number }[] = []
+
+      // Level 3 -> Level 2 부모로 연결
+      renderNodes.forEach(({ node }) => {
+        if (node.level !== 3 || !node.parent_id) return
+        if (!visibleIds.has(node.parent_id)) return
+
+        const fromEl = nodeRefs.current.get(node.parent_id)
+        const toEl = nodeRefs.current.get(node.id)
+        if (!fromEl || !toEl) return
+
+        const fromRect = fromEl.getBoundingClientRect()
+        const toRect = toEl.getBoundingClientRect()
+
+        const x1 = fromRect.left - containerRect.left + fromRect.width / 2
+        const y1 = fromRect.top - containerRect.top + fromRect.height / 2
+        const x2 = toRect.left - containerRect.left + toRect.width / 2
+        const y2 = toRect.top - containerRect.top + toRect.height / 2
+
+        newLines.push({ fromId: node.parent_id, toId: node.id, x1, y1, x2, y2 })
+      })
+
+      setLines(newLines)
+    }
+
+    computeLines()
+    window.addEventListener('resize', computeLines)
+    return () => window.removeEventListener('resize', computeLines)
+  }, [renderNodes])
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
@@ -376,7 +421,24 @@ export default function AlbumStyleKnowledgeAssessment({
       </div>
 
       {/* 앨범 형태 노드 그리드 */}
-      <div className="mb-8">
+      <div className="mb-8 relative" ref={containerRef}>
+        {/* 연결선 SVG 오버레이 */}
+        <svg className="pointer-events-none absolute inset-0 w-full h-full">
+          {lines.map(line => (
+            <line
+              key={`${line.fromId}-${line.toId}`}
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
+              stroke="#cbd5e1" /* slate-300 */
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          ))}
+        </svg>
+
+        {/* 앨범형 그리드 */}
         <div className="flex flex-wrap gap-4 justify-start px-2">
           {renderNodes.map(({ node, key }) => {
             const childNodes = nodes.filter(n => n.parent_id === node.id)
@@ -400,6 +462,14 @@ export default function AlbumStyleKnowledgeAssessment({
                 onToggleSelection={() => toggleNodeSelection(node.id)}
                 onToggleExpansion={() => toggleNodeExpansion(node.id)}
                 level={node.level}
+                containerRef={(el) => {
+                  const map = nodeRefs.current
+                  if (el) {
+                    map.set(node.id, el)
+                  } else {
+                    map.delete(node.id)
+                  }
+                }}
               />
             )
           })}
