@@ -362,3 +362,35 @@ export async function withRetry<T>(
   // This line should not be reachable, but is required for TypeScript
   throw new Error('Exited retry loop unexpectedly.')
 }
+
+/**
+ * Run an async operation with explicit custom backoff delays.
+ * Example: delaysMs=[16000, 64000, 128000] will retry up to 3 times with those waits.
+ * The total attempts = delaysMs.length + 1 (initial + retries).
+ */
+export async function withCustomBackoff<T>(
+  asyncFn: () => Promise<T>,
+  delaysMs: number[]
+): Promise<T> {
+  let attempt = 0
+  const totalAttempts = delaysMs.length + 1
+  while (attempt < totalAttempts) {
+    try {
+      geminiLogger.info(`Attempting operation (attempt ${attempt + 1}/${totalAttempts})...`)
+      return await asyncFn()
+    } catch (error: any) {
+      attempt++
+      if (attempt >= totalAttempts) {
+        geminiLogger.error('All attempts failed for withCustomBackoff. Rethrowing error.', { error })
+        throw error
+      }
+      const delay = delaysMs[attempt - 1]
+      geminiLogger.warn(`Attempt ${attempt} failed. Waiting ${delay}ms before retry.`, {
+        error: error?.message,
+        status: error?.status
+      })
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+  throw new Error('Exited custom backoff loop unexpectedly.')
+}

@@ -44,7 +44,7 @@ This document lists all the defined screens (pages) in the frontend application.
     *   새로운 과목을 생성할 수 있는 버튼을 제공합니다.
     *   과목이 없을 경우, 과목 생성을 유도하는 안내 메시지를 보여줍니다.
 
-*   `/subjects/[id]`
+*   
     *   **과목 상세 페이지**
     *   특정 과목에 대한 모든 정보를 종합적으로 보여주는 대시보드입니다.
     *   상단에는 과목 이름, 설명, D-day가 표시됩니다.

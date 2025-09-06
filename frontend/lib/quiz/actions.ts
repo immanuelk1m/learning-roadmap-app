@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 import { geminiQuizModel } from '@/lib/gemini/client'
 import { EXTENDED_QUIZ_GENERATION_PROMPT } from '@/lib/gemini/prompts'
-import { parseGeminiResponse, withRetry } from '@/lib/gemini/utils'
+import { parseGeminiResponse, withRetry, withCustomBackoff } from '@/lib/gemini/utils'
 
 type DifficultyLevel = 'very_easy' | 'easy' | 'normal' | 'hard' | 'very_hard'
 
@@ -173,12 +173,12 @@ ${documentNodes.map((node) => `- ID: ${node.id}
   레벨: ${node.level}`).join('\n\n')}
 ` : ''}
 `
-      const result = await withRetry(async () => {
+      const result = await withCustomBackoff(async () => {
         return await geminiQuizModel.generateContent([
           { inlineData: { mimeType: 'application/pdf', data: base64Data } },
           { text: prompt },
         ])
-      })
+      }, [16000, 64000, 128000])
 
       const response = result.response.text()
       

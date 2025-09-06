@@ -108,8 +108,11 @@ export async function POST(
 
     // Start parallel generation of study guide and practice quiz
     const parallelStartTime = Date.now()
-    const parallelResults = {
-      studyGuide: { success: false, error: null },
+    const parallelResults: {
+      studyGuide: { success: boolean; error: string | null; pagesCount: number }
+      practiceQuiz: { success: boolean; error: string | null }
+    } = {
+      studyGuide: { success: false, error: null, pagesCount: 0 },
       practiceQuiz: { success: false, error: null }
     }
     
@@ -141,10 +144,20 @@ export async function POST(
           })
 
           if (res.ok) {
-            console.log('📚 Study guide generated successfully')
-            parallelResults.studyGuide.success = true
             const result = await res.json()
-            return { type: 'studyGuide', success: true, result }
+            const pagesCount = Number(result?.pagesCount || 0)
+            const generatedOk = !!(result?.success && pagesCount > 0)
+            if (generatedOk) {
+              console.log('📚 Study guide generated successfully with pages:', pagesCount)
+              parallelResults.studyGuide.success = true
+              parallelResults.studyGuide.pagesCount = pagesCount
+              return { type: 'studyGuide', success: true, result }
+            } else {
+              const errorText = `Study guide generation incomplete or empty pages (pagesCount=${pagesCount})`
+              console.error('❌ Failed to generate study guide pages:', errorText)
+              parallelResults.studyGuide.error = errorText
+              return { type: 'studyGuide', success: false, error: errorText }
+            }
           } else {
             const errorText = await res.text()
             console.error('❌ Failed to generate study guide:', errorText)
@@ -202,19 +215,35 @@ export async function POST(
       }
     })
 
-    // Check for critical failures
+    // Enforce both generations success (study_guide_pages AND quiz with questions)
     let hasQuizQuestions = false
     if (parallelPromises[1].status === 'fulfilled' && parallelPromises[1].value.success) {
       const quizResult = (parallelPromises[1].value as any).result
       hasQuizQuestions = quizResult?.questionsGenerated > 0
     }
 
-    if (!parallelResults.studyGuide.success && !parallelResults.practiceQuiz.success) {
-      console.error('🚨 CRITICAL: Both study guide and practice quiz generation failed!')
-    } else if (!parallelResults.practiceQuiz.success || !hasQuizQuestions) {
-      console.error('⚠️ WARNING: Practice quiz generation failed or no questions created. User may see loading screen.')
-    } else if (!parallelResults.studyGuide.success) {
-      console.error('⚠️ WARNING: Study guide generation failed. User will have limited study materials.')
+    const bothOk = parallelResults.studyGuide.success && (parallelResults.practiceQuiz.success && hasQuizQuestions)
+
+    if (!bothOk) {
+      const failureReasons: string[] = []
+      if (!parallelResults.studyGuide.success) failureReasons.push('study_guide_pages')
+      if (!parallelResults.practiceQuiz.success || !hasQuizQuestions) failureReasons.push('quiz_items/quiz_sets')
+      console.error('🚫 Blocking progression due to failed generations:', failureReasons)
+      return NextResponse.json({
+        success: false,
+        message: 'Generation failed. Both study guide pages and quiz must be created before proceeding.',
+        stats: {
+          totalNodes: nodeIds.length,
+          weakNodes: weakNodes.length,
+          strongNodes: strongNodes.length,
+          studyGuideGenerated: parallelResults.studyGuide.success,
+          pagesCount: parallelResults.studyGuide.pagesCount,
+          quizGenerated: parallelResults.practiceQuiz.success && hasQuizQuestions,
+          hasQuizQuestions,
+          parallelDuration: `${parallelDuration}ms`,
+          failureReasons
+        }
+      }, { status: 500 })
     }
 
     return NextResponse.json({ 
@@ -224,9 +253,10 @@ export async function POST(
         totalNodes: nodeIds.length,
         weakNodes: weakNodes.length,
         strongNodes: strongNodes.length,
-        studyGuideGenerated: parallelResults.studyGuide.success,
-        quizGenerated: parallelResults.practiceQuiz.success && hasQuizQuestions,
-        hasQuizQuestions,
+        studyGuideGenerated: true,
+        pagesCount: parallelResults.studyGuide.pagesCount,
+        quizGenerated: true,
+        hasQuizQuestions: true,
         parallelDuration: `${parallelDuration}ms`
       }
     })

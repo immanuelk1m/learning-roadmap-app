@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { geminiStudyGuidePageModel, prepareFileData } from '@/lib/gemini/client'
 import { StudyGuidePageResponse } from '@/lib/gemini/schemas'
 import { STUDY_GUIDE_PAGE_PROMPT } from '@/lib/gemini/prompts'
-import { parseGeminiResponse, validateResponseStructure, withRetry } from '@/lib/gemini/utils'
+import { parseGeminiResponse, validateResponseStructure, withRetry, withCustomBackoff } from '@/lib/gemini/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -165,13 +165,13 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
 
     const prompt = `${STUDY_GUIDE_PAGE_PROMPT}\n${studyGuideContext}${assessmentContext}`
 
-    // Add retry logic for Gemini API calls
-    const result = await withRetry(async () => {
+    // Add retry logic for Gemini API calls with custom backoff (16s -> 64s -> 128s)
+    const result = await withCustomBackoff(async () => {
       return await geminiStudyGuidePageModel.generateContent([
         { inlineData: fileDataPart.inlineData },
         { text: prompt },
       ])
-    })
+    }, [16000, 64000, 128000])
     
     // Gemini API response structure handling - result.text is a getter property
     const responseText = result.response.text()
@@ -282,7 +282,10 @@ ${knownConcepts.map(c => `- ${c.name}: ${c.description}`).join('\n')}
 
       if (pagesError) {
         console.error('Error saving study guide pages:', pagesError)
-        // Don't fail the whole operation if pages fail to save
+        return NextResponse.json(
+          { error: 'Failed to save study guide pages' },
+          { status: 500 }
+        )
       } else {
         console.log(`Successfully saved ${pagesData.length} study guide pages`)
       }

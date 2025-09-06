@@ -340,6 +340,8 @@ export default function OXKnowledgeAssessment({
             documentId,
             error: errorText
           })
+          toast.error('생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
+          return // 이동 차단
         } else {
           const result = await response.json()
           assessmentLogger.info('Assessment completed and study guide generated successfully', {
@@ -348,10 +350,12 @@ export default function OXKnowledgeAssessment({
             stats: result.stats
           })
           
-          // Check if quiz generation failed
-          if (!result.stats?.hasQuizQuestions) {
-            console.warn('퀴즈 생성 실패 - 퀴즈 없이 진행합니다')
-            toast.warning('퀴즈 생성에 실패했습니다. 학습 가이드만 이용하실 수 있습니다.')
+          // Enforce both generations success on client side as well
+          const bothOk = !!(result?.success && result?.stats?.studyGuideGenerated && result?.stats?.hasQuizQuestions)
+          if (!bothOk) {
+            const reasons = result?.stats?.failureReasons?.join(', ') || '알 수 없는 원인'
+            toast.error(`생성에 실패했습니다 (${reasons}). 잠시 후 다시 시도해주세요.`)
+            return // 이동 차단
           }
         }
       } catch (error: any) {
