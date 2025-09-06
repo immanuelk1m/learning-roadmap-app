@@ -34,6 +34,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   const displayName = account?.name || baseName || '게스트'
   const avatarUrl = account?.avatar_url ||
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture || user?.user_metadata?.profile_image || null
+  const [inviteLoaded, setInviteLoaded] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -62,6 +63,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
   // Invite codes load helper
   const loadInviteCodes = async () => {
     try {
+      setInviteLoaded(false)
       setInviteLoading(true)
       const res = await fetch('/api/invite/my', { cache: 'no-store' })
       if (!res.ok) throw new Error('failed')
@@ -73,12 +75,13 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       setAvailableSlots(0)
     } finally {
       setInviteLoading(false)
+      setInviteLoaded(true)
     }
   }
 
   const handleOpenInviteModal = async () => {
-    setInviteModalOpen(true)
     await loadInviteCodes()
+    setInviteModalOpen(true)
   }
 
   const handleCreateInviteCode = async () => {
@@ -182,6 +185,13 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
       listener.subscription.unsubscribe()
     }
   }, [])
+
+  // Prefetch invite codes when user becomes available to avoid indicator flicker
+  useEffect(() => {
+    if (user) {
+      loadInviteCodes()
+    }
+  }, [user])
 
   // Load extended account info from auth.users via server API
   useEffect(() => {
@@ -460,7 +470,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             <div className="relative">
               <button
                 className="w-full flex items-center gap-3 hover:bg-gray-50 rounded-md p-2 text-left"
-                onClick={async () => { const next = !userMenuOpen; setUserMenuOpen(next); if (next) { await loadInviteCodes() } }}
+                onClick={async () => { const next = !userMenuOpen; if (next) { await loadInviteCodes() } setUserMenuOpen(next); }}
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
               >
@@ -505,8 +515,8 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
                   >
                     <span>친구 초대</span>
                     <span className="inline-flex items-center gap-2">
-                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${usableInviteCount > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />
-                      <span className="text-[11px] text-gray-500">{usableInviteCount > 0 ? '사용 가능' : '사용 불가능'}</span>
+                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${!inviteLoaded ? 'bg-gray-300' : (usableInviteCount > 0 ? 'bg-blue-500' : 'bg-red-500')}`} />
+                      <span className="text-[11px] text-gray-500">{!inviteLoaded ? '확인 중' : (usableInviteCount > 0 ? '사용 가능' : '사용 불가능')}</span>
                     </span>
                   </button>
                   <Link
@@ -540,30 +550,19 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-sm font-semibold border border-gray-200">
-                  ?
-                </div>
-                <div>
-                  <div className="text-[13px] font-semibold text-gray-900">로그인이 필요합니다</div>
-                  <div className="text-[12px] text-gray-500">계정으로 시작하세요</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleGoogleLogin}
-                  className="px-2.5 py-1 text-[12px] rounded-md bg-[#2f332f] text-white hover:bg-black"
-                >
-                  로그인
-                </button>
-                <button
-                  onClick={handleGoogleSignup}
-                  className="px-2.5 py-1 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-                >
-                  회원가입
-                </button>
-              </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full px-2.5 py-2 text-[12px] rounded-md bg-[#2f332f] text-white hover:bg-black"
+              >
+                로그인
+              </button>
+              <button
+                onClick={handleGoogleSignup}
+                className="w-full px-2.5 py-2 text-[12px] rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                회원가입
+              </button>
             </div>
           )}
         </div>
@@ -593,7 +592,7 @@ export default function NavigationBar({ isOpen, setIsOpen }: NavigationBarProps)
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-600">보유 코드:
                 <span className="ml-2 inline-flex items-center gap-2">
-                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${usableInviteCount > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />
+                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${!inviteLoaded ? 'bg-gray-300' : (usableInviteCount > 0 ? 'bg-blue-500' : 'bg-red-500')}`} />
                   <span className="text-gray-800 font-medium">{Math.max(5 - availableSlots, 0)} / 5</span>
                 </span>
               </div>
