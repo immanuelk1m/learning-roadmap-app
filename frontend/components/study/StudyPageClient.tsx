@@ -134,9 +134,9 @@ export default function StudyPageClient({
       <div className="h-full overflow-auto bg-white">
         <div className="p-4">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            {/* <h2 className="text-lg font-semibold text-gray-900 mb-2">
               개념 트리
-            </h2>
+            </h2> */}
             {/* 개념 카운트 표시 제거 */}
           </div>
           {knowledgeNodes && knowledgeNodes.length > 0 ? (
@@ -250,9 +250,9 @@ export default function StudyPageClient({
               <div className="h-full overflow-auto">
                 <div className="p-6">
                   <div className="mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-3">
+                    {/* <h2 className="text-xl font-semibold text-gray-900 mb-3">
                       개념 트리
-                    </h2>
+                    </h2> */}
                     {/* 개념 카운트 표시 제거 */}
                   </div>
                   {knowledgeNodes && knowledgeNodes.length > 0 ? (
