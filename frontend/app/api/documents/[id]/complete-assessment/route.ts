@@ -89,71 +89,48 @@ export async function POST(
       timestamp: new Date().toISOString()
     })
 
+    // Update understanding_level to 50 for all knowledge nodes
+    console.log('🎯 Setting understanding_level to 50 for all knowledge nodes...')
+    const { error: updateError } = await supabase
+      .from('knowledge_nodes')
+      .update({ understanding_level: 50 })
+      .in('id', nodeIds)
+
+    if (updateError) {
+      console.error('❌ Failed to update understanding_level:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to update knowledge nodes understanding level' },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ Successfully set understanding_level to 50 for', nodeIds.length, 'knowledge nodes')
+
+    // Start parallel generation of study guide and practice quiz
     const parallelStartTime = Date.now()
     const parallelResults = {
-      studyGuide: { success: false, error: null as any },
-      practiceQuiz: { success: false, error: null as any }
+      studyGuide: { success: false, error: null },
+      practiceQuiz: { success: false, error: null }
     }
 
-    // Prepare assessment data for both generations
-    const assessmentData = {
-      weakNodeIds: weakNodes.map(node => node.id),
-      strongNodeIds: strongNodes.map(node => node.id),
-      assessmentResults: assessmentResults
-        ?.filter(result => result.understanding_level !== null)
-        .map(result => ({
-          nodeId: result.id,
-          understandingLevel: result.understanding_level as number,
-          assessmentMethod: result.assessment_method as string
-        })) || []
-    }
-
-    // Execute Study Guide and Practice Quiz generation in parallel
     const parallelPromises = await Promise.allSettled([
-      // 1️⃣ Study Guide Generation (Based on understanding levels)
+      // Generate study guide
       (async () => {
         try {
-          console.log('📚 Starting Study Guide generation...')
-          const studyStartTime = Date.now()
+          const result = await generateStudyGuide({
+            documentId: id,
+            nodeIds,
+            userId
+          })
           
-          // Fix URL for production environment
-          const baseUrl = process.env.NODE_ENV === 'production' 
-            ? 'https://mystduy.vercel.app'
-            : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003')
-          
-          const studyGuideResponse = await fetch(
-            `${baseUrl}/api/study-guide/generate`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-assessment-based': 'true'
-              },
-              body: JSON.stringify({
-                documentId: id,
-                userId: userId,
-                assessmentData // Pass assessment results for customized generation
-              })
-            }
-          )
-
-          if (studyGuideResponse.ok) {
-            const result = await studyGuideResponse.json()
-            console.log('✅ Study guide generated successfully:', {
-              documentId: id,
-              studyGuideId: result.studyGuide?.id,
-              duration: `${Date.now() - studyStartTime}ms`
-            })
+          if (result.success) {
+            console.log('📚 Study guide generated successfully')
             parallelResults.studyGuide.success = true
             return { type: 'studyGuide', success: true, result }
           } else {
-            const errorText = await studyGuideResponse.text()
-            console.error('❌ Failed to generate study guide:', {
-              status: studyGuideResponse.status,
-              error: errorText
-            })
-            parallelResults.studyGuide.error = errorText
-            return { type: 'studyGuide', success: false, error: errorText }
+            console.error('❌ Failed to generate study guide:', result.error)
+            parallelResults.studyGuide.error = result.error
+            return { type: 'studyGuide', success: false, error: result.error }
           }
         } catch (error: any) {
           console.error('💥 Exception during study guide generation:', error)
@@ -162,41 +139,17 @@ export async function POST(
         }
       })(),
 
-      // 2️⃣ Practice Quiz Generation (Customized based on weak nodes)
+      // Generate practice quiz
       (async () => {
-        if (nodeIds.length === 0) {
-          console.log('⚠️ No nodes available for quiz generation')
-          return { type: 'practiceQuiz', success: false, error: 'No nodes available' }
-        }
-
         try {
-          console.log('📝 Starting Practice Quiz generation (direct function call)...')
-          const quizStartTime = Date.now()
-
           const result = await generatePracticeQuiz({
-            documentIds: [id],
-            userId: userId,
-            difficulty: 'normal',
-            questionCount: 10,
-            questionTypes: {
-              multipleChoice: true,
-              shortAnswer: false,
-              trueFalse: false
-            },
-            userAssessmentData: assessmentData
+            documentId: id,
+            nodeIds,
+            userId
           })
-
+          
           if (result.success) {
-            console.log('✅ Practice quiz generated successfully:', {
-              documentId: id,
-              questionsGenerated: result.questionsGenerated,
-              duration: `${Date.now() - quizStartTime}ms`
-            })
-            
-            if (result.questionsGenerated === 0) {
-              console.error('⚠️ Quiz generation succeeded but 0 questions were created')
-            }
-            
+            console.log('🎯 Practice quiz generated successfully')
             parallelResults.practiceQuiz.success = true
             return { type: 'practiceQuiz', success: true, result }
           } else {
