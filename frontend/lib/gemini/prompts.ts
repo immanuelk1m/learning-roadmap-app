@@ -419,3 +419,4 @@ export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 
     }
   ]
 }
+`

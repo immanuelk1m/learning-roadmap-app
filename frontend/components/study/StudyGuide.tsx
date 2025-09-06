@@ -356,7 +356,7 @@ export default function StudyGuide({ documentId, userId }: StudyGuideProps) {
                 pageTitle={page.page_title}
                 pageContent={page.page_content}
                 keyConcepts={page.key_concepts}
-                isExpanded={index === 0} // Expand first page by default
+                isExpanded={true}
               />
             ))}
           </div>
