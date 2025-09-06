@@ -394,7 +394,7 @@ export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 
 
 ### 3. 각 페이지별 포함 내용
 - **page_number**: 페이지 번호 (1부터 시작)
-- **page_title**: "1페이지: [주요 주제]" 형식
+- **page_title**: 페이지의 주요 주제만 포함 (예: "GenAI 도입 현황과 과제")
 - **page_content**: 
   - 학습자 수준에 맞춘 맞춤형 설명 (1000자 이내)
   - 알고 있는 내용은 간략히, 모르는 내용은 상세히
@@ -411,11 +411,11 @@ export const STUDY_GUIDE_PAGE_PROMPT = `당신은 대학생을 위한 맞춤형 
   "pages": [
     {
       "page_number": 1,
-      "page_title": "1페이지: GenAI 도입 현황과 과제",
+      "page_title": "GenAI 도입 현황과 과제",
       "page_content": "GenAI Divide 개념을 소개함. 학습자는 이미 GenAI의 기본 개념을 이해하고 있으므로, 간단히 복습하고 넘어감... (모르는 개념은 비유를 들어 상세히 설명)",
       "key_concepts": ["GenAI Divide", "도입률", "변혁 격차"],
       "difficulty_level": "medium",
       "learning_objectives": ["GenAI 도입과 실제 변혁의 차이 이해", "Pilot-to-Production 과제 파악"]
     }
   ]
-}`
+}

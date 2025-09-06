@@ -74,31 +74,12 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
     const hasChildren = node.children.length > 0
     const isExpanded = expandedNodes.has(node.id)
     const level = getNodeLevel(node.id)
-    const status: 'known' | 'unknown' = level >= 70 ? 'known' : 'unknown'
 
     // Calculate indentation based on depth
     const indentWidth = depth * 32 // 32px per level
     const isRootLevel = depth === 0
 
-    // Modern green and red color scheme with depth-based styling
-    const getNodeStyles = () => {
-      const baseStyles = {
-        known: 'bg-green-50 border-green-300 text-green-900',
-        unknown: 'bg-red-50 border-red-300 text-red-900'
-      }
-
-      // Root level nodes get same styling as other levels
-      if (isRootLevel) {
-        return {
-          known: 'bg-green-50 border-green-300 text-green-900',
-          unknown: 'bg-red-50 border-red-300 text-red-900'
-        }
-      }
-
-      return baseStyles
-    }
-
-    const statusStyles = getNodeStyles()
+    // Use neutral styling for all cards (remove red/green logic)
 
     return (
       <div key={node.id} className="relative">
@@ -115,9 +96,7 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
         )}
 
         <div
-          className={`relative flex items-start p-4 rounded-lg border-2 transition-all duration-200 mb-3 ${
-            statusStyles[status]
-          } ${isRootLevel ? 'shadow-sm' : 'shadow-xs'}`}
+          className={`relative flex items-start p-4 rounded-lg border-2 transition-all duration-200 mb-3 bg-white border-neutral-200 text-neutral-900 ${isRootLevel ? 'shadow-sm' : 'shadow-xs'}`}
           style={{ marginLeft: `${indentWidth}px` }}
         >
           {/* Expand/Collapse button */}
@@ -155,10 +134,7 @@ export default function KnowledgeTreeView({ nodes, userStatus, documentId }: Kno
                     </p>
                   </div>
                   {/* Status indicator */}
-                  <div className={`ml-4 px-3 py-1 rounded-full text-xs font-medium ${
-                    status === 'known' ? 'bg-green-500 text-white' :
-                    'bg-red-500 text-white'
-                  }`}>
+                  <div className={`ml-4 px-3 py-1 rounded-full text-xs font-semibold bg-[#2f332f] text-[#2ce477]`}>
                     이해도 : {level}
                   </div>
                 </div>
