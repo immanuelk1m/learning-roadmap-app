@@ -27,7 +27,7 @@ const MATERIAL_OPTIONS: { label: string, value: Material }[] = [
 export default function OnboardingWizard() {
   const supabase = createClient()
   const router = useRouter()
-  const [step, setStep] = useState<'survey1'|'survey2'|'survey3'|'createSubject'|'upload'>('survey1')
+  const [step, setStep] = useState<'invite'|'survey1'|'survey2'|'survey3'|'createSubject'|'upload'>('invite')
 
   // survey answers
   const [preferredSubject, setPreferredSubject] = useState<string>('')
@@ -194,12 +194,12 @@ export default function OnboardingWizard() {
 
   const renderStepIndicator = (activeIndex: number) => (
     <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-6">
-      {[1,2,3].map((n, idx) => (
+      {[1,2,3,4].map((n, idx) => (
         <div key={n} className="flex items-center">
           <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
             idx <= activeIndex ? 'bg-[#2f332f] text-[#2ce477]' : 'bg-gray-200 text-gray-700'
           }`}>{n}</span>
-          {idx < 2 && <span className="mx-2 w-8 h-[2px] bg-gray-200" />}
+          {idx < 3 && <span className="mx-2 w-8 h-[2px] bg-gray-200" />}
         </div>
       ))}
     </div>
@@ -251,17 +251,17 @@ export default function OnboardingWizard() {
     )
   }
 
-  // survey steps
-  const stepIndex = step === 'survey1' ? 0 : step === 'survey2' ? 1 : 2
+  // steps: 1) invite, 2) survey1, 3) survey2, 4) survey3
+  const showIndicator = step === 'invite' || step === 'survey1' || step === 'survey2' || step === 'survey3'
+  const stepIndex = step === 'invite' ? 0 : step === 'survey1' ? 1 : step === 'survey2' ? 2 : 3
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
-      {renderStepIndicator(stepIndex)}
-      {step === 'survey1' && (
+      {showIndicator && renderStepIndicator(stepIndex)}
+      {step === 'invite' && (
         <div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">어떤 과목을 주로 공부하시나요?</h1>
-          <p className="text-sm text-gray-600 mb-5 text-center">관심 분야를 알려주시면 추천과 화면 구성을 맞춰드려요.</p>
-          {/* Invite code input at the very top of first screen */}
+          <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">초대 코드가 있으신가요?</h1>
+          <p className="text-sm text-gray-600 mb-5 text-center">있다면 입력하고 확인을 눌러 혜택을 활성화하세요. 없으면 건너뛰셔도 됩니다.</p>
           <div className="mb-4 flex items-center gap-2 justify-center">
             <input
               type="text"
@@ -288,6 +288,17 @@ export default function OnboardingWizard() {
               </span>
             )}
           </div>
+          <div className="mt-6 flex justify-end">
+            <div className="flex gap-2">
+              <button type="button" onClick={()=>setStep('survey1')} className="px-4 py-2 bg-[#2f332f] text-[#2ce477] rounded-lg">다음</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {step === 'survey1' && (
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">어떤 과목을 주로 공부하시나요?</h1>
+          <p className="text-sm text-gray-600 mb-5 text-center">관심 분야를 알려주시면 추천과 화면 구성을 맞춰드려요.</p>
           <div className="flex flex-wrap justify-center gap-2 mb-4">
             {SUBJECT_SUGGESTIONS.map(s => (
               <button
